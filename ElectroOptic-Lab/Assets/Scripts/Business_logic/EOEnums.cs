@@ -1,18 +1,15 @@
 namespace ElectroOptics
 {
-    /// <summary>
-    /// 光传播方向 (通光轴)
-    /// </summary>
+    // 保持不变，用于 UI 下拉菜单
     public enum PropagationAxis
     {
         X_Axis = 0,
         Y_Axis = 1,
-        Z_Axis = 2
+        Z_Axis = 2,
+        Custom = 99 // 预留给未来可能的自定义模式
     }
 
-    /// <summary>
-    /// 电场施加方向 (晶体切型/电极方向)
-    /// </summary>
+    // 保持不变，用于 UI 下拉菜单
     public enum ElectricFieldAxis
     {
         X_Axis = 0,
@@ -20,19 +17,10 @@ namespace ElectroOptics
         Z_Axis = 2
     }
 
-    /// <summary>
-    /// 调制模式
-    /// </summary>
+    // 保持不变，用于决定 E = V/d 还是 V/L
     public enum ModulationMode
     {
-        /// <summary>
-        /// 横向调制 (Transverse): 电场垂直于光路 (E = V/d)
-        /// </summary>
-        Transverse = 0,
-
-        /// <summary>
-        /// 纵向调制 (Longitudinal): 电场平行于光路 (E = V/L)
-        /// </summary>
-        Longitudinal = 1
+        Transverse = 0,   // 横向调制 (V/d)
+        Longitudinal = 1  // 纵向调制 (V/L)
     }
 }

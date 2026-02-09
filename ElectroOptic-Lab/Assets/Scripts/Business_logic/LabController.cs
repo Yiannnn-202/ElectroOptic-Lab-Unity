@@ -1,6 +1,6 @@
 using UnityEngine;
-using UnityEngine.UI; // 用于 Slider
-using TMPro;          // 用于 TMP 组件
+using UnityEngine.UI;
+using TMPro;
 using ElectroOptics;
 
 public class LabController : MonoBehaviour
@@ -9,194 +9,208 @@ public class LabController : MonoBehaviour
     public CrystalPhysicalCore core;
     public CrystalProfile defaultProfile;
 
+    [Header("Experiment Settings")]
+    public PropagationAxis defaultPropAxis = PropagationAxis.Z_Axis;
+
     [Header("UI Controls")]
-    public TMP_Dropdown dropPropAxis;   // 通光方向
-    public TMP_Dropdown dropFieldAxis;  // 电场方向
-    public TMP_Dropdown dropModMode;    // 调制模式
-    public Slider sliderVoltage;        // 电压滑条
-    public TextMeshProUGUI txtVoltageValue; // 电压数值
-    public TMP_InputField inputLength;  // 长度
-    public TMP_InputField inputThickness; // 厚度
+    public TMP_Dropdown dropPropAxis;   // 【修复】补回缺失的下拉菜单引用
+    public TMP_Dropdown dropModMode;    // 横向/纵向
+    public TMP_Dropdown dropFieldAxis;  // 电场方向 (X/Y/Z)
+    public Slider sliderVoltage;
+    public TextMeshProUGUI txtVoltageValue;
+    public TextMeshProUGUI txtVpiValue;
+    public TMP_InputField inputLength;
+    public TMP_InputField inputThickness;
 
-    // 内部持有的当前配置 (Struct)
-    private CrystalConfig _currentConfig;
+    [Header("Crystal Orientation")]
+    public Vector3 crystalEulerAngles = Vector3.zero;
 
-    // 防止回调死循环的标志位
-    private bool _isUpdatingUI = false;
+    [Header("Debug / Direct Control")]
+    [SerializeField] private float _length_mm = 20.0f;
+    [SerializeField] private float _thickness_mm = 1.0f;
+    [SerializeField] private float _voltage = 0.0f;
+
+    // 内部状态
+    private CrystalConfig _config;
+    private ModulationMode _modMode = ModulationMode.Transverse;
+    private ElectricFieldAxis _fieldAxis = ElectricFieldAxis.Z_Axis;
 
     void Start()
     {
+        // 1. 核心安全检查
         if (defaultProfile == null)
         {
-            Debug.LogError("[LabController] Default Profile is missing!");
+            Debug.LogError("[LabController] Default Profile 未赋值！");
+            return;
+        }
+        if (core == null)
+        {
+            Debug.LogError("[LabController] Core 未赋值！");
             return;
         }
 
-        _currentConfig = new CrystalConfig();
-        _currentConfig.profile = defaultProfile;
+        // 2. 初始化 Config
+        _config = new CrystalConfig();
+        _config.profile = defaultProfile;
+        _config.worldLightDirection = new Vector3(0, 0, 1); // 默认光沿 Z 轴
 
-        // 读取 Profile 的默认尺寸
-        _currentConfig.length_mm = defaultProfile.length_mm;
-        _currentConfig.thickness_mm = defaultProfile.thickness_mm;
-        _currentConfig.wavelength_nm = 633.0;
+        // 3. 读取默认尺寸
+        _length_mm = (float)defaultProfile.defaultLength_mm;
+        _thickness_mm = (float)defaultProfile.defaultThickness_mm;
 
-        // 绑定 UI 事件
-        dropPropAxis.onValueChanged.AddListener(OnPropAxisChanged);
-        dropFieldAxis.onValueChanged.AddListener(OnFieldAxisChanged);
-        dropModMode.onValueChanged.AddListener(OnModModeChanged);
-        sliderVoltage.onValueChanged.AddListener(OnVoltageChanged);
+        // 4. 安全地初始化 UI (仅当 UI 组件存在时才操作)
+        if (inputLength != null) inputLength.text = _length_mm.ToString();
+        if (inputThickness != null) inputThickness.text = _thickness_mm.ToString();
+        if (sliderVoltage != null) sliderVoltage.value = _voltage;
 
-        inputLength.onEndEdit.AddListener((val) => { ParseDimensions(); DispatchConfig(); });
-        inputThickness.onEndEdit.AddListener((val) => { ParseDimensions(); DispatchConfig(); });
-
-        // 初始化 UI 值
-        sliderVoltage.value = 0;
-        inputLength.text = _currentConfig.length_mm.ToString();
-        inputThickness.text = _currentConfig.thickness_mm.ToString();
-
-        // 默认初始化为横向模式，并应用默认轴向
-        _currentConfig.mode = ModulationMode.Transverse;
-        ApplyDefaultAxes(ModulationMode.Transverse);
-
-        DispatchConfig();
-    }
-
-    // --- UI 事件回调 ---
-
-    void OnVoltageChanged(float value)
-    {
-        if (_isUpdatingUI) return;
-        _currentConfig.voltage = value;
-        if (txtVoltageValue) txtVoltageValue.text = $"{value:F0} V";
-        DispatchConfig();
-    }
-
-    void OnPropAxisChanged(int value)
-    {
-        if (_isUpdatingUI) return;
-        _currentConfig.propAxis = (PropagationAxis)value;
-
-        // 光路改变是冲突的主要来源，必须检查互斥
-        EnforceMutexLogic();
-        DispatchConfig();
-    }
-
-    void OnFieldAxisChanged(int value)
-    {
-        if (_isUpdatingUI) return;
-        _currentConfig.fieldAxis = (ElectricFieldAxis)value;
-
-        // 通常用户改变电场时，我们尽量尊重用户选择
-        // 但如果在纵向模式下用户强行改（理论上UI被锁了改不了），还是检查一下为好
-        if (_currentConfig.mode == ModulationMode.Longitudinal)
+        // 【修复】初始化通光轴下拉菜单
+        if (dropPropAxis != null)
         {
-            EnforceMutexLogic();
-        }
-        DispatchConfig();
-    }
-
-    void OnModModeChanged(int value)
-    {
-        if (_isUpdatingUI) return;
-        ModulationMode newMode = (ModulationMode)value;
-        _currentConfig.mode = newMode;
-
-        // 1. 预设策略：切模式时，先把轴向重置到最常用的状态
-        ApplyDefaultAxes(newMode);
-
-        // 2. 互斥检查：确保万无一失
-        EnforceMutexLogic();
-
-        DispatchConfig();
-    }
-
-    // --- 核心逻辑 ---
-
-    /// <summary>
-    /// [预设策略] 根据模式自动归位到经典配置
-    /// </summary>
-    private void ApplyDefaultAxes(ModulationMode mode)
-    {
-        _isUpdatingUI = true; // 暂停回调，防止改 Dropdown 时触发死循环
-
-        if (mode == ModulationMode.Longitudinal)
-        {
-            _currentConfig.propAxis = PropagationAxis.Z_Axis;
-            _currentConfig.fieldAxis = ElectricFieldAxis.Z_Axis;
-        }
-        else
-        {
-            _currentConfig.propAxis = PropagationAxis.Y_Axis;
-            _currentConfig.fieldAxis = ElectricFieldAxis.Z_Axis;
+            dropPropAxis.value = (int)defaultPropAxis; // 设置初始 UI 状态
+            // 立即应用一次初始轴向的旋转逻辑
+            OnPropAxisChanged((int)defaultPropAxis);
         }
 
-        // 同步 UI
-        if (dropPropAxis) dropPropAxis.value = (int)_currentConfig.propAxis;
-        if (dropFieldAxis) dropFieldAxis.value = (int)_currentConfig.fieldAxis;
+        // 5. 绑定事件
+        if (dropPropAxis != null) dropPropAxis.onValueChanged.AddListener(OnPropAxisChanged); // 【修复】绑定事件
+        if (dropModMode != null) dropModMode.onValueChanged.AddListener(OnModModeChanged);
+        if (dropFieldAxis != null) dropFieldAxis.onValueChanged.AddListener(OnFieldAxisChanged);
+        if (sliderVoltage != null) sliderVoltage.onValueChanged.AddListener(OnVoltageChanged);
+        if (inputLength != null) inputLength.onEndEdit.AddListener(OnDimChanged);
+        if (inputThickness != null) inputThickness.onEndEdit.AddListener(OnDimChanged);
 
-        _isUpdatingUI = false; // 恢复回调
+        // 6. 初始物理推送
+        UpdateAndDispatch();
     }
 
-    /// <summary>
-    /// [互斥逻辑] 强制执行物理约束 (E平行k 或 E垂直k)
-    /// </summary>
-    private void EnforceMutexLogic()
-    {
-        int propIndex = (int)_currentConfig.propAxis;
-        int fieldIndex = (int)_currentConfig.fieldAxis;
-
-        if (_currentConfig.mode == ModulationMode.Longitudinal)
-        {
-            // === 纵向模式：必须平行 (E // k) ===
-
-            // 1. 锁定电场下拉菜单
-            if (dropFieldAxis) dropFieldAxis.interactable = false;
-
-            // 2. 强制对齐
-            if (fieldIndex != propIndex)
-            {
-                _isUpdatingUI = true; // 避免触发 OnFieldAxisChanged 导致二次 Dispatch
-
-                _currentConfig.fieldAxis = (ElectricFieldAxis)propIndex;
-                if (dropFieldAxis) dropFieldAxis.value = propIndex;
-
-                _isUpdatingUI = false;
-            }
-        }
-        else
-        {
-            // === 横向模式：必须垂直 (E ⊥ k) ===
-
-            // 1. 解锁电场下拉菜单
-            if (dropFieldAxis) dropFieldAxis.interactable = true;
-
-            // 2. 冲突检测：如果重合了 (Prop == Field)
-            if (fieldIndex == propIndex)
-            {
-                // 策略：自动躲避。顺延到下一个轴 (0->1, 1->2, 2->0)
-                int newFieldIndex = (propIndex + 1) % 3;
-
-                _isUpdatingUI = true;
-
-                _currentConfig.fieldAxis = (ElectricFieldAxis)newFieldIndex;
-                if (dropFieldAxis) dropFieldAxis.value = newFieldIndex;
-
-                _isUpdatingUI = false;
-            }
-        }
-    }
-
-    private void ParseDimensions()
-    {
-        if (double.TryParse(inputLength.text, out double l)) _currentConfig.length_mm = l;
-        if (double.TryParse(inputThickness.text, out double d)) _currentConfig.thickness_mm = d;
-    }
-
-    private void DispatchConfig()
+    void Update()
     {
         if (core != null)
         {
-            core.ApplyConfig(_currentConfig);
+            UpdateVpiDisplay(core.Sensitivity);
+        }
+    }
+
+    // --- UI Callbacks ---
+
+    // 【修复】新增：通光轴改变时的逻辑
+    void OnPropAxisChanged(int val)
+    {
+        PropagationAxis axis = (PropagationAxis)val;
+
+        // 简单的硬编码映射：根据选择的轴，旋转晶体使其对准世界 Z 轴
+        switch (axis)
+        {
+            case PropagationAxis.X_Axis:
+                // 将晶体 X 轴转到世界 Z 轴 (绕 Y 轴转 90 度)
+                crystalEulerAngles = new Vector3(0, 90, 0);
+                break;
+            case PropagationAxis.Y_Axis:
+                // 将晶体 Y 轴转到世界 Z 轴 (绕 X 轴转 90 度)
+                crystalEulerAngles = new Vector3(90, 0, 0);
+                break;
+            case PropagationAxis.Z_Axis:
+            default:
+                // 默认状态 (无旋转)
+                crystalEulerAngles = Vector3.zero;
+                break;
+        }
+
+        // 立即更新物理状态
+        UpdateAndDispatch();
+    }
+
+    void OnVoltageChanged(float val)
+    {
+        _voltage = val;
+        if (txtVoltageValue) txtVoltageValue.text = $"{val:F0} V";
+        UpdateAndDispatch();
+    }
+
+    void OnModModeChanged(int val)
+    {
+        _modMode = (ModulationMode)val;
+        UpdateAndDispatch();
+    }
+
+    void OnFieldAxisChanged(int val)
+    {
+        _fieldAxis = (ElectricFieldAxis)val;
+        UpdateAndDispatch();
+    }
+
+    void OnDimChanged(string val)
+    {
+        double tempL, tempD;
+        if (inputLength != null && double.TryParse(inputLength.text, out tempL)) _length_mm = (float)tempL;
+        if (inputThickness != null && double.TryParse(inputThickness.text, out tempD)) _thickness_mm = (float)tempD;
+        UpdateAndDispatch();
+    }
+
+    // --- 核心逻辑：组装 Config ---
+
+    private void UpdateAndDispatch()
+    {
+        if (core == null) return;
+
+        // 1. 设置晶体姿态 (来自 UI 回调修改后的 crystalEulerAngles)
+        _config.crystalRotation = Quaternion.Euler(crystalEulerAngles);
+
+        // 2. 计算几何因子 (V -> E_scalar)
+        double e_scalar = 0.0;
+        if (_modMode == ModulationMode.Transverse)
+            e_scalar = _voltage / (_thickness_mm * 1e-3);
+        else
+            e_scalar = _voltage / (_length_mm * 1e-3);
+
+        // 3. 构造电场矢量
+        Vector3 axisVec = GetAxisVector(_fieldAxis);
+        _config.localEField = axisVec * (float)e_scalar;
+
+        // 4. 设置探测方向
+        _config.probeFieldDirection = axisVec;
+
+        // 5. 发送
+        core.ApplyConfig(_config);
+    }
+
+    // --- 辅助逻辑 ---
+
+    private void UpdateVpiDisplay(float sensitivity)
+    {
+        if (txtVpiValue == null) return;
+
+        if (sensitivity < 1e-20f)
+        {
+            txtVpiValue.text = "Vπ: N/A"; // 灵敏度为0时无法计算 V_pi
+            return;
+        }
+
+        double lambda = _config.profile != null ? _config.profile.defaultWavelength_nm * 1e-9 : 633e-9;
+        double L = _length_mm * 1e-3;
+        double d = _thickness_mm * 1e-3;
+        double v_pi = 0.0;
+
+        if (_modMode == ModulationMode.Transverse)
+        {
+            v_pi = (lambda * d) / (2.0 * L * sensitivity);
+        }
+        else
+        {
+            v_pi = lambda / (2.0 * sensitivity);
+        }
+
+        txtVpiValue.text = $"Vπ: {v_pi:F0} V";
+    }
+
+    private Vector3 GetAxisVector(ElectricFieldAxis axis)
+    {
+        switch (axis)
+        {
+            case ElectricFieldAxis.X_Axis: return Vector3.right;
+            case ElectricFieldAxis.Y_Axis: return Vector3.up;
+            case ElectricFieldAxis.Z_Axis: return Vector3.forward;
+            default: return Vector3.forward;
         }
     }
 }

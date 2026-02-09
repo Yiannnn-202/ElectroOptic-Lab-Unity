@@ -19,6 +19,6 @@ MonoBehaviour:
   r13: 9.6
   r22: 6.8
   r51: 32.6
-  length_mm: 20
-  thickness_mm: 1
-  defaultWavelength_nm: 633
+  defaultLength_mm: 20
+  defaultThickness_mm: 1
+  defaultWavelength_nm: 663

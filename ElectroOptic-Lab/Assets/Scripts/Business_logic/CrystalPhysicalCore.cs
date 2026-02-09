@@ -1,177 +1,197 @@
 using System;
-using ElectroOptics; // 引用命名空间
+using ElectroOptics;
 using UnityEngine;
 
 public class CrystalPhysicalCore : MonoBehaviour
 {
-    // --- 状态输出 (供 Shader 或 UI 读取) ---
-    [Header("Read-Only Status")]
-    [SerializeField] private float _halfWaveVoltage; // V_pi
-    [SerializeField] private Vector3 _newIndices;    // n'
-    [SerializeField] private Matrix4x4 _rotationMatrix;
+    // ========================================================================
+    // 1. 公共接口 (Public API)
+    // ========================================================================
 
-    // 公开属性
-    public float HalfWaveVoltage => _halfWaveVoltage;
-    public Vector3 NewIndices => _newIndices;
-    public Matrix4x4 EllipsoidRotation => _rotationMatrix;
+    // --- A. 物理真值层 (Physical Truth) ---
+    // 用于数据分析、调制深度计算、琼斯矩阵构建等
+    // 所有输出均已转换为 Unity 左手坐标系
 
-    // --- 内部缓存 ---
+    /// <summary>
+    /// 施加电压后的新主折射率 (nx', ny', nz')
+    /// </summary>
+    public Vector3 NewPrincipalIndices => _newIndices;
+
+    /// <summary>
+    /// 局部扰动矩阵 (Local Perturbation Matrix)
+    /// 描述折射率椭球相对于“晶体几何坐标系”的旋转 (R_EO)
+    /// </summary>
+    public Matrix4x4 LocalPerturbationMatrix => _localPerturbationMatrix;
+
+    /// <summary>
+    /// 有效灵敏度 S_eff (1/V)
+    /// </summary>
+    public float Sensitivity => _sensitivity;
+
+    // --- B. 渲染合成层 (Render Composite) ---
+    // 专供 Shader 使用，已包含 World -> Geo -> Principal 的完整变换
+
+    /// <summary>
+    /// 视口空间到主轴空间的变换矩阵
+    /// Matrix = (R_EO_LHS)^T * (R_Geo_to_World)^T
+    /// </summary>
+    public Matrix4x4 ShaderWorldToPrincipalMatrix => _shaderCompositeMatrix;
+
+    // --- C. 配置访问 ---
+
+    /// <summary>
+    /// 获取当前生效的配置快照 (用于读取波长、长度等)
+    /// </summary>
+    public CrystalConfig CurrentConfig => _lastConfig;
+
+    // ========================================================================
+    // 2. 内部状态
+    // ========================================================================
+
+    [Header("Debug View")]
+    [SerializeField] private float _sensitivity;
+    [SerializeField] private Vector3 _newIndices;
+    [SerializeField] private Matrix4x4 _localPerturbationMatrix; // R_EO (Left-Handed)
+    [SerializeField] private Matrix4x4 _shaderCompositeMatrix;   // Final Shader Matrix
+
     private CrystalConfig _lastConfig;
     private SimInputData _inputData;
     private CrystalOutputData _outputData;
     private bool _isInitialized = false;
 
-    // --- 缓存的中间变量 (避免每帧重复计算) ---
-    private double _geometryFactor; // 1/d 或 1/L
-    private double[] _eUnitVector;  // 单位电场向量
-    private double[] _kUnitVector;  // 单位波矢向量
+    // 缓存中间变量
+    private double[] _waveVectorLocal;
 
     void Awake()
     {
-        // 初始化内存
         _inputData = new SimInputData();
         _inputData.Initialize();
-
         _outputData = new CrystalOutputData();
         _outputData.Initialize();
-
-        _eUnitVector = new double[3];
-        _kUnitVector = new double[3];
-
+        _waveVectorLocal = new double[3];
         _isInitialized = true;
     }
 
     /// <summary>
-    /// 核心驱动接口：应用新的配置
+    /// 应用新的物理配置
     /// </summary>
     public void ApplyConfig(CrystalConfig config)
     {
         if (!_isInitialized || config.profile == null) return;
 
-        // 1. 脏检查：几何/模式是否改变？
-        bool isGeometryDirty = config.IsGeometryDifferent(_lastConfig);
-
-        // 如果是全新的配置(第一次运行) 或 几何变了 -> 运行探测通道 (Heavy Update)
-        if (isGeometryDirty)
+        // 1. 探测通道 (Probe Pass): 当几何/探测轴变化时运行
+        if (config.IsGeometryDifferent(_lastConfig))
         {
             RunProbePass(config);
         }
 
-        // 2. 总是运行渲染通道 (Light Update)
-        // 只要调用了 ApplyConfig，就说明电压可能变了，或者刚刚重算了几何
+        // 2. 渲染通道 (Render Pass): 总是运行
         RunRenderPass(config);
 
-        // 3. 更新缓存
         _lastConfig = config;
     }
 
     // ========================================================================
-    // 阶段一：探测通道 (Probe Pass)
-    // 职责：更新几何因子、单位向量，并计算 V_pi
+    // 3. 计算通道
     // ========================================================================
+
     private void RunProbePass(CrystalConfig config)
     {
-        // A. 更新静态参数
+        // 准备静态数据
         _inputData.static_n = config.profile.GetStaticIndices();
         _inputData.r_tensor = config.profile.GetTensorArray();
 
-        // B. 构造单位向量 (根据枚举)
-        SetVectorFromAxis(_eUnitVector, (int)config.fieldAxis);
-        SetVectorFromAxis(_kUnitVector, (int)config.propAxis);
+        // 计算 Local 波矢 (World +Z -> Local)
+        // Inverse Rotation maps World Vector to Local Vector
+        Vector3 k_world = config.worldLightDirection.normalized;
+        Vector3 k_local = Quaternion.Inverse(config.crystalRotation) * k_world;
 
-        // 填入 input (用于 Probe 计算)
-        Array.Copy(_kUnitVector, _inputData.wave_vector, 3);
-        Array.Copy(_eUnitVector, _inputData.e_field_local, 3); // 探测电场 E=1
+        _waveVectorLocal[0] = k_local.x;
+        _waveVectorLocal[1] = k_local.y;
+        _waveVectorLocal[2] = k_local.z;
+        Array.Copy(_waveVectorLocal, _inputData.wave_vector, 3);
 
-        // C. 计算几何因子 (E = V * G)
-        // Transverse: E = V / d
-        // Longitudinal: E = V / L
-        if (config.mode == ModulationMode.Transverse)
+        // 设置探测电场
+        Vector3 probeE = config.probeFieldDirection.normalized;
+        _inputData.e_field_local[0] = probeE.x;
+        _inputData.e_field_local[1] = probeE.y;
+        _inputData.e_field_local[2] = probeE.z;
+
+        // DLL 计算
+        if (NativeInterface.SafeCalculate(ref _inputData, ref _outputData))
         {
-            _geometryFactor = 1.0 / (config.thickness_mm * 1e-3); // mm -> m
+            _sensitivity = (float)_outputData.sensitivity;
         }
         else
         {
-            _geometryFactor = 1.0 / (config.length_mm * 1e-3); // mm -> m
-        }
-
-        // D. 调用 DLL 计算灵敏度
-        if (NativeInterface.SafeCalculate(ref _inputData, ref _outputData))
-        {
-            double s_eff = _outputData.sensitivity;
-
-            // E. 计算半波电压 V_pi
-            // V_pi = lambda / (2 * s_eff * CorrectionFactor)
-            // CorrectionFactor: Transverse = L/d; Longitudinal = 1;
-
-            double lambda = config.wavelength_nm * 1e-9;
-            double L = config.length_mm * 1e-3;
-            double d = config.thickness_mm * 1e-3;
-
-            if (s_eff > 1e-20)
-            {
-                if (config.mode == ModulationMode.Transverse)
-                {
-                    // Transverse: Phase = (2pi/lambda) * L * (s * V/d)
-                    // Pi = (2pi/lambda) * L * s * V_pi / d
-                    // V_pi = lambda * d / (2 * L * s)
-                    _halfWaveVoltage = (float)((lambda * d) / (2.0 * L * s_eff));
-                }
-                else
-                {
-                    // Longitudinal: Phase = (2pi/lambda) * L * (s * V/L) = (2pi/lambda) * s * V
-                    // V_pi = lambda / (2 * s)
-                    _halfWaveVoltage = (float)(lambda / (2.0 * s_eff));
-                }
-            }
-            else
-            {
-                _halfWaveVoltage = float.MaxValue; // 灵敏度为0，V_pi 无穷大
-            }
+            _sensitivity = 0f;
         }
     }
 
-    // ========================================================================
-    // 阶段二：渲染通道 (Render Pass)
-    // 职责：根据电压计算最终折射率
-    // ========================================================================
     private void RunRenderPass(CrystalConfig config)
     {
-        // 1. 计算标量电场
-        double E_scalar = config.voltage * _geometryFactor;
+        // 设置真实电场
+        _inputData.e_field_local[0] = config.localEField.x;
+        _inputData.e_field_local[1] = config.localEField.y;
+        _inputData.e_field_local[2] = config.localEField.z;
 
-        // 2. 构造真实电场向量 E_vec = E_scalar * e_unit
-        _inputData.e_field_local[0] = _eUnitVector[0] * E_scalar;
-        _inputData.e_field_local[1] = _eUnitVector[1] * E_scalar;
-        _inputData.e_field_local[2] = _eUnitVector[2] * E_scalar;
+        // 复用波矢
+        Array.Copy(_waveVectorLocal, _inputData.wave_vector, 3);
 
-        // 波矢不需要变，延用 Probe Pass 的结果
-
-        // 3. 调用 DLL
+        // DLL 计算
         if (NativeInterface.SafeCalculate(ref _inputData, ref _outputData))
         {
-            // 4. 更新输出
+            // 1. 提取折射率 (标量，无需坐标转换)
             _newIndices = new Vector3(
                 (float)_outputData.n_prime[0],
                 (float)_outputData.n_prime[1],
                 (float)_outputData.n_prime[2]
             );
 
-            // 转换旋转矩阵 (3x3 -> 4x4)
+            // 2. 提取原始旋转矩阵 (DLL Right-Handed)
+            Matrix4x4 matEO_RHS = Matrix4x4.identity;
             var rm = _outputData.rotation_matrix;
-            Matrix4x4 m = Matrix4x4.identity;
-            m.m00 = (float)rm[0]; m.m01 = (float)rm[1]; m.m02 = (float)rm[2];
-            m.m10 = (float)rm[3]; m.m11 = (float)rm[4]; m.m12 = (float)rm[5];
-            m.m20 = (float)rm[6]; m.m21 = (float)rm[7]; m.m22 = (float)rm[8];
-            _rotationMatrix = m;
+            matEO_RHS.m00 = (float)rm[0]; matEO_RHS.m01 = (float)rm[1]; matEO_RHS.m02 = (float)rm[2];
+            matEO_RHS.m10 = (float)rm[3]; matEO_RHS.m11 = (float)rm[4]; matEO_RHS.m12 = (float)rm[5];
+            matEO_RHS.m20 = (float)rm[6]; matEO_RHS.m21 = (float)rm[7]; matEO_RHS.m22 = (float)rm[8];
+
+            // 3. 坐标系转换 (Right-Handed -> Left-Handed)
+            //    Standard Z-Flip for Rotation Matrix: M_lhs = F * M_rhs * F
+            //    Where F = Scale(1, 1, -1)
+            _localPerturbationMatrix = ConvertRHStoLHS(matEO_RHS);
+
+            // 4. 合成 Shader 矩阵 (World -> Principal)
+            //    M_Shader = (R_EO_LHS)^T * (R_Geo_to_World)^T
+
+            // A. 获取几何旋转 (Geo -> World)
+            Matrix4x4 matGeo = Matrix4x4.Rotate(config.crystalRotation);
+
+            // B. 计算逆变换 (World -> Geo)
+            Matrix4x4 matWorldToGeo = matGeo.transpose; // Inverse
+
+            // C. 计算扰动逆变换 (Geo -> Principal)
+            //    Rotation Matrix 的逆 = 转置
+            Matrix4x4 matGeoToPrincipal = _localPerturbationMatrix.transpose;
+
+            // D. 最终合成: 先 World->Geo，再 Geo->Principal
+            //    Unity 矩阵乘法: Parent * Child (右乘向量时为 v * M)
+            //    Total = WorldToGeo * GeoToPrincipal
+            _shaderCompositeMatrix = matWorldToGeo * matGeoToPrincipal;
         }
     }
 
-    // 辅助：根据枚举设置单位向量 [1,0,0], [0,1,0], [0,0,1]
-    private void SetVectorFromAxis(double[] vec, int axisIndex)
+    /// <summary>
+    /// 辅助：将右手系旋转矩阵转换为左手系 (Z-Flip)
+    /// </summary>
+    private Matrix4x4 ConvertRHStoLHS(Matrix4x4 rhs)
     {
-        vec[0] = (axisIndex == 0) ? 1.0 : 0.0;
-        vec[1] = (axisIndex == 1) ? 1.0 : 0.0;
-        vec[2] = (axisIndex == 2) ? 1.0 : 0.0;
+        Matrix4x4 lhs = rhs;
+        // 翻转涉及 Z 的非对角项
+        lhs.m02 *= -1f; // xz
+        lhs.m12 *= -1f; // yz
+        lhs.m20 *= -1f; // zx
+        lhs.m21 *= -1f; // zy
+        // m22 (zz) 保持不变 (-1 * -1)
+        return lhs;
     }
 }

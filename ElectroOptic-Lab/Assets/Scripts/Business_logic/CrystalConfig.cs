@@ -4,41 +4,40 @@ using UnityEngine;
 namespace ElectroOptics
 {
     /// <summary>
-    /// 晶体物理配置包 (值类型)
-    /// 包含所有驱动物理引擎所需的参数
+    /// 纯物理配置包：描述晶体在特定时刻的物理状态
     /// </summary>
-    [Serializable] // 允许在 Inspector 中显示调试
+    [Serializable]
     public struct CrystalConfig
     {
         // --- 静态资产 ---
         public CrystalProfile profile;
 
-        // --- 几何参数 ---
-        public double length_mm;      // 通光长度 L
-        public double thickness_mm;   // 电极间距 d
-        public double wavelength_nm;  // 工作波长 lambda
+        // --- 物理状态 ---
+        // 1. 晶体姿态 (World -> Crystal Geometry)
+        //    UI 上的欧拉角会转为这个四元数
+        public Quaternion crystalRotation;
 
-        // --- 实验配置 ---
-        public PropagationAxis propAxis;
-        public ElectricFieldAxis fieldAxis;
-        public ModulationMode mode;
+        // 2. 本地电场矢量 (V/m)
+        //    包含了方向和大小 (E = V/d * direction)
+        //    这是实际用于渲染的场
+        public Vector3 localEField;
 
-        // --- 动态输入 ---
-        public float voltage;         // 施加电压 V
+        // 3. 探测电场方向 (单位向量)
+        //    用于计算灵敏度 S_eff (V_pi 计算用)
+        public Vector3 probeFieldDirection;
 
-        /// <summary>
-        /// 比较几何参数是否发生变化 (用于触发探测模式重算)
-        /// </summary>
+        // 4. 世界光路方向 (单位向量)
+        //    通常是 (0,0,1)，但允许配置
+        public Vector3 worldLightDirection;
+
+        // --- 脏检查逻辑 ---
         public bool IsGeometryDifferent(CrystalConfig other)
         {
-            // 注意：不比较 voltage，只比较影响 V_pi 和几何因子的参数
+            // 如果旋转、光路或 Profile 变了，需要重算几何关系 (Probe Pass)
             return profile != other.profile ||
-                   Math.Abs(length_mm - other.length_mm) > 1e-6 ||
-                   Math.Abs(thickness_mm - other.thickness_mm) > 1e-6 ||
-                   Math.Abs(wavelength_nm - other.wavelength_nm) > 1e-6 ||
-                   propAxis != other.propAxis ||
-                   fieldAxis != other.fieldAxis ||
-                   mode != other.mode;
+                   crystalRotation != other.crystalRotation ||
+                   worldLightDirection != other.worldLightDirection ||
+                   probeFieldDirection != other.probeFieldDirection;
         }
     }
 }
