@@ -107,8 +107,8 @@ public class RailObjectMover : MonoBehaviour
     void MoveObject(float direction)
     {
         Vector3 currentPos = transform.localPosition;
-        float targetX = currentPos.x + (direction * moveSpeed * Time.deltaTime);
-        targetX = Mathf.Clamp(targetX, minXLimit, maxXLimit);
-        transform.localPosition = new Vector3(targetX, currentPos.y, currentPos.z);
+        float targetZ = currentPos.z + (direction * moveSpeed * Time.deltaTime);
+        targetZ = Mathf.Clamp(targetZ, minXLimit, maxXLimit);
+        transform.localPosition = new Vector3(currentPos.x, currentPos.y, targetZ);
     }
 }
