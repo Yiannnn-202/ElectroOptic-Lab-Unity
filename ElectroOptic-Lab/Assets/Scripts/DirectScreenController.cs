@@ -1,6 +1,11 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+//ZYX
+/// <summary>
+/// 光屏控制（双击）+ 窗口设置
+/// </summary>
+
 
 // 1. 继承 IOpticalReceiver 接口
 public class DirectScreenController : MonoBehaviour, IOpticalReceiver

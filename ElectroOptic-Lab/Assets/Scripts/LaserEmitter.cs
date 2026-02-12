@@ -1,5 +1,8 @@
 using UnityEngine;
-
+//ZYX
+/// <summary>
+/// 创建激光
+/// </summary>
 public class LaserEmitter : MonoBehaviour
 {
     [Header("激光源设置")]

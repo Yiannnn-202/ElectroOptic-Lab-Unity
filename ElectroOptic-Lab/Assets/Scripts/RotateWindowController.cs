@@ -1,7 +1,10 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-
+//ZYX
+/// <summary>
+/// 偏振片旋转窗口创建
+/// </summary>
 public class RotateWindowController : MonoBehaviour
 {
     [Header("窗口配置")]
