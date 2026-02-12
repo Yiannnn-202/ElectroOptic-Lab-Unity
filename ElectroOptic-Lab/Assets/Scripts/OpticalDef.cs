@@ -1,6 +1,6 @@
 using UnityEngine;
-
-// 1. 定义“光的数据包”
+//ZYX
+// 定义“光的数据包”
 // 这只是一个数据定义，不需要挂在物体上
 [System.Serializable]
 public struct LightData

@@ -1,7 +1,10 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using System.Collections;
-
+//ZYX
+/// <summary>
+/// 偏振片控制脚本（双击跳出窗口）
+/// </summary>
 public class RotateStandController : MonoBehaviour
 {
     [Header("旋转配置")]

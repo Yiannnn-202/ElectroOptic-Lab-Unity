@@ -1,5 +1,8 @@
 using UnityEngine;
-
+//ZYX
+/// <summary>
+/// 马吕斯定律（挂载在两个偏振片的子物体上）计算从每个偏振片出射时的光强和振动方向
+/// </summary>
 public class PolarizerPhysics : MonoBehaviour, IOpticalReceiver
 {
     private LineRenderer lr;
