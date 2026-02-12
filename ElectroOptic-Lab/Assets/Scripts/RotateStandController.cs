@@ -8,6 +8,10 @@ public class RotateStandController : MonoBehaviour
     [Tooltip("旋转速度（度/秒）")]
     public float rotateSpeed = 90f;
 
+    [Header("UI图片设置 (重要)")]
+    [Tooltip("请把 Assets/UI/mine.png 拖到这里！")]
+    public Texture2D customDialTexture; // 🔥🔥🔥 新增：用来放你的图片
+
     [Header("双击配置")]
     [Tooltip("双击间隔阈值")]
     public float doubleClickInterval = 0.3f;
@@ -16,7 +20,6 @@ public class RotateStandController : MonoBehaviour
     public bool showDebug = true;
 
     // --- 【核心】全局互斥锁 ---
-    // 只要这个是 true，父物体(RailObjectMover)就不许动
     public static bool IsAnyStandSelected = false;
 
     // 私有变量
@@ -44,25 +47,22 @@ public class RotateStandController : MonoBehaviour
 
     void Update()
     {
-        // 只有被选中的旋转座才能旋转
         if (isSelected)
         {
             HandleRotation();
         }
 
-        // 处理点击检测
         if (!isProcessingClick)
         {
             StartCoroutine(HandleClickWithDelay());
         }
     }
 
-    // A/D 键旋转逻辑
     private void HandleRotation()
     {
         float direction = 0f;
-        if (Input.GetKey(KeyCode.A)) direction = 1f; // 逆时针
-        else if (Input.GetKey(KeyCode.D)) direction = -1f; // 顺时针
+        if (Input.GetKey(KeyCode.A)) direction = 1f;
+        else if (Input.GetKey(KeyCode.D)) direction = -1f;
 
         if (direction != 0f)
         {
@@ -86,7 +86,6 @@ public class RotateStandController : MonoBehaviour
             isProcessingClick = true;
             yield return null;
 
-            // 如果点到了UI，不处理
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             {
                 isProcessingClick = false;
@@ -116,7 +115,6 @@ public class RotateStandController : MonoBehaviour
     {
         if (currentSelectedStand == this) return;
 
-        // 如果之前有别的座被选中，先取消它
         if (currentSelectedStand != null)
         {
             currentSelectedStand.DeselectStand();
@@ -124,8 +122,6 @@ public class RotateStandController : MonoBehaviour
 
         currentSelectedStand = this;
         isSelected = true;
-
-        // 【核心】上锁！告诉父物体别动
         IsAnyStandSelected = true;
 
         if (objectRenderer != null) objectRenderer.material.color = Color.green;
@@ -140,21 +136,17 @@ public class RotateStandController : MonoBehaviour
         if (currentSelectedStand == this)
         {
             currentSelectedStand = null;
-            // 【核心】解锁！父物体可以动了
             IsAnyStandSelected = false;
         }
         if (showDebug) Debug.Log($"❌ 取消选中旋转座: {gameObject.name}");
     }
 
-    // 【核心】静态方法：强制取消所有选中
-    // 供 父物体 或 窗口关闭按钮 调用
     public static void DeselectAll()
     {
         if (currentSelectedStand != null)
         {
             currentSelectedStand.DeselectStand();
         }
-        // 双重保险，强制释放锁
         IsAnyStandSelected = false;
     }
 

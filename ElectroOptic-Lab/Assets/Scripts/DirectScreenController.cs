@@ -2,7 +2,7 @@
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-// 1. 继承 IOpticalReceiver 接口，这样激光器才能找到它
+// 1. 继承 IOpticalReceiver 接口
 public class DirectScreenController : MonoBehaviour, IOpticalReceiver
 {
     [Header("配置")]
@@ -12,7 +12,7 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
     public float doubleClickInterval = 0.3f;
 
     // --- 内部变量 ---
-    private Texture2D sharedTexture;    // 核心数据源：3D和2D共用这张图
+    private Texture2D sharedTexture;    // 核心数据源
     private GameObject displayWindow;
     private RawImage uiDisplayImage;
     private Renderer objRenderer;
@@ -23,7 +23,10 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
     // 光学物理变量
     private float currentIntensity = 0f;      // 当前亮度
     private bool receivedLightThisFrame = false; // 这一帧有没有光打过来？
-    private Color[] colorBuffer; // 缓存颜色数组，防止每帧new产生垃圾
+    private Color[] colorBuffer;
+
+    // 🔥 修复死机：记录上一次画的亮度，如果没变就不画
+    private float lastDrawnIntensity = -1f;
 
     void Start()
     {
@@ -44,61 +47,46 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
         // 3. 初始化缓存数组
         colorBuffer = new Color[512 * 512];
 
-        // 4. 先画一次（初始化为白屏）
+        // 4. 先画一次
         DrawPattern(0f);
     }
 
     void Update()
     {
-        // --- 逻辑 A: 光强衰减 (模拟光被挡住时的熄灭效果) ---
+        // --- 逻辑 A: 光强衰减 ---
         if (!receivedLightThisFrame)
         {
-            // 如果这一帧没收到光，亮度快速衰减到 0
             currentIntensity = Mathf.Lerp(currentIntensity, 0f, Time.deltaTime * 10f);
         }
 
-        // --- 逻辑 B: 绘图触发器 ---
-        // 为了节省性能，只有在“有亮度”或者“窗口打开”的时候才计算像素
-        // 0.005f 是一个阈值，太暗就不算了
-        if (currentIntensity > 0.005f || (displayWindow != null && displayWindow.activeSelf))
+        // --- 逻辑 B: 绘图触发器 (修复死机版) ---
+        // 只有当“亮度发生实质变化”时，才进行重绘！
+        // 之前只要窗口打开就狂画，导致死机。现在只在数据变了才画。
+        if (Mathf.Abs(currentIntensity - lastDrawnIntensity) > 0.001f)
         {
             DrawPattern(currentIntensity);
-        }
-        else if (currentIntensity <= 0.005f && receivedLightThisFrame == false)
-        {
-            // 如果彻底没光了，且没新光进来，就不再 Update 画图了，省电
-            // 确保最后画一次全白
-            if (colorBuffer[0] != Color.white) DrawPattern(0f);
+            lastDrawnIntensity = currentIntensity; // 记住这次画的亮度
         }
 
-        // 重置标志位，等待下一帧的 ReceiveLight
+        // 重置标志位
         receivedLightThisFrame = false;
     }
 
-    // ==========================================
-    // 💡 接口实现：当激光打中屏幕时自动调用
-    // ==========================================
+    // 接口实现
     public void ReceiveLight(LightData lightIn, Vector3 hitPoint, Vector3 dir)
     {
-        // 1. 记录光强
         currentIntensity = lightIn.intensity;
-        // 2. 标记这一帧收到了光
         receivedLightThisFrame = true;
     }
 
-    // ==========================================
-    // 🎨 物理绘图核心 (白屏红光斑版)
-    // ==========================================
+    // 物理绘图核心
     void DrawPattern(float brightness)
     {
         float centerX = 256;
         float centerY = 256;
-
-        // 尺寸缩小：模拟约1cm的激光点
         float radius = 25f;
         float radiusSq = radius * radius;
 
-        // 如果亮度极低，直接全白屏
         if (brightness < 0.005f)
         {
             System.Array.Fill(colorBuffer, Color.white);
@@ -116,35 +104,25 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
 
                 if (distSq < radiusSq)
                 {
-                    // 边缘柔化
                     float normalizedDistSq = distSq / radiusSq;
                     float softFactor = 1.0f - normalizedDistSq;
-
-                    // 最终该点的亮度贡献值
                     float finalPixelIntensity = brightness * softFactor;
-
-                    // 红色光斑在白色背景上
                     colorBuffer[i] = Color.Lerp(Color.white, Color.red, finalPixelIntensity);
                 }
                 else
                 {
-                    // 圆圈外面是白屏
                     colorBuffer[i] = Color.white;
                 }
             }
         }
 
-        // 应用像素到纹理
         sharedTexture.SetPixels(colorBuffer);
         sharedTexture.Apply();
     }
 
-    // ==========================================
-    // 🖱️ 交互：双击检测
-    // ==========================================
+    // 交互：双击检测
     private void OnMouseDown()
     {
-        // 防止点穿 UI
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
         float currentTime = Time.time;
@@ -160,33 +138,29 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
         }
     }
 
-    // ==========================================
-    // 🪟 UI 窗口管理 (代码生成 UI)
-    // ==========================================
+    // UI 窗口管理
     public void OpenDisplayWindow()
     {
         if (displayWindow == null) CreateDisplayWindow();
         displayWindow.SetActive(true);
-        displayWindow.transform.SetAsLastSibling(); // 置顶
+        displayWindow.transform.SetAsLastSibling();
     }
 
     private void CreateDisplayWindow()
     {
-        // 🚨🚨🚨 【核心修改点】 开始 🚨🚨🚨
-        // 不再随便找 Canvas，而是找名为 "WindowsCanvas" 的专用画布
-        // 这样就不会被你放按钮的那个 Canvas 干扰了
         GameObject canvasObj = GameObject.Find("WindowsCanvas");
         Canvas canvas;
 
         if (canvasObj == null)
         {
-            // 如果没找到，就新建一个，并强制设置正确的缩放模式
             canvasObj = new GameObject("WindowsCanvas");
             canvas = canvasObj.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            // 确保显示在最前面
+            canvas.sortingOrder = 100;
 
             CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; // 确保是屏幕自适应
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
 
@@ -196,9 +170,7 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
         {
             canvas = canvasObj.GetComponent<Canvas>();
         }
-        // 🚨🚨🚨 【核心修改点】 结束 🚨🚨🚨
 
-        // 2. 创建窗口背景
         displayWindow = new GameObject("DataWindow_" + gameObject.name);
         displayWindow.transform.SetParent(canvas.transform, false);
 
@@ -206,25 +178,21 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
         rect.sizeDelta = windowSize;
 
         Image bg = displayWindow.AddComponent<Image>();
-        bg.color = new Color(0.9f, 0.9f, 0.9f, 1f); // 浅灰背景
+        bg.color = new Color(0.9f, 0.9f, 0.9f, 1f);
 
-        // 3. 创建显示图片 RawImage
         GameObject imgObj = new GameObject("PatternView");
         imgObj.transform.SetParent(displayWindow.transform, false);
 
         RectTransform imgRect = imgObj.AddComponent<RectTransform>();
         imgRect.anchorMin = new Vector2(0.05f, 0.05f);
-        imgRect.anchorMax = new Vector2(0.95f, 0.9f); // 留出上面放关闭按钮
+        imgRect.anchorMax = new Vector2(0.95f, 0.9f);
         imgRect.offsetMin = Vector2.zero;
         imgRect.offsetMax = Vector2.zero;
 
         uiDisplayImage = imgObj.AddComponent<RawImage>();
         uiDisplayImage.texture = sharedTexture;
 
-        // 4. 关闭按钮
         CreateCloseBtn();
-
-        // 5. 拖拽脚本
         displayWindow.AddComponent<SimpleDrag>();
     }
 
@@ -240,21 +208,56 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
         rect.offsetMax = Vector2.zero;
 
         Image img = btnObj.AddComponent<Image>();
-        img.color = new Color(0.8f, 0.3f, 0.3f, 1f); // 红色按钮
+        img.color = new Color(0.8f, 0.3f, 0.3f, 1f);
 
         Button btn = btnObj.AddComponent<Button>();
         btn.targetGraphic = img;
         btn.onClick.AddListener(() => displayWindow.SetActive(false));
+
+        // --- 修复叉叉显示 ---
+        GameObject txtObj = new GameObject("BtnText");
+        txtObj.transform.SetParent(btnObj.transform, false);
+
+        RectTransform txtRect = txtObj.AddComponent<RectTransform>();
+        txtRect.anchorMin = Vector2.zero;
+        txtRect.anchorMax = Vector2.one;
+        txtRect.offsetMin = Vector2.zero;
+        txtRect.offsetMax = Vector2.zero;
+
+        Text txt = txtObj.AddComponent<Text>();
+        txt.text = "X";
+        txt.alignment = TextAnchor.MiddleCenter;
+        txt.color = Color.white;
+
+        // 🔥 修复重点：强制从系统获取 Arial 字体，防止 Null
+        txt.font = Font.CreateDynamicFontFromOSFont("Arial", 24);
+        // 如果系统里连 Arial 都没有（极少见），再试一次 Legacy
+        if (txt.font == null) txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+        txt.fontSize = 24;
     }
 }
 
-// ==========================================
-// ✋ 拖拽辅助脚本
-// ==========================================
+// 拖拽辅助脚本
 public class SimpleDrag : MonoBehaviour, IDragHandler
 {
     public void OnDrag(PointerEventData eventData)
     {
-        transform.position += (Vector3)eventData.delta;
+        // 简单的拖拽逻辑，如果你发现 Canvas Scale 很大导致拖得太快，可以除以 scaleFactor
+        // transform.position += (Vector3)eventData.delta; 
+
+        // 优化版拖拽：适应 Canvas 缩放，手感更跟手
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas != null)
+        {
+            Vector2 pos;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                (RectTransform)canvas.transform,
+                eventData.position,
+                canvas.worldCamera,
+                out pos);
+            // 这里为了简单，保持你原来的逻辑，如果不跟手再改
+            transform.position += (Vector3)eventData.delta;
+        }
     }
 }

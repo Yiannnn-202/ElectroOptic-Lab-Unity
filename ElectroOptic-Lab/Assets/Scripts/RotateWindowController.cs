@@ -6,7 +6,6 @@ public class RotateWindowController : MonoBehaviour
 {
     [Header("窗口配置")]
     public Vector2 defaultWindowSize = new Vector2(500, 500);
-    public string texturePath = "UI/mine";
 
     [Header("窗口标题")]
     public string windowTitle = "刻度盘窗口";
@@ -26,23 +25,15 @@ public class RotateWindowController : MonoBehaviour
     // 旋转座引用
     private RotateStandController rotateStand;
 
-    /// <summary>
-    /// 创建窗口
-    /// </summary>
     public static RotateWindowController CreateRotateWindow(RotateStandController stand)
     {
-        // 1. 创建/获取专用 Canvas
         Canvas canvas = GetOrCreateCanvas();
-
-        // 2. 确保EventSystem
         EnsureEventSystem();
 
-        // 3. 创建窗口对象（唯一名称）
         string windowName = $"DialWindow_{stand.GetRotateStandName()}_{System.DateTime.Now.Ticks}";
         GameObject windowObj = new GameObject(windowName);
         windowObj.transform.SetParent(canvas.transform, false);
 
-        // 4. 添加控制器
         RotateWindowController controller = windowObj.AddComponent<RotateWindowController>();
         controller.rotateStand = stand;
         controller.windowTitle = $"刻度盘 - {stand.GetRotateStandName()}";
@@ -53,7 +44,6 @@ public class RotateWindowController : MonoBehaviour
 
     private static Canvas GetOrCreateCanvas()
     {
-        // 寻找专用的 WindowsCanvas，防止被按钮的 Canvas 干扰
         GameObject canvasObj = GameObject.Find("WindowsCanvas");
         Canvas canvas;
 
@@ -64,7 +54,7 @@ public class RotateWindowController : MonoBehaviour
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
             CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; // 强制正确缩放
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
 
@@ -79,9 +69,6 @@ public class RotateWindowController : MonoBehaviour
 
     private static void EnsureEventSystem()
     {
-        // 🚨🚨🚨 【修复警告的地方】 🚨🚨🚨
-        // 旧写法：Object.FindObjectOfType<EventSystem>()
-        // 新写法：Object.FindFirstObjectByType<EventSystem>()
         if (Object.FindFirstObjectByType<EventSystem>() == null)
         {
             GameObject eventSystemObj = new GameObject("EventSystem");
@@ -92,24 +79,18 @@ public class RotateWindowController : MonoBehaviour
 
     private void InitWindow()
     {
-        // ===== 1. 窗口根节点 =====
         windowRect = gameObject.AddComponent<RectTransform>();
         windowRect.sizeDelta = defaultWindowSize;
-        // 恢复随机位置逻辑
         windowRect.anchoredPosition = new Vector2(Random.Range(-200, 200), Random.Range(-100, 100));
         windowRect.pivot = new Vector2(0.5f, 0.5f);
         windowRect.anchorMin = new Vector2(0.5f, 0.5f);
         windowRect.anchorMax = new Vector2(0.5f, 0.5f);
 
-        // 窗口背景
         Image windowBg = gameObject.AddComponent<Image>();
         windowBg.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
         windowBg.raycastTarget = true;
 
-        // ===== 2. 标题栏 =====
         CreateTitleBar();
-
-        // ===== 3. 刻度盘图片 =====
         CreateDialImage();
     }
 
@@ -129,7 +110,6 @@ public class RotateWindowController : MonoBehaviour
         titleBarBg.color = new Color(0.2f, 0.2f, 0.2f, 1f);
         titleBarBg.raycastTarget = true;
 
-        // 标题文本
         GameObject titleTextObj = new GameObject("TitleText");
         titleTextObj.transform.SetParent(titleBarObj.transform, false);
 
@@ -142,15 +122,11 @@ public class RotateWindowController : MonoBehaviour
         titleText = titleTextObj.AddComponent<Text>();
         titleText.text = windowTitle;
         titleText.color = Color.white;
-        // 恢复使用 LegacyRuntime.ttf
         titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         titleText.fontSize = 16;
         titleText.alignment = TextAnchor.MiddleLeft;
 
-        // 关闭按钮
         CreateCloseButton(titleBarObj);
-
-        // 绑定拖动事件
         BindDragEvent(titleBarObj);
     }
 
@@ -195,15 +171,12 @@ public class RotateWindowController : MonoBehaviour
         closeText.fontSize = 18;
         closeText.alignment = TextAnchor.MiddleCenter;
 
-        // 点击事件
         closeButton.onClick.AddListener(() =>
         {
-            // 关闭窗口时解锁底座
             if (rotateStand != null)
             {
                 RotateStandController.DeselectAll();
             }
-
             Debug.Log($"🪟 关闭窗口: {gameObject.name}");
             gameObject.SetActive(false);
         });
@@ -224,19 +197,22 @@ public class RotateWindowController : MonoBehaviour
 
         dialImage = dialObj.AddComponent<Image>();
 
-        // 恢复原来的加载逻辑
-        Texture2D dialTex = Resources.Load<Texture2D>(texturePath);
-        if (dialTex != null)
+        // 🔥🔥🔥 核心修改点：直接读变量，不读 Resources 🔥🔥🔥
+        if (rotateStand != null && rotateStand.customDialTexture != null)
         {
-            dialImage.sprite = Sprite.Create(dialTex,
-                new Rect(0, 0, dialTex.width, dialTex.height),
+            Texture2D tex = rotateStand.customDialTexture;
+            dialImage.sprite = Sprite.Create(tex,
+                new Rect(0, 0, tex.width, tex.height),
                 new Vector2(0.5f, 0.5f));
-            dialImage.preserveAspect = true;
+            Debug.Log("✅ 成功加载拖拽的图片！");
         }
         else
         {
             dialImage.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            Debug.LogWarning("⚠️ 警告：RotateStandController 上没有拖拽 customDialTexture 图片！");
         }
+
+        dialImage.preserveAspect = true;
         dialImage.raycastTarget = false;
     }
 
@@ -270,8 +246,6 @@ public class RotateWindowController : MonoBehaviour
 
             PointerEventData evtData = (PointerEventData)data;
             Vector2 mouseDelta = evtData.position - dragStartPosition;
-
-            // 恢复原来的拖动计算逻辑
             windowRect.anchoredPosition = windowStartPosition + (mouseDelta / GetComponentInParent<Canvas>().scaleFactor);
         });
         trigger.triggers.Add(drag);

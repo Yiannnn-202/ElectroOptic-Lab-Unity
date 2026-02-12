@@ -1,114 +1,279 @@
-using UnityEngine;
+ï»¿using UnityEngine;
+
+
+
+/// <summary>
+
+/// å¯¼è½¨ç‰©ä½“ç§»åŠ¨æ§åˆ¶å™¨ (æœ€ç»ˆç‰ˆ)
+
+/// åŠŸèƒ½ï¼šæ”¯æŒè½´å‘é€‰æ‹©ï¼Œä¸­æ–‡æ³¨é‡Šï¼Œäº’æ–¥é€»è¾‘
+
+/// </summary>
 
 public class RailObjectMover : MonoBehaviour
+
 {
+
     private static RailObjectMover currentActiveMover;
 
-    [Header("ÒÆ¶¯²ÎÊı")]
+
+
+    // ğŸ”¥ğŸ”¥ğŸ”¥ è½´å‘é€‰æ‹©
+
+    public enum MoveAxis { X_Axis, Y_Axis, Z_Axis }
+
+
+
+    [Header("è½´å‘è®¾ç½® (é‡è¦ï¼)")]
+
+    [Tooltip("çº¢=X, ç»¿=Y, è“=Zã€‚è¯·é€‰æ‹©å¯¼è½¨å»¶ä¼¸çš„æ–¹å‘ã€‚")]
+
+    public MoveAxis moveAxis = MoveAxis.X_Axis;
+
+
+
+    [Header("ç§»åŠ¨å‚æ•°")]
+
     public float moveSpeed = 0.5f;
 
-    [Header("ÒÆ¶¯·¶Î§")]
-    public float minXLimit = -3.0f;
-    public float maxXLimit = 3.0f;
 
-    [Header("Ñ¡ÖĞ·´À¡")]
+
+    [Header("ç§»åŠ¨èŒƒå›´")]
+
+    public float minLimit = -3.0f;
+
+    public float maxLimit = 3.0f;
+
+
+
+    [Header("é€‰ä¸­åé¦ˆ")]
+
     public Color selectedColor = Color.yellow;
+
     private Color defaultColor;
+
     private Renderer myRenderer;
 
-    [Header("³åÍ»ÉèÖÃ")]
+
+
+    [Header("å†²çªè®¾ç½®")]
+
     public bool ignoreRotateStandClicks = true;
 
+
+
+    // åˆå§‹åŒ–
+
     void Start()
+
     {
+
         myRenderer = GetComponent<Renderer>();
+
         if (myRenderer == null)
+
         {
-            // ³¢ÊÔÕÒµ××ùÄ£ĞÍ£¬·ÀÖ¹Îó°Ñ¹âÆÁ¸ø±äÉ«ÁË
-            Transform baseModel = transform.Find("´óĞıÅ¥×ù.003"); // Ìæ»»ÎªÄãµ××ùÄ£ĞÍµÄÊµ¼ÊÃû×Ö
+
+            Transform baseModel = transform.Find("å¤§æ—‹é’®åº§.003");
+
             if (baseModel != null) myRenderer = baseModel.GetComponent<Renderer>();
+
             else myRenderer = GetComponentInChildren<Renderer>();
+
         }
+
+
 
         if (myRenderer != null)
+
         {
+
             defaultColor = myRenderer.material.color;
+
         }
+
     }
+
+
+
+    // ç‚¹å‡»äº‹ä»¶
 
     private void OnMouseDown()
+
     {
-        // 1. Èç¹ûµãµ½ÁËĞı×ª×ù£¬¾ÍÈÃĞı×ª×ù´¦Àí£¬ÎÒ²»²åÊÖ
-        if (ignoreRotateStandClicks && IsClickingRotateStand())
-        {
-            return;
-        }
 
-        Debug.Log($"??? Ñ¡ÖĞµ××ù: {gameObject.name}");
+        if (ignoreRotateStandClicks && IsClickingRotateStand()) return;
 
-        // 2. ¡¾ºËĞÄ»¥³â¡¿Èç¹ûÎÒµã»÷ÁËµ××ù£¬ËµÃ÷ÎÒÏëÒÆ¶¯µ××ù
-        // ´ËÊ±Ç¿ÖÆÈÃËùÓĞĞı×ª×ù¡°±Õ×ì¡±£¨È¡ÏûÑ¡ÖĞ£©
+
+
+        Debug.Log($"ğŸ–±ï¸ é€‰ä¸­åº•åº§: {gameObject.name}");
+
+
+
+        // äº’æ–¥ï¼šå…³é—­æ—‹è½¬åº§
+
         if (RotateStandController.IsAnyStandSelected)
+
         {
+
             RotateStandController.DeselectAll();
+
         }
 
-        // 3. Õı³£µÄÑ¡ÖĞ/ÇĞ»»Âß¼­
+
+
+        // é€‰ä¸­/å–æ¶ˆé€‰ä¸­
+
         if (currentActiveMover == this)
+
         {
+
             Deselect();
+
             currentActiveMover = null;
+
         }
+
         else
+
         {
+
             if (currentActiveMover != null) currentActiveMover.Deselect();
+
             currentActiveMover = this;
+
             Select();
+
         }
+
     }
+
+
+
+    // æ£€æµ‹å­ç‰©ä½“
 
     private bool IsClickingRotateStand()
+
     {
+
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
         RaycastHit[] hits = Physics.RaycastAll(ray);
+
         foreach (RaycastHit hit in hits)
+
         {
+
             if (hit.collider.GetComponentInParent<RotateStandController>() != null) return true;
+
         }
+
         return false;
+
     }
+
+
 
     void Select()
+
     {
+
         if (myRenderer != null) myRenderer.material.color = selectedColor;
+
     }
+
+
 
     public void Deselect()
+
     {
+
         if (myRenderer != null) myRenderer.material.color = defaultColor;
+
     }
+
+
+
+    // é”®ç›˜ç§»åŠ¨é€»è¾‘
 
     void Update()
+
     {
-        // Èç¹ûÎÒÃ»±»Ñ¡ÖĞ£¬ÎÒ²»¶¯
+
         if (currentActiveMover != this) return;
 
-        // ¡¾ºËĞÄ»¥³â¡¿Èç¹û´ËÊ±ÓĞÈÎºÎĞı×ª×ù±»Ñ¡ÖĞÁË£¨ÂÌÁË£©£¬ÎÒÒ²²»ÄÜ¶¯£¡
-        // ÕâÒ»ĞĞ½â¾öÁË¡°±ß×ª±ßÅÜ¡±µÄ³åÍ»
         if (RotateStandController.IsAnyStandSelected) return;
 
+
+
         float moveDirection = 0f;
+
         if (Input.GetKey(KeyCode.A)) moveDirection = -1f;
+
         else if (Input.GetKey(KeyCode.D)) moveDirection = 1f;
 
+
+
         if (moveDirection != 0f) MoveObject(moveDirection);
+
     }
 
+
+
+    // æ ¸å¿ƒç§»åŠ¨è®¡ç®—
+
     void MoveObject(float direction)
+
     {
+
         Vector3 currentPos = transform.localPosition;
-        float targetZ = currentPos.z + (direction * moveSpeed * Time.deltaTime);
-        targetZ = Mathf.Clamp(targetZ, minXLimit, maxXLimit);
-        transform.localPosition = new Vector3(currentPos.x, currentPos.y, targetZ);
+
+        float newVal = 0f;
+
+
+
+        // æ ¹æ®é€‰æ‹©çš„è½´å‘è¿›è¡Œç§»åŠ¨
+
+        switch (moveAxis)
+
+        {
+
+            case MoveAxis.X_Axis:
+
+                newVal = currentPos.x + (direction * moveSpeed * Time.deltaTime);
+
+                newVal = Mathf.Clamp(newVal, minLimit, maxLimit);
+
+                transform.localPosition = new Vector3(newVal, currentPos.y, currentPos.z);
+
+                break;
+
+
+
+            case MoveAxis.Y_Axis:
+
+                newVal = currentPos.y + (direction * moveSpeed * Time.deltaTime);
+
+                newVal = Mathf.Clamp(newVal, minLimit, maxLimit);
+
+                transform.localPosition = new Vector3(currentPos.x, newVal, currentPos.z);
+
+                break;
+
+
+
+            case MoveAxis.Z_Axis:
+
+                newVal = currentPos.z + (direction * moveSpeed * Time.deltaTime);
+
+                newVal = Mathf.Clamp(newVal, minLimit, maxLimit);
+
+                transform.localPosition = new Vector3(currentPos.x, currentPos.y, newVal);
+
+                break;
+
+        }
+
     }
+
 }
