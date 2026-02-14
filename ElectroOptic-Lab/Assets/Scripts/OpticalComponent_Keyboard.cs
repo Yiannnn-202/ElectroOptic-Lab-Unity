@@ -1,5 +1,6 @@
 using UnityEngine;
 
+// 单次点击拿起，移动到导轨上方空格键放下， 双击再次拿起
 public class OpticalComponent : MonoBehaviour
 {
     [Header("设置")]
