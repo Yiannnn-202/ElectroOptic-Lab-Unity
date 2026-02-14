@@ -18,6 +18,10 @@ public class OpticalComponent : MonoBehaviour
     private Vector3 originalPos;
     private OpticalRail currentRail;
 
+    // 【新增】用于检测双击的变量
+    private float lastClickTime = 0f;
+    private const float DOUBLE_CLICK_TIME = 0.3f; // 0.3秒内点击两次算双击
+
     void Start()
     {
         originalPos = transform.position;
@@ -26,12 +30,20 @@ public class OpticalComponent : MonoBehaviour
     // 1. 鼠标点击：触发“拿起”或“放下”
     void OnMouseDown()
     {
+        float timeSinceLastClick = Time.time - lastClickTime;
+        lastClickTime = Time.time;
+        // 新增双击检测
         // 【核心修改点 1】
         // 如果已经吸附在导轨上了，直接“return”（退出函数）
         // 这意味着点击它将没有任何反应，不会再进入“拿起”状态
         if (isOnRail)
         {
-            Debug.Log("该物体已锁定在导轨上，无法移动。");
+            if(timeSinceLastClick < DOUBLE_CLICK_TIME)
+            {
+                Debug.Log("双击检测：尝试拿起");
+                isOnRail = false;
+                PickUp();
+            }
             return;
         }
 
