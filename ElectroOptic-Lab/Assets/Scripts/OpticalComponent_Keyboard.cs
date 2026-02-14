@@ -11,6 +11,7 @@ public class OpticalComponent : MonoBehaviour
     [Header("吸附设置")]
     // 【新增】在这里填入你想要的吸附角度，比如 -90, 90, 180 等
     public float snapRotationY = -90f;
+    public float detectionRadius = 0.5f;
 
     [Header("状态")]
     public bool isSelected = false;
@@ -122,19 +123,24 @@ public class OpticalComponent : MonoBehaviour
 
     private bool CheckDropTarget()
     {
-        Collider[] hitColliders = Physics.OverlapSphere(transform.position, 0.2f, railLayer);
+        // 获取范围内所有碰撞体
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, detectionRadius, railLayer);
 
-        if (hitColliders.Length > 0)
+        // 【关键修改】遍历数组，而不是只看第 0 个
+        foreach (var col in hitColliders)
         {
-            Collider col = hitColliders[0];
+            // 尝试获取脚本（建议同时检查父物体，见下一点）
             OpticalRail railScript = col.GetComponent<OpticalRail>();
 
+            // 如果找到了合法的导轨
             if (railScript != null)
             {
                 SnapToRail(railScript);
-                return true;
+                return true; // 找到了就立刻返回成功
             }
         }
+
+        // 循环走完都没找到，才返回失败
         return false;
     }
 
@@ -161,7 +167,7 @@ public class OpticalComponent : MonoBehaviour
         if (isSelected)
         {
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(transform.position, 0.2f);
+            Gizmos.DrawWireSphere(transform.position, detectionRadius);
         }
     }
 }
