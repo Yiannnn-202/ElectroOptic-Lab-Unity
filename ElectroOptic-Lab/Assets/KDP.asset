@@ -10,30 +10,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe5065d303ef88043914366f8c09e8b0, type: 3}
-  m_Name: LiNbO3_Profile
+  m_Name: KDP
   m_EditorClassIdentifier: 
-  crystalName: LiNbO3
-  defaultWavelength_nm: 633
-  n_x: 2.286
-  n_y: 2.286
-  n_z: 2.2
+  crystalName: KDP
+  defaultWavelength_nm: 546
+  n_x: 1.511
+  n_y: 1.511
+  n_z: 1.469
   r11: 0
   r12: 0
-  r13: 9.6
+  r13: 0
   r21: 0
-  r22: -6.8
+  r22: 0
   r23: 0
   r31: 0
   r32: 0
-  r33: 30.9
-  r41: 0
+  r33: 0
+  r41: 8.8
   r42: 0
   r43: 0
-  r51: 32.6
+  r51: 0
   r52: 0
   r53: 0
   r61: 0
   r62: 0
-  r63: 0
+  r63: 10.5
   defaultLength_mm: 20
   defaultThickness_mm: 1
