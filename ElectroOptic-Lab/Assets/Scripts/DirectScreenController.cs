@@ -156,6 +156,7 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
         float currentTime = Time.time;
         if (currentTime - lastClickTime <= doubleClickInterval)
         {
+
             OpenDisplayWindow();
             lastClickTime = 0f;
         }

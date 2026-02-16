@@ -84,5 +84,5 @@ Material:
     - _BaseColor: {r: 1, g: 0, b: 0, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _RefractiveIndices: {r: 2.2858915, g: 2.2858915, b: 2.1996884, a: 0}
+    - _RefractiveIndices: {r: 2.286, g: 2.286, b: 2.2, a: 0}
   m_BuildTextureStacks: []
