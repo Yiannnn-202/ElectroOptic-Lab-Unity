@@ -344,6 +344,7 @@ GameObject:
   - component: {fileID: 113361581}
   - component: {fileID: 113361583}
   - component: {fileID: 113361584}
+  - component: {fileID: 113361585}
   m_Layer: 5
   m_Name: Card1
   m_TagString: Untagged
@@ -466,6 +467,19 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 113361585}
+        m_TargetAssemblyTypeName: ElectroOptics.UI.CrystalSelector.CrystalCardSelector,
+          Assembly-CSharp
+        m_MethodName: OnCardClick
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &113361584
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -478,6 +492,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0b5dc2b9c3397f429747ace485ba697, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &113361585
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 113361579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de3c37d534301904e812da401b7b84fd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  crystalProfile: {fileID: 11400000, guid: 27b41b6fc4ec0b14d8283d826138ad3e, type: 2}
+  displayName: "\u94CC\u9178\u9502"
+  description: "\u94CC\u9178\u9502\u6676\u4F53"
+  targetSceneName: Scene2.The Lab
 --- !u!1 &155088808
 GameObject:
   m_ObjectHideFlags: 0
@@ -965,8 +995,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 340912857}
   m_HandleRect: {fileID: 340912856}
   m_Direction: 0
-  m_Value: 0.00000014944153
-  m_Size: 0.5611536
+  m_Value: 0.000000033258186
+  m_Size: 0.014049081
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:

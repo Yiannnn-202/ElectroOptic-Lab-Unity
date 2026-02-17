@@ -1,0 +1,222 @@
+using UnityEngine;
+using ElectroOptics;
+using ElectroOptics.DataTransfer;
+using ElectroOptics.Experiment.Interfaces;
+
+namespace ElectroOptics.Experiment.Controller
+{
+    /// <summary>
+    /// 晶体控制器包装器
+    /// 封装 CrystalPhysicalCore 的控制逻辑，提供统一的旋转和配置接口
+    /// </summary>
+    public class CrystalControllerWrapper : MonoBehaviour, ICrystalConfigurable
+    {
+        #region 常量
+
+        /// <summary>
+        /// 最小旋转角度（度）
+        /// </summary>
+        private const float MIN_ROTATION = -15f;
+
+        /// <summary>
+        /// 最大旋转角度（度）
+        /// </summary>
+        private const float MAX_ROTATION = 15f;
+
+        #endregion
+
+        #region 私有字段
+
+        private CrystalPhysicalCore _physicalCore;
+        private CrystalProfile _profile;
+        private Vector2 _rotation;  // X=俯仰, Y=偏航 (度)
+        private bool _isInitialized;
+
+        #endregion
+
+        #region 公共属性
+
+        /// <summary>
+        /// 获取关联的物理核心
+        /// </summary>
+        public CrystalPhysicalCore PhysicalCore => _physicalCore;
+
+        /// <summary>
+        /// 获取当前的旋转角度
+        /// </summary>
+        public Vector2 CurrentRotation => _rotation;
+
+        #endregion
+
+        #region 初始化
+
+        /// <summary>
+        /// 初始化控制器
+        /// </summary>
+        /// <param name="physicalCore">晶体物理核心引用</param>
+        public void Initialize(CrystalPhysicalCore physicalCore)
+        {
+            _physicalCore = physicalCore;
+            _isInitialized = true;
+
+            // 初始化旋转状态（从当前 Transform 读取）
+            Vector3 euler = transform.localEulerAngles;
+            _rotation = new Vector2(
+                NormalizeAngle(euler.x),
+                NormalizeAngle(euler.y)
+            );
+
+            Debug.Log($"[CrystalControllerWrapper] 初始化完成，晶体: {gameObject.name}");
+        }
+
+        /// <summary>
+        /// 将角度归一化到 -180 到 180 范围
+        /// </summary>
+        private float NormalizeAngle(float angle)
+        {
+            while (angle > 180f) angle -= 360f;
+            while (angle < -180f) angle += 360f;
+            return angle;
+        }
+
+        #endregion
+
+        #region ICrystalConfigurable 实现
+
+        /// <inheritdoc/>
+        public void SetProfile(CrystalProfile profile)
+        {
+            if (profile == null)
+            {
+                Debug.LogWarning("[CrystalControllerWrapper] SetProfile: profile 为 null");
+                return;
+            }
+
+            _profile = profile;
+            Debug.Log($"[CrystalControllerWrapper] 设置 Profile: {profile.crystalName}");
+
+            UpdatePhysicsConfig();
+        }
+
+        /// <inheritdoc/>
+        public CrystalProfile GetProfile() => _profile;
+
+        /// <inheritdoc/>
+        public void SetRotation(Vector2 rotation)
+        {
+            // 1. 限制旋转范围
+            _rotation = new Vector2(
+                Mathf.Clamp(rotation.x, MIN_ROTATION, MAX_ROTATION),
+                Mathf.Clamp(rotation.y, MIN_ROTATION, MAX_ROTATION)
+            );
+
+            // 2. 应用到 Transform（X=俯仰, Y=偏航, Z=0）
+            transform.localRotation = Quaternion.Euler(_rotation.x, _rotation.y, 0f);
+
+            // 3. 同步到物理核心
+            UpdatePhysicsConfig();
+        }
+
+        /// <inheritdoc/>
+        public Vector2 GetRotation() => _rotation;
+
+        /// <inheritdoc/>
+        public void AddRotation(Vector2 delta)
+        {
+            SetRotation(_rotation + delta);
+        }
+
+        /// <inheritdoc/>
+        public void ResetRotation()
+        {
+            SetRotation(Vector2.zero);
+            Debug.Log("[CrystalControllerWrapper] 旋转已重置为零");
+        }
+
+        /// <inheritdoc/>
+        public bool IsInitialized() => _isInitialized;
+
+        #endregion
+
+        #region 物理配置更新
+
+        /// <summary>
+        /// 更新物理核心配置
+        /// </summary>
+        private void UpdatePhysicsConfig()
+        {
+            // 前置检查
+            if (!_isInitialized)
+            {
+                Debug.LogWarning("[CrystalControllerWrapper] 未初始化，无法更新物理配置");
+                return;
+            }
+
+            if (_physicalCore == null)
+            {
+                Debug.LogWarning("[CrystalControllerWrapper] PhysicalCore 为 null，无法更新物理配置");
+                return;
+            }
+
+            if (_profile == null)
+            {
+                // Profile 未设置时，不更新物理配置（这是正常的初始状态）
+                return;
+            }
+
+            // 构建配置
+            var config = new CrystalConfig
+            {
+                profile = _profile,
+                crystalRotation = transform.localRotation,
+
+                // 锥光干涉模式：无电场
+                localEField = Vector3.zero,
+                probeFieldDirection = Vector3.zero,
+
+                // 光沿 +Z 方向传播（世界坐标）
+                worldLightDirection = Vector3.forward
+            };
+
+            // 应用配置到物理核心
+            _physicalCore.ApplyConfig(config);
+        }
+
+        #endregion
+
+        #region Unity 生命周期
+
+        private void OnDestroy()
+        {
+            // 清理 CrystalRuntime 中的引用
+            if (CrystalRuntime.Controller == this)
+            {
+                CrystalRuntime.Clear();
+            }
+        }
+
+        #endregion
+
+        #region 编辑器调试
+
+#if UNITY_EDITOR
+        [ContextMenu("重置旋转")]
+        private void ContextMenuResetRotation()
+        {
+            ResetRotation();
+        }
+
+        [ContextMenu("打印当前状态")]
+        private void ContextMenuPrintStatus()
+        {
+            Debug.Log($"[CrystalControllerWrapper] 状态报告:\n" +
+                      $"  - 初始化: {_isInitialized}\n" +
+                      $"  - Profile: {(_profile != null ? _profile.crystalName : "null")}\n" +
+                      $"  - 旋转: X={_rotation.x:F2}°, Y={_rotation.y:F2}°\n" +
+                      $"  - PhysicalCore: {(_physicalCore != null ? "已设置" : "null")}");
+        }
+#endif
+
+        #endregion
+    }
+}
