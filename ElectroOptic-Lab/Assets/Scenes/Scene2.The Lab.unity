@@ -515,7 +515,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5927861432f645e45b651213e2e45dd9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  laserController: {fileID: 623546742}
+  crystalController: {fileID: 0}
+  laserController: {fileID: 0}
   maxPower: 198.5
   adjustSpeed: 0.5
   beamFocus: 20
@@ -629,6 +630,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
+  snapYOffset: 0
   isSelected: 0
   isOnRail: 0
 --- !u!65 &308149088
@@ -650,8 +652,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 1, z: 0}
+  m_Size: {x: 1, y: 0.8380332, z: 1}
+  m_Center: {x: 0, y: 0.9190166, z: 0}
 --- !u!114 &308149089
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1129,6 +1131,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
+  snapYOffset: 0
   isSelected: 0
   isOnRail: 0
 --- !u!1 &595169151
@@ -1257,7 +1260,8 @@ MonoBehaviour:
   doubleClickInterval: 0.3
   screenLocalWidth: 0.01
   screenLocalHeight: 0.025
-  swapXY: 1
+  offsetX: 0
+  offsetY: 0
   invertX: 0
   invertY: 0
 --- !u!1 &623546734 stripped
@@ -1315,6 +1319,22 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.028000008, y: 0.008000001, z: 0.008000012}
   m_Center: {x: 0.013899989, y: 5.820766e-11, z: 0.0000000019790614}
+--- !u!114 &623546747
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 623546734}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff1164940eb772741ac2d41c059351d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  stateController: {fileID: 0}
+  screenController: {fileID: 0}
+  initialErrorRange: 0.02
+  adjustSpeed: 0.015
 --- !u!1 &658497408
 GameObject:
   m_ObjectHideFlags: 0
@@ -1569,6 +1589,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -2731479190712204526, guid: 9a4e6149ee8aef44d858b1641e726db1, type: 3}
       insertIndex: -1
       addedObject: {fileID: 623546743}
+    - targetCorrespondingSourceObject: {fileID: -2731479190712204526, guid: 9a4e6149ee8aef44d858b1641e726db1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 623546747}
   m_SourcePrefab: {fileID: 100100000, guid: 9a4e6149ee8aef44d858b1641e726db1, type: 3}
 --- !u!1 &695835579 stripped
 GameObject:
@@ -1633,6 +1656,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
+  snapYOffset: 0.3
   isSelected: 0
   isOnRail: 0
 --- !u!1 &705507993
@@ -2068,6 +2092,10 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 7
       objectReference: {fileID: 0}
+    - target: {fileID: 3654934372253022927, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
+      propertyPath: m_Layer
+      value: 2
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2081,6 +2109,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
       insertIndex: -1
       addedObject: {fileID: 308149089}
+    - targetCorrespondingSourceObject: {fileID: 3654934372253022927, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1789837951}
+    - targetCorrespondingSourceObject: {fileID: 3654934372253022927, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1789837950}
   m_SourcePrefab: {fileID: 100100000, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
 --- !u!1 &789169200
 GameObject:
@@ -2229,6 +2263,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
+  snapYOffset: 0
   isSelected: 0
   isOnRail: 0
 --- !u!1001 &852486331
@@ -3090,6 +3125,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.5
+  snapYOffset: 0
   isSelected: 0
   isOnRail: 0
 --- !u!114 &1222713632
@@ -3143,7 +3179,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5927861432f645e45b651213e2e45dd9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  laserController: {fileID: 623546742}
+  crystalController: {fileID: 0}
+  laserController: {fileID: 0}
   maxPower: 198.5
   adjustSpeed: 0.5
   beamFocus: 20
@@ -3670,6 +3707,46 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 209555972}
   m_SourcePrefab: {fileID: 100100000, guid: 7ccbeee65bad6f04a893a1f57fb5761f, type: 3}
+--- !u!1 &1789837946 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3654934372253022927, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
+  m_PrefabInstance: {fileID: 783781838}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &1789837950
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1789837946}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.01600001, y: 0.009600002, z: 0.0059999987}
+  m_Center: {x: 0.0000000013969842, y: -0.0000000037252903, z: -0.00000000721775}
+--- !u!114 &1789837951
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1789837946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8671633d8bd8821449dd932cc356d9b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  selectedColor: {r: 0, g: 1, b: 0, a: 1}
+  doubleClickInterval: 0.3
 --- !u!1 &1890413596
 GameObject:
   m_ObjectHideFlags: 0
