@@ -9,9 +9,13 @@ public class OpticalComponent : MonoBehaviour
     public float moveSpeed = 2.0f;
 
     [Header("吸附设置")]
-    // 【新增】在这里填入你想要的吸附角度，比如 -90, 90, 180 等
+    // 在这里填入你想要的吸附角度，比如 -90, 0, 90, 180 等（解决光屏侧身的问题）
     public float snapRotationY = -90f;
     public float detectionRadius = 0.5f;
+
+    // 【新增】吸附高度补偿！用于解决模型中心点在中间导致陷进导轨的问题
+    [Tooltip("如果模型吸附后陷进导轨，请增大这个值；如果悬空，请减小")]
+    public float snapYOffset = 0f;
 
     [Header("状态")]
     public bool isSelected = false;
@@ -20,7 +24,7 @@ public class OpticalComponent : MonoBehaviour
     private Vector3 originalPos;
     private OpticalRail currentRail;
 
-    // 【新增】用于检测双击的变量
+    // 用于检测双击的变量
     private float lastClickTime = 0f;
     private const float DOUBLE_CLICK_TIME = 0.3f; // 0.3秒内点击两次算双击
 
@@ -34,13 +38,12 @@ public class OpticalComponent : MonoBehaviour
     {
         float timeSinceLastClick = Time.time - lastClickTime;
         lastClickTime = Time.time;
+
         // 新增双击检测
-        // 【核心修改点 1】
-        // 如果已经吸附在导轨上了，直接“return”（退出函数）
-        // 这意味着点击它将没有任何反应，不会再进入“拿起”状态
+        // 如果已经吸附在导轨上了，点击它不会直接拿起，只有双击才会
         if (isOnRail)
         {
-            if(timeSinceLastClick < DOUBLE_CLICK_TIME)
+            if (timeSinceLastClick < DOUBLE_CLICK_TIME)
             {
                 Debug.Log("双击检测：尝试拿起");
                 isOnRail = false;
@@ -91,13 +94,10 @@ public class OpticalComponent : MonoBehaviour
 
     void HandleKeyboardMove()
     {
-        // 注意：根据你的上一条反馈，你好像已经自己调换了 h 和 v 的逻辑
-        // 如果你的场景里 W/S 是左右，A/D 是前后，请保留你的修改。
-        // 下面是标准的 X/Z 平面移动逻辑，你可以根据手感微调：
+        // 这里保留了你之前修改过的移动逻辑（W/S与A/D控制可能反转或调换过轴向）
         float h = Input.GetAxis("Vertical"); // A/D
         float v = Input.GetAxis("Horizontal");   // W/S
 
-        // 这里使用了你的逻辑：x轴和z轴对调，且可能反向
         Vector3 movement = new Vector3(-h, 0, v) * moveSpeed * Time.deltaTime;
 
         transform.Translate(movement, Space.World);
@@ -108,7 +108,6 @@ public class OpticalComponent : MonoBehaviour
         if (CheckDropTarget())
         {
             isSelected = false;
-            // isOnRail = true; // 这句在 SnapToRail 里已经写了
         }
         else
         {
@@ -126,13 +125,11 @@ public class OpticalComponent : MonoBehaviour
         // 获取范围内所有碰撞体
         Collider[] hitColliders = Physics.OverlapSphere(transform.position, detectionRadius, railLayer);
 
-        // 【关键修改】遍历数组，而不是只看第 0 个
+        // 遍历数组寻找合法的导轨
         foreach (var col in hitColliders)
         {
-            // 尝试获取脚本（建议同时检查父物体，见下一点）
             OpticalRail railScript = col.GetComponent<OpticalRail>();
 
-            // 如果找到了合法的导轨
             if (railScript != null)
             {
                 SnapToRail(railScript);
@@ -140,23 +137,24 @@ public class OpticalComponent : MonoBehaviour
             }
         }
 
-        // 循环走完都没找到，才返回失败
         return false;
     }
 
     private void SnapToRail(OpticalRail rail)
     {
-        // 标记为已上导轨（这将触发 OnMouseDown 里的锁定逻辑）
         isOnRail = true;
         currentRail = rail;
 
-        // 获取吸附位置
+        // 1. 获取导轨给出的表面吸附位置
         Vector3 finalPos = rail.GetSnapPosition(transform.position);
+
+        // 2. 【核心修改】加上物体自身的 Y 轴高度补偿，把陷进去的部分“拔”出来！
+        finalPos.y += snapYOffset;
+
+        // 3. 应用最终坐标
         transform.position = finalPos;
 
-        // 【核心修改点 2：旋转逻辑】
-        // 使用 Inspector 面板里填写的 snapRotationY 角度
-        // 这样就实现了你要求的 -90 度旋转
+        // 4. 设置吸附后的朝向
         transform.rotation = Quaternion.Euler(0, snapRotationY, 0);
 
         Debug.Log("已吸附并锁定！");
