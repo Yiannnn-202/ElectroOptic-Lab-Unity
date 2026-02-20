@@ -204,6 +204,14 @@ namespace ElectroOptics.Experiment.Renderer
         /// </summary>
         private void UpdateShaderProperties()
         {
+            // 调试：打印材质和颜色信息
+            if (_previewMaterial != null)
+            {
+                Debug.Log($"[ConoscopicTextureRenderer] Shader名称: {_previewMaterial.shader.name}");
+                Debug.Log($"[ConoscopicTextureRenderer] 设置前 _BaseColor: {_previewMaterial.GetColor("_BaseColor")}");
+            }
+            Debug.Log($"[ConoscopicTextureRenderer] LaserColor: {_laserColor}");
+
             // 获取物理核心的数据
             Vector3 indices = _sourcePhysicalCore.NewPrincipalIndices;
             Matrix4x4 matrix = _sourcePhysicalCore.ShaderWorldToPrincipalMatrix;
@@ -229,6 +237,9 @@ namespace ElectroOptics.Experiment.Renderer
             _previewMaterial.SetFloat("_Wavelength", wave_m);
             _previewMaterial.SetFloat("_FOV", _fov);
             _previewMaterial.SetColor("_BaseColor", _laserColor);
+
+            // 调试：确认颜色已设置
+            Debug.Log($"[ConoscopicTextureRenderer] 设置后 _BaseColor: {_previewMaterial.GetColor("_BaseColor")}");
         }
 
         #endregion

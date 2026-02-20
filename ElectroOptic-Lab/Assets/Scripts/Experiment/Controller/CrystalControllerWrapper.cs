@@ -110,10 +110,10 @@ namespace ElectroOptics.Experiment.Controller
                 Mathf.Clamp(rotation.y, MIN_ROTATION, MAX_ROTATION)
             );
 
-            // 2. 应用到 Transform（X=俯仰, Y=偏航, Z=0）
-            transform.localRotation = Quaternion.Euler(_rotation.x, _rotation.y, 0f);
+            // 注意：不修改 transform.localRotation，保持模型视觉不动
+            // 旋转仅用于物理计算（锥光干涉图）
 
-            // 3. 同步到物理核心
+            // 2. 同步到物理核心
             UpdatePhysicsConfig();
         }
 
@@ -168,7 +168,7 @@ namespace ElectroOptics.Experiment.Controller
             var config = new CrystalConfig
             {
                 profile = _profile,
-                crystalRotation = transform.localRotation,
+                crystalRotation = Quaternion.Euler(_rotation.x, _rotation.y, 0f),
 
                 // 锥光干涉模式：无电场
                 localEField = Vector3.zero,

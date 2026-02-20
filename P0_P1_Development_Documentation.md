@@ -9,7 +9,7 @@
 | **创建日期** | 2026-02-17 |
 | **Unity版本** | 2022.3.62f2c1 |
 | **开发原则** | 解耦设计，不修改原代码 |
-| **当前阶段** | P0-P1 已完成，P2 待实现 |
+| **当前阶段** | P0-P1-P2 已完成 |
 
 ---
 
@@ -22,9 +22,9 @@
 | FR-001 | 从场景2-preview选择晶体进入Scene2 | P0 | **已完成** | CrystalCardSelector.cs, CrystalSelectionData.cs |
 | FR-002 | 偏振片消光观察 | P0 | 已完成（原有） | - |
 | FR-003 | 晶体建模放置到导轨 | P1 | **已完成** | CrystalComponentInitializer.cs |
-| FR-004 | 双击光屏弹出锥光干涉图 | P2 | 待实现 | ScreenPopupManager.cs (待创建) |
-| FR-005 | 晶体XY轴旋转控制面板 | P2 | 待实现 | CrystalRotationPanel.cs (待创建) |
-| FR-006 | 锥光干涉图随旋转实时变化 | P2 | 待实现 | ConoscopicTextureRenderer.cs |
+| FR-004 | 双击光屏弹出锥光干涉图 | P2 | **已完成** | ScreenPopupManager.cs, ConoscopicWindowView.cs |
+| FR-005 | 晶体XY轴旋转控制面板 | P2 | **已完成** | CrystalRotationPanel.cs, RotationKnob.cs, AngleDisplay.cs |
+| FR-006 | 锥光干涉图随旋转实时变化 | P2 | **已完成** | ConoscopicWindowView.cs (每帧更新) |
 | FR-007 | 调零操作（人工观察判别） | P3 | 已完成（无需代码） | - |
 
 ### 1.2 非功能需求
