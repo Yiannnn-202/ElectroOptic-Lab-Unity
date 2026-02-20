@@ -572,7 +572,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5927861432f645e45b651213e2e45dd9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  laserController: {fileID: 623546742}
+  crystalController: {fileID: 0}
   maxPower: 198.5
   adjustSpeed: 0.5
   beamFocus: 20
@@ -686,6 +686,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
+  snapYOffset: 0
   isSelected: 0
   isOnRail: 0
 --- !u!65 &308149088
@@ -1186,6 +1187,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
+  snapYOffset: 0
   isSelected: 0
   isOnRail: 0
 --- !u!1 &595169151
@@ -1314,7 +1316,8 @@ MonoBehaviour:
   doubleClickInterval: 0.3
   screenLocalWidth: 0.01
   screenLocalHeight: 0.025
-  swapXY: 1
+  offsetX: 0
+  offsetY: 0
   invertX: 0
   invertY: 0
 --- !u!1 &623546734 stripped
@@ -1758,6 +1761,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
+  snapYOffset: 0
   isSelected: 0
   isOnRail: 0
 --- !u!1 &705507993
@@ -2354,6 +2358,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
+  snapYOffset: 0
   isSelected: 0
   isOnRail: 0
 --- !u!1001 &852486331
@@ -3279,6 +3284,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.5
+  snapYOffset: 3
   isSelected: 0
   isOnRail: 0
 --- !u!114 &1222713632
@@ -3327,12 +3333,12 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1222713630}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5927861432f645e45b651213e2e45dd9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  laserController: {fileID: 623546742}
+  crystalController: {fileID: 0}
   maxPower: 198.5
   adjustSpeed: 0.5
   beamFocus: 20
