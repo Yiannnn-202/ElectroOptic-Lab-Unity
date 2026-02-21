@@ -1,9 +1,10 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using System.Collections;
+
 //ZYX
 /// <summary>
-/// 偏振片控制脚本（双击跳出窗口）
+/// 偏振片控制脚本（双击跳出窗口，选中时单击取消选中）
 /// </summary>
 public class RotateStandController : MonoBehaviour
 {
@@ -13,7 +14,7 @@ public class RotateStandController : MonoBehaviour
 
     [Header("UI图片设置 (重要)")]
     [Tooltip("请把 Assets/UI/mine.png 拖到这里！")]
-    public Texture2D customDialTexture; // 🔥🔥🔥 新增：用来放你的图片
+    public Texture2D customDialTexture;
 
     [Header("双击配置")]
     [Tooltip("双击间隔阈值")]
@@ -107,7 +108,20 @@ public class RotateStandController : MonoBehaviour
                 else
                 {
                     lastClickTime = currentTime;
-                    SelectThisStand();
+
+                    // ==========================================
+                    // 🎯 【核心新增】：单击时的状态反转逻辑
+                    // ==========================================
+                    if (isSelected)
+                    {
+                        // 如果已经被选中了，单击一下就取消选中
+                        DeselectStand();
+                    }
+                    else
+                    {
+                        // 如果没被选中，单击一下就选中
+                        SelectThisStand();
+                    }
                 }
             }
             isProcessingClick = false;

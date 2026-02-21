@@ -539,8 +539,43 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 8072670986202854876, guid: 7ccbeee65bad6f04a893a1f57fb5761f, type: 3}
   m_PrefabInstance: {fileID: 1664700031}
   m_PrefabAsset: {fileID: 0}
---- !u!135 &209555972
-SphereCollider:
+--- !u!114 &209555973
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 209555968}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5927861432f645e45b651213e2e45dd9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  crystalController: {fileID: 0}
+  receiverController: {fileID: 0}
+  maxPowerReceiver: 198.5
+  maxPowerCrystal: 145
+  adjustSpeed: 0.5
+  beamFocus: 20
+  initialDeviationRange: 0.15
+  windowSize: {x: 300, y: 180}
+--- !u!114 &209555977
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 209555968}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6a629e7105337249b119623e10a3942, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  powerMeterColor: {r: 0, g: 0, b: 1, a: 1}
+  selectedColor: {r: 0, g: 1, b: 0, a: 1}
+  doubleClickInterval: 0.3
+--- !u!65 &209555978
+BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -558,26 +593,8 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 0.004500001
-  m_Center: {x: -0.0000000071013346, y: 9.313226e-10, z: 0.000000013038513}
---- !u!114 &209555973
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 209555968}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5927861432f645e45b651213e2e45dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  crystalController: {fileID: 0}
-  maxPower: 198.5
-  adjustSpeed: 0.5
-  beamFocus: 20
-  initialDeviationRange: 0.15
-  windowSize: {x: 300, y: 180}
+  m_Size: {x: 0.005557997, y: 0.0050000018, z: 0.004999999}
+  m_Center: {x: -0.00037660447, y: 8.491756e-10, z: 0.000000012964011}
 --- !u!1 &270338657
 GameObject:
   m_ObjectHideFlags: 0
@@ -1325,21 +1342,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: -2731479190712204526, guid: 9a4e6149ee8aef44d858b1641e726db1, type: 3}
   m_PrefabInstance: {fileID: 673673345}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &623546738
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 623546734}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c0f6c4ba002089e489f6f9b0f394284e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  intensity: 1
-  polarizationAngle: 90
-  dop: 0.9
 --- !u!114 &623546742
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1375,18 +1377,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.028000008, y: 0.008000001, z: 0.008000012}
   m_Center: {x: 0.013899989, y: 5.820766e-11, z: 0.0000000019790614}
---- !u!114 &623546744
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 623546734}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &623546748
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1401,6 +1391,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 0.05
   moveRange: 0.02
+  isCalibrationDone: 0
+--- !u!114 &623546752
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 623546734}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0f6c4ba002089e489f6f9b0f394284e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  intensity: 1
+  polarizationAngle: 90
+  dop: 0.9
+  startOffset: 0
 --- !u!1 &658497408
 GameObject:
   m_ObjectHideFlags: 0
@@ -1684,9 +1691,6 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: -2731479190712204526, guid: 9a4e6149ee8aef44d858b1641e726db1, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 623546738}
-    - targetCorrespondingSourceObject: {fileID: -2731479190712204526, guid: 9a4e6149ee8aef44d858b1641e726db1, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 623546742}
     - targetCorrespondingSourceObject: {fileID: -2731479190712204526, guid: 9a4e6149ee8aef44d858b1641e726db1, type: 3}
       insertIndex: -1
@@ -1696,7 +1700,7 @@ PrefabInstance:
       addedObject: {fileID: 623546748}
     - targetCorrespondingSourceObject: {fileID: -2731479190712204526, guid: 9a4e6149ee8aef44d858b1641e726db1, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 623546744}
+      addedObject: {fileID: 623546752}
   m_SourcePrefab: {fileID: 100100000, guid: 9a4e6149ee8aef44d858b1641e726db1, type: 3}
 --- !u!1 &695835579 stripped
 GameObject:
@@ -1761,7 +1765,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
-  snapYOffset: 0
+  snapYOffset: 0.3
   isSelected: 0
   isOnRail: 0
 --- !u!1 &705507993
@@ -2197,6 +2201,10 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 7
       objectReference: {fileID: 0}
+    - target: {fileID: 3654934372253022927, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
+      propertyPath: m_Layer
+      value: 2
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2210,6 +2218,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
       insertIndex: -1
       addedObject: {fileID: 308149089}
+    - targetCorrespondingSourceObject: {fileID: 3654934372253022927, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 947646080}
+    - targetCorrespondingSourceObject: {fileID: 3654934372253022927, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 947646079}
   m_SourcePrefab: {fileID: 100100000, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
 --- !u!1 &789169200
 GameObject:
@@ -2990,6 +3004,46 @@ Light:
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 0
   m_ShadowAngle: 0
+--- !u!1 &947646075 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3654934372253022927, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
+  m_PrefabInstance: {fileID: 783781838}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &947646079
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 947646075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8671633d8bd8821449dd932cc356d9b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  selectedColor: {r: 0, g: 1, b: 0, a: 1}
+  doubleClickInterval: 0.3
+--- !u!65 &947646080
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 947646075}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.01600001, y: 0.009600002, z: 0.0059999987}
+  m_Center: {x: 0.0000000013969842, y: -0.0000000037252903, z: -0.00000000721775}
 --- !u!1 &951044736
 GameObject:
   m_ObjectHideFlags: 0
@@ -3284,7 +3338,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.5
-  snapYOffset: 3
+  snapYOffset: 0
   isSelected: 0
   isOnRail: 0
 --- !u!114 &1222713632
@@ -3339,7 +3393,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   crystalController: {fileID: 0}
-  maxPower: 198.5
+  receiverController: {fileID: 0}
+  maxPowerReceiver: 198.5
+  maxPowerCrystal: 145
   adjustSpeed: 0.5
   beamFocus: 20
   initialDeviationRange: 0.15
@@ -3863,7 +3919,10 @@ PrefabInstance:
       addedObject: {fileID: 209555973}
     - targetCorrespondingSourceObject: {fileID: 8072670986202854876, guid: 7ccbeee65bad6f04a893a1f57fb5761f, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 209555972}
+      addedObject: {fileID: 209555978}
+    - targetCorrespondingSourceObject: {fileID: 8072670986202854876, guid: 7ccbeee65bad6f04a893a1f57fb5761f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 209555977}
   m_SourcePrefab: {fileID: 100100000, guid: 7ccbeee65bad6f04a893a1f57fb5761f, type: 3}
 --- !u!1 &1671810345
 GameObject:
