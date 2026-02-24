@@ -1,10 +1,9 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
-using System.Collections;
 
 /// <summary>
-/// 晶体选中状态控制器
-/// 功能：双击高亮，仅作为状态标记，不涉及移动
+/// 晶体状态控制器 (智能联机模式)
+/// 接收器开机时单击变绿；双击留给未来独立操作
 /// </summary>
 public class CrystalStateController : MonoBehaviour
 {
@@ -15,64 +14,68 @@ public class CrystalStateController : MonoBehaviour
 
     [Header("交互设置")]
     public float doubleClickInterval = 0.3f;
-
-    // --- 对外公开的状态变量 ---
     public bool IsSelected { get; private set; } = false;
-
     private float lastClickTime = 0f;
+
+    // 自动寻找场景里的接收器主控
+    private ReceiverStateController receiverController;
 
     void Start()
     {
         objRenderer = GetComponent<Renderer>();
         if (objRenderer != null) originalColor = objRenderer.material.color;
+
+        receiverController = FindObjectOfType<ReceiverStateController>();
     }
 
     void Update()
     {
-        // 简单的双击检测逻辑
         if (Input.GetMouseButtonDown(0))
         {
-            // 防止UI穿透
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-
-            // 👇 【核心修复】加上 Mathf.Infinity 和 Physics.AllLayers
-            // 意思是：让鼠标的检测射线可以无视图层限制，强行点中 Ignore Raycast 层的晶体！
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, Physics.AllLayers))
             {
-                // 射线检测是否点击到本物体
                 if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform))
                 {
-                    float timeSinceLastClick = Time.time - lastClickTime;
-                    if (timeSinceLastClick <= doubleClickInterval)
+                    if (Time.time - lastClickTime <= doubleClickInterval)
                     {
-                        // 触发双击
-                        ToggleSelection();
+                        // 🎯 未来扩展：双击逻辑
+                        Debug.Log("🎯 晶体被双击！(完美留给你后续单独调节晶体的实验步骤)");
                         lastClickTime = 0f;
                     }
                     else
                     {
+                        // 🎯 单击逻辑：只有当接收器处于开机状态(>0)时，单击晶体才会变绿联机
                         lastClickTime = Time.time;
+                        if (receiverController != null && receiverController.CurrentState > 0)
+                        {
+                            ToggleSelection();
+                        }
+                        else
+                        {
+                            Debug.Log("⚠️ 接收器未开机，晶体暂时无法联机微调。");
+                        }
                     }
                 }
             }
         }
     }
 
-    // 切换选中状态
     public void ToggleSelection()
     {
         IsSelected = !IsSelected;
         UpdateVisuals();
-        Debug.Log(IsSelected ? "晶体已选中 (可调节)" : "晶体已取消选中");
     }
 
-    // 强制取消选中 (供其他脚本调用)
     public void Deselect()
     {
-        IsSelected = false;
-        UpdateVisuals();
+        if (IsSelected)
+        {
+            IsSelected = false;
+            UpdateVisuals();
+        }
     }
 
     private void UpdateVisuals()

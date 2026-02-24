@@ -6,6 +6,10 @@ using System.Collections;
 // ZYX - 光屏控制器 (带精准红点追踪与双击窗口)
 public class DirectScreenController : MonoBehaviour, IOpticalReceiver
 {
+    [Header("🎯 状态联动 (必填)")]
+    [Tooltip("把晶体的 OpticalComponent 拖到这里。当它吸附时，本光屏原窗口将被禁用，让位给干涉窗口。")]
+    public OpticalComponent crystalOpticalComponent; // 👈 新增：关联晶体
+
     [Header("基础配置")]
     public GameObject screenCube;
     public Vector2 windowSize = new Vector2(600, 600);
@@ -162,6 +166,17 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
         float currentTime = Time.time;
         if (currentTime - lastClickTime <= doubleClickInterval)
         {
+            // ==========================================
+            // 🎯 【核心新增逻辑】：拦截器
+            // 如果关联了晶体，且晶体已经吸附在导轨上，则直接退出，不弹原版窗口！
+            // ==========================================
+            if (crystalOpticalComponent != null && crystalOpticalComponent.isOnRail)
+            {
+                Debug.Log("晶体已吸附，光屏原红点窗口被隐藏（将由其他干涉脚本接管弹出）");
+                lastClickTime = 0f;
+                return;
+            }
+
             OpenDisplayWindow();
             lastClickTime = 0f;
         }

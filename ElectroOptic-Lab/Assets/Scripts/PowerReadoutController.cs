@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
 /// <summary>
-/// 光功率计读数控制 (极致顺滑：智能状态机防打架版)
+/// 光功率计读数控制 (互斥锁调度器)
 /// </summary>
 public class PowerReadoutController : MonoBehaviour
 {
@@ -27,12 +27,10 @@ public class PowerReadoutController : MonoBehaviour
     [Header("UI 设置")]
     public Vector2 windowSize = new Vector2(320, 200);
 
-    // --- 内部变量 ---
     private bool showWindow = false;
     private float currentPower;
-    private int currentMode = -1; // -1=只监控没选中, 0=调接收器, 1=调晶体
+    private int currentMode = -1;
 
-    // 用于记录上一帧的状态，用来判断“谁是新来的”
     private int lastReceiverState = 0;
     private bool lastCrystalState = false;
 
@@ -50,16 +48,13 @@ public class PowerReadoutController : MonoBehaviour
 
     void Update()
     {
-        // 1. 获取当前最新状态
         int currentRecState = (receiverController != null) ? receiverController.CurrentState : 0;
         bool currentCrysState = (crystalController != null && crystalController.IsSelected);
 
-        // ==========================================
-        // 🎯 智能互斥锁：谁最新变成绿色，就给谁让路
-        // ==========================================
+        // 🎯 互斥锁逻辑：确保不会同时调两个
         if (currentRecState == 2 && lastReceiverState != 2)
         {
-            // 接收器刚刚变成绿色，说明玩家要调接收器了，强行关掉晶体
+            // 单击了接收器变绿，强行关掉晶体
             if (currentCrysState)
             {
                 crystalController.Deselect();
@@ -68,26 +63,19 @@ public class PowerReadoutController : MonoBehaviour
         }
         else if (currentCrysState && !lastCrystalState)
         {
-            // 晶体刚刚变成绿色，说明玩家要调晶体了
-            // 把接收器“降级”为蓝色监控状态 (如果它没亮，也顺便帮它自动开机变蓝)
-            if (receiverController != null)
+            // 单击了晶体变绿，强行把接收器降回蓝色
+            if (receiverController != null && receiverController.CurrentState == 2)
             {
                 receiverController.SetState(1);
                 currentRecState = 1;
             }
         }
 
-        // 更新历史记录
         lastReceiverState = currentRecState;
         lastCrystalState = currentCrysState;
 
-        // ==========================================
-        // 🎯 状态与模式分配
-        // ==========================================
-        // 只要接收器不是0（即处于蓝色或绿色），就显示窗口
         showWindow = (currentRecState == 1 || currentRecState == 2);
 
-        // 窗口关了，顺便把晶体也关了
         if (!showWindow && currentCrysState)
         {
             crystalController.Deselect();
@@ -99,17 +87,17 @@ public class PowerReadoutController : MonoBehaviour
         {
             if (currentRecState == 2)
             {
-                currentMode = 0; // 调接收器
+                currentMode = 0;
                 HandleVirtualAdjustment(ref receiverDevX, ref receiverDevY);
             }
             else if (currentCrysState)
             {
-                currentMode = 1; // 调晶体
+                currentMode = 1;
                 HandleVirtualAdjustment(ref crystalDevX, ref crystalDevY);
             }
             else
             {
-                currentMode = -1; // 只监控，啥也没选中
+                currentMode = -1;
             }
         }
 
@@ -144,7 +132,6 @@ public class PowerReadoutController : MonoBehaviour
         }
         else
         {
-            // 仅仅开着监视器，没有人被调的时候
             currentPower = 0f;
         }
 
@@ -161,7 +148,6 @@ public class PowerReadoutController : MonoBehaviour
         float closeBtnSize = 25f;
         if (GUI.Button(new Rect(rect.x + rect.width - closeBtnSize - 5, rect.y + 5, closeBtnSize, closeBtnSize), "X"))
         {
-            // 点击关闭按钮，一键还原所有状态
             if (receiverController != null) receiverController.ResetState();
             if (crystalController != null) crystalController.Deselect();
             showWindow = false;
@@ -195,7 +181,7 @@ public class PowerReadoutController : MonoBehaviour
         else
         {
             tipStyle.normal.textColor = Color.blue;
-            GUILayout.Label("【监控模式开启】\n双击绿色元件进行微调", tipStyle);
+            GUILayout.Label("【监控模式开启】\n请单击绿色元件以指派控制权", tipStyle);
         }
 
         GUILayout.EndArea();

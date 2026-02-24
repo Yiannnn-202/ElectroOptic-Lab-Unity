@@ -1,24 +1,22 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.EventSystems;
 
 /// <summary>
-/// ½ÓÊÕÆ÷×¨Êô×´Ì¬¿ØÖÆÆ÷ (ÍêÃÀÈı¶ÎÊ½Ñ­»·°æ)
-/// 0=²»ÁÁ, 1=±äÀ¶(¼àÊÓ), 2=±äÂÌ(µ÷½Ú)
+/// æ¥æ”¶å™¨ä¸“å±çŠ¶æ€æ§åˆ¶å™¨ (ä¸»æ§ç»ˆç«¯æ¨¡å¼)
+/// 0=å…³æœº, 1=å˜è“(å¼€æœº/ç›‘æ§), 2=å˜ç»¿(é€‰ä¸­/è¢«è°ƒèŠ‚)
 /// </summary>
 public class ReceiverStateController : MonoBehaviour
 {
-    [Header("¸ßÁÁÉèÖÃ")]
-    public Color powerMeterColor = Color.blue;     // µÚÒ»´ÎË«»÷£º±äÀ¶ (¿ªÆô¹¦ÂÊ¼Æ)
-    public Color selectedColor = Color.green;      // µÚ¶ş´ÎË«»÷£º±äÂÌ (×÷ÎªÄ¿±ê±»µ÷½Ú)
+    [Header("é«˜äº®è®¾ç½®")]
+    public Color powerMeterColor = Color.blue;     // è“ï¼šå¼€å¯åŠŸç‡è®¡çª—å£
+    public Color selectedColor = Color.green;      // ç»¿ï¼šä½œä¸ºç›®æ ‡è¢«é”®ç›˜è°ƒèŠ‚
     private Color originalColor;
     private Renderer objRenderer;
 
-    [Header("½»»¥ÉèÖÃ")]
+    [Header("äº¤äº’è®¾ç½®")]
     public float doubleClickInterval = 0.3f;
     private float lastClickTime = 0f;
 
-    // --- ºËĞÄ×´Ì¬ ---
-    // 0 = Î´¼¤»î, 1 = À¶É«, 2 = ÂÌÉ«
     public int CurrentState { get; private set; } = 0;
 
     void Start()
@@ -40,27 +38,24 @@ public class ReceiverStateController : MonoBehaviour
                 {
                     if (Time.time - lastClickTime <= doubleClickInterval)
                     {
-                        // ´¥·¢Ë«»÷£¬×´Ì¬°´ÕÕ 0 -> 1 -> 2 -> 0 Ñ­»·
-                        CycleState();
+                        // ğŸ¯ åŒå‡»é€»è¾‘ï¼š0çŠ¶æ€æ—¶åŒå‡»å¼€æœº(å˜è“)ï¼›å…¶ä»–çŠ¶æ€åŒå‡»ç›´æ¥å…³æœº(0)
+                        if (CurrentState == 0) SetState(1);
+                        else SetState(0);
+
                         lastClickTime = 0f;
                     }
                     else
                     {
+                        // ğŸ¯ å•å‡»é€»è¾‘ï¼šåªæœ‰åœ¨å¼€æœºçŠ¶æ€(>0)æ—¶ï¼Œå•å‡»æ‰èƒ½åœ¨ è“(1) å’Œ ç»¿(2) ä¹‹é—´åˆ‡æ¢
                         lastClickTime = Time.time;
+                        if (CurrentState == 1) SetState(2);
+                        else if (CurrentState == 2) SetState(1);
                     }
                 }
             }
         }
     }
 
-    private void CycleState()
-    {
-        CurrentState++;
-        if (CurrentState > 2) CurrentState = 0;
-        UpdateVisuals();
-    }
-
-    // ¹©Íâ²¿µ÷ÓÃµÄÇ¿ĞĞ¸Ä×´Ì¬½Ó¿Ú
     public void SetState(int newState)
     {
         CurrentState = newState;
@@ -76,9 +71,9 @@ public class ReceiverStateController : MonoBehaviour
     {
         if (objRenderer != null)
         {
-            if (CurrentState == 1) objRenderer.material.color = powerMeterColor; // À¶
-            else if (CurrentState == 2) objRenderer.material.color = selectedColor; // ÂÌ
-            else objRenderer.material.color = originalColor; // Ô­É«
+            if (CurrentState == 1) objRenderer.material.color = powerMeterColor; // è“
+            else if (CurrentState == 2) objRenderer.material.color = selectedColor; // ç»¿
+            else objRenderer.material.color = originalColor; // åŸè‰²
         }
     }
 }

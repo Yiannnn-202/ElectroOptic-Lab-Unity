@@ -1328,6 +1328,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d3753eb9996265548a5ebc58214ba966, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  crystalOpticalComponent: {fileID: 308149087}
   screenCube: {fileID: 0}
   windowSize: {x: 600, y: 600}
   doubleClickInterval: 0.3
