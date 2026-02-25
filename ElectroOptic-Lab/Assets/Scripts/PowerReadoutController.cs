@@ -2,13 +2,13 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 
 /// <summary>
-/// 光电接收器读数控制 (仅适配晶体调节版)
-/// 功能：双击弹窗 + WASD精细调节晶体 + 退出按钮
+/// 光电接收器读数控制 (改进版)
+/// 功能：双击弹窗 + WASD精细调节 + 退出按钮
 /// </summary>
 public class PowerReadoutController : MonoBehaviour
 {
     [Header("关联设置")]
-    public CrystalStateController crystalController;
+    public LaserStateController laserController;
 
     [Header("物理模拟参数")]
     public float maxPower = 198.5f;
@@ -33,10 +33,10 @@ public class PowerReadoutController : MonoBehaviour
 
     void Start()
     {
-        if (crystalController == null)
-            crystalController = FindObjectOfType<CrystalStateController>();
+        if (laserController == null)
+            laserController = FindObjectOfType<LaserStateController>();
 
-        // 初始偏差限制在很小的范围内
+        // 【改进1】初始偏差限制在很小的范围内
         // 这样初始读数不会是0，而是一个较大的值（比如 100-150 uW），符合“微调”的设定
         deviationX = Random.Range(-initialDeviationRange, initialDeviationRange);
         deviationY = Random.Range(-initialDeviationRange, initialDeviationRange);
@@ -46,8 +46,7 @@ public class PowerReadoutController : MonoBehaviour
     {
         HandleDoubleClick();
 
-        // 仅在晶体被选中时才允许调节
-        if (showWindow && crystalController != null && crystalController.IsSelected)
+        if (showWindow && laserController != null && laserController.IsSelected)
         {
             HandleVirtualAdjustment();
         }
@@ -103,7 +102,7 @@ public class PowerReadoutController : MonoBehaviour
         }
     }
 
-    // --- 带有关闭按钮的 UI ---
+    // --- 【改进2】 带有关闭按钮的 UI ---
     void OnGUI()
     {
         if (!showWindow) return;
@@ -118,6 +117,8 @@ public class PowerReadoutController : MonoBehaviour
         if (GUI.Button(new Rect(rect.x + rect.width - closeBtnSize - 5, rect.y + 5, closeBtnSize, closeBtnSize), "X"))
         {
             showWindow = false;
+            // 可选：关闭窗口时同时也取消激光器的选中状态，看你需求
+            // laserController.Deselect(); 
         }
 
         GUILayout.BeginArea(new Rect(rect.x + 20, rect.y + 30, rect.width - 40, rect.height - 40));
@@ -138,15 +139,15 @@ public class PowerReadoutController : MonoBehaviour
         tipStyle.fontSize = 13;
         tipStyle.alignment = TextAnchor.MiddleCenter;
 
-        if (crystalController != null && crystalController.IsSelected)
+        if (laserController != null && laserController.IsSelected)
         {
             tipStyle.normal.textColor = Color.green;
-            GUILayout.Label("晶体已联机\n按 [WASD] 进行微调", tipStyle);
+            GUILayout.Label("激光器已联机\n按 [WASD] 进行微调", tipStyle);
         }
         else
         {
             tipStyle.normal.textColor = Color.gray;
-            GUILayout.Label("晶体未选中\n请双击晶体解锁调节", tipStyle);
+            GUILayout.Label("激光器未选中\n请双击激光器解锁调节", tipStyle);
         }
 
         GUILayout.EndArea();
