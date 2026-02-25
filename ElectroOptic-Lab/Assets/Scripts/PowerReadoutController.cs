@@ -1,153 +1,187 @@
-using UnityEngine;
-using UnityEngine.EventSystems;
+ï»¿using UnityEngine;
 
 /// <summary>
-/// ¹âµç½ÓÊÕÆ÷¶ÁÊı¿ØÖÆ (¸Ä½ø°æ)
-/// ¹¦ÄÜ£ºË«»÷µ¯´° + WASD¾«Ï¸µ÷½Ú + ÍË³ö°´Å¥
+/// å…‰åŠŸç‡è®¡è¯»æ•°æ§åˆ¶ (äº’æ–¥é”è°ƒåº¦å™¨)
 /// </summary>
 public class PowerReadoutController : MonoBehaviour
 {
-    [Header("¹ØÁªÉèÖÃ")]
-    public LaserStateController laserController;
+    [Header("å…³è”è®¾ç½®")]
+    public CrystalStateController crystalController;
+    public ReceiverStateController receiverController;
 
-    [Header("ÎïÀíÄ£Äâ²ÎÊı")]
-    public float maxPower = 198.5f;
-    [Tooltip("µ÷½ÚÁéÃô¶È£ºÊıÖµÔ½Ğ¡£¬µ÷½ÚÔ½¾«Ï¸")]
-    public float adjustSpeed = 0.2f; // ½µµÍÁËËÙ¶È£¬¸üÊÊºÏ¡°Î¢µ÷¡±
-    [Tooltip("¹âÊø¾Û½¹¶È£º¾ö¶¨ÁË¶Ô×¼µÄÄÑ¶È")]
+    [Header("ç¬¬ä¸€æ­¥ï¼šæ¥æ”¶å™¨è°ƒèŠ‚å‚æ•°")]
+    public float maxPowerReceiver = 198.5f;
+    private float receiverDevX;
+    private float receiverDevY;
+
+    [Header("ç¬¬å››æ­¥ï¼šæ™¶ä½“è°ƒèŠ‚å‚æ•°")]
+    public float maxPowerCrystal = 145.0f;
+    private float crystalDevX;
+    private float crystalDevY;
+
+    [Header("é€šç”¨ç‰©ç†å‚æ•°")]
+    public float adjustSpeed = 0.2f;
     public float beamFocus = 20.0f;
-
-    [Header("³õÊ¼×´Ì¬¿ØÖÆ")]
-    [Tooltip("³õÊ¼Ëæ»úÆ«²î·¶Î§£ºÉèĞ¡Ò»µã(Èç0.15)ÒÔÄ£Äâ¹âÒÑ¾­´òÔÚ°ĞÃæÉÏ£¬Ö»ĞèÎ¢µ÷")]
     public float initialDeviationRange = 0.15f;
 
-    [Header("UI ÉèÖÃ")]
+    [Header("UI è®¾ç½®")]
     public Vector2 windowSize = new Vector2(320, 200);
 
-    // --- ÄÚ²¿±äÁ¿ ---
     private bool showWindow = false;
-    private float lastClickTime = 0f;
-    private float deviationX;
-    private float deviationY;
     private float currentPower;
+    private int currentMode = -1;
+
+    private int lastReceiverState = 0;
+    private bool lastCrystalState = false;
 
     void Start()
     {
-        if (laserController == null)
-            laserController = FindObjectOfType<LaserStateController>();
+        if (crystalController == null) crystalController = FindObjectOfType<CrystalStateController>();
+        if (receiverController == null) receiverController = FindObjectOfType<ReceiverStateController>();
 
-        // ¡¾¸Ä½ø1¡¿³õÊ¼Æ«²îÏŞÖÆÔÚºÜĞ¡µÄ·¶Î§ÄÚ
-        // ÕâÑù³õÊ¼¶ÁÊı²»»áÊÇ0£¬¶øÊÇÒ»¸ö½Ï´óµÄÖµ£¨±ÈÈç 100-150 uW£©£¬·ûºÏ¡°Î¢µ÷¡±µÄÉè¶¨
-        deviationX = Random.Range(-initialDeviationRange, initialDeviationRange);
-        deviationY = Random.Range(-initialDeviationRange, initialDeviationRange);
+        receiverDevX = Random.Range(-initialDeviationRange, initialDeviationRange);
+        receiverDevY = Random.Range(-initialDeviationRange, initialDeviationRange);
+
+        crystalDevX = Random.Range(-initialDeviationRange, initialDeviationRange);
+        crystalDevY = Random.Range(-initialDeviationRange, initialDeviationRange);
     }
 
     void Update()
     {
-        HandleDoubleClick();
+        int currentRecState = (receiverController != null) ? receiverController.CurrentState : 0;
+        bool currentCrysState = (crystalController != null && crystalController.IsSelected);
 
-        if (showWindow && laserController != null && laserController.IsSelected)
+        // ğŸ¯ äº’æ–¥é”é€»è¾‘ï¼šç¡®ä¿ä¸ä¼šåŒæ—¶è°ƒä¸¤ä¸ª
+        if (currentRecState == 2 && lastReceiverState != 2)
         {
-            HandleVirtualAdjustment();
+            // å•å‡»äº†æ¥æ”¶å™¨å˜ç»¿ï¼Œå¼ºè¡Œå…³æ‰æ™¶ä½“
+            if (currentCrysState)
+            {
+                crystalController.Deselect();
+                currentCrysState = false;
+            }
+        }
+        else if (currentCrysState && !lastCrystalState)
+        {
+            // å•å‡»äº†æ™¶ä½“å˜ç»¿ï¼Œå¼ºè¡ŒæŠŠæ¥æ”¶å™¨é™å›è“è‰²
+            if (receiverController != null && receiverController.CurrentState == 2)
+            {
+                receiverController.SetState(1);
+                currentRecState = 1;
+            }
+        }
+
+        lastReceiverState = currentRecState;
+        lastCrystalState = currentCrysState;
+
+        showWindow = (currentRecState == 1 || currentRecState == 2);
+
+        if (!showWindow && currentCrysState)
+        {
+            crystalController.Deselect();
+            currentCrysState = false;
+            lastCrystalState = false;
+        }
+
+        if (showWindow)
+        {
+            if (currentRecState == 2)
+            {
+                currentMode = 0;
+                HandleVirtualAdjustment(ref receiverDevX, ref receiverDevY);
+            }
+            else if (currentCrysState)
+            {
+                currentMode = 1;
+                HandleVirtualAdjustment(ref crystalDevX, ref crystalDevY);
+            }
+            else
+            {
+                currentMode = -1;
+            }
         }
 
         CalculatePower();
     }
 
-    private void HandleVirtualAdjustment()
+    private void HandleVirtualAdjustment(ref float devX, ref float devY)
     {
         float dt = Time.deltaTime * adjustSpeed;
+        if (Input.GetKey(KeyCode.W)) devY += dt;
+        if (Input.GetKey(KeyCode.S)) devY -= dt;
+        if (Input.GetKey(KeyCode.A)) devX -= dt;
+        if (Input.GetKey(KeyCode.D)) devX += dt;
 
-        // ·´×ªÁË²¿·ÖÂß¼­£¬·ûºÏÒ»°ã²Ù×÷Ö±¾õ£¨¿ÉÊÓÇé¿öµ÷Õû£©
-        if (Input.GetKey(KeyCode.W)) deviationY += dt;
-        if (Input.GetKey(KeyCode.S)) deviationY -= dt;
-        if (Input.GetKey(KeyCode.A)) deviationX -= dt;
-        if (Input.GetKey(KeyCode.D)) deviationX += dt;
-
-        // ¿ÉÑ¡£ºÏŞÖÆÆ«²î²»ÒªÅÜÌ«Ô¶£¬·ÀÖ¹Íæ¼Òµ÷¶ªÁË
-        deviationX = Mathf.Clamp(deviationX, -0.5f, 0.5f);
-        deviationY = Mathf.Clamp(deviationY, -0.5f, 0.5f);
+        devX = Mathf.Clamp(devX, -0.5f, 0.5f);
+        devY = Mathf.Clamp(devY, -0.5f, 0.5f);
     }
 
     private void CalculatePower()
     {
-        float rSquared = deviationX * deviationX + deviationY * deviationY;
         float noise = (Mathf.PerlinNoise(Time.time * 5f, 0f) - 0.5f) * 0.5f;
-        currentPower = maxPower * Mathf.Exp(-beamFocus * rSquared) + noise;
+
+        if (currentMode == 0)
+        {
+            float rSquared = receiverDevX * receiverDevX + receiverDevY * receiverDevY;
+            currentPower = maxPowerReceiver * Mathf.Exp(-beamFocus * rSquared) + noise;
+        }
+        else if (currentMode == 1)
+        {
+            float rSquared = crystalDevX * crystalDevX + crystalDevY * crystalDevY;
+            currentPower = maxPowerCrystal * Mathf.Exp(-beamFocus * rSquared) + noise;
+        }
+        else
+        {
+            currentPower = 0f;
+        }
+
         if (currentPower < 0) currentPower = 0f;
     }
 
-    private void HandleDoubleClick()
-    {
-        if (Input.GetMouseButtonDown(0))
-        {
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
-
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit))
-            {
-                if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform))
-                {
-                    if (Time.time - lastClickTime <= 0.3f)
-                    {
-                        showWindow = !showWindow; // Ë«»÷Ò²¿ÉÒÔ¿ª¹Ø
-                        lastClickTime = 0f;
-                    }
-                    else
-                    {
-                        lastClickTime = Time.time;
-                    }
-                }
-            }
-        }
-    }
-
-    // --- ¡¾¸Ä½ø2¡¿ ´øÓĞ¹Ø±Õ°´Å¥µÄ UI ---
     void OnGUI()
     {
         if (!showWindow) return;
 
         Rect rect = new Rect(Screen.width / 2 - windowSize.x / 2, Screen.height / 2 - windowSize.y / 2, windowSize.x, windowSize.y);
+        GUI.Box(rect, "å…‰åŠŸç‡è®¡è¯»æ•°");
 
-        // »æÖÆ±³¾°
-        GUI.Box(rect, "¹â¹¦ÂÊ¼Æ¶ÁÊı");
-
-        // === Ìí¼ÓÓÒÉÏ½Ç¹Ø±Õ°´Å¥ ===
         float closeBtnSize = 25f;
         if (GUI.Button(new Rect(rect.x + rect.width - closeBtnSize - 5, rect.y + 5, closeBtnSize, closeBtnSize), "X"))
         {
+            if (receiverController != null) receiverController.ResetState();
+            if (crystalController != null) crystalController.Deselect();
             showWindow = false;
-            // ¿ÉÑ¡£º¹Ø±Õ´°¿ÚÊ±Í¬Ê±Ò²È¡Ïû¼¤¹âÆ÷µÄÑ¡ÖĞ×´Ì¬£¬¿´ÄãĞèÇó
-            // laserController.Deselect(); 
         }
 
         GUILayout.BeginArea(new Rect(rect.x + 20, rect.y + 30, rect.width - 40, rect.height - 40));
 
-        // 1. ¹¦ÂÊÏÔÊ¾
         GUIStyle powerStyle = new GUIStyle(GUI.skin.label);
         powerStyle.fontSize = 32;
         powerStyle.alignment = TextAnchor.MiddleCenter;
         powerStyle.fontStyle = FontStyle.Bold;
         powerStyle.normal.textColor = Color.red;
 
-        GUILayout.Label($"{currentPower:F1} ¦ÌW", powerStyle);
-
+        GUILayout.Label($"{currentPower:F1} Î¼W", powerStyle);
         GUILayout.Space(15);
 
-        // 2. ×´Ì¬ÌáÊ¾
         GUIStyle tipStyle = new GUIStyle(GUI.skin.label);
         tipStyle.fontSize = 13;
         tipStyle.alignment = TextAnchor.MiddleCenter;
 
-        if (laserController != null && laserController.IsSelected)
+        if (currentMode == 0)
         {
             tipStyle.normal.textColor = Color.green;
-            GUILayout.Label("¼¤¹âÆ÷ÒÑÁª»ú\n°´ [WASD] ½øĞĞÎ¢µ÷", tipStyle);
+            GUILayout.Label("ã€æ¥æ”¶å™¨å¾®è°ƒæ¨¡å¼ã€‘\næŒ‰ [WASD] è°ƒèŠ‚æ¥æ”¶å™¨å…‰è·¯", tipStyle);
+        }
+        else if (currentMode == 1)
+        {
+            tipStyle.normal.textColor = Color.green;
+            GUILayout.Label("ã€æ™¶ä½“è”æœºæ¨¡å¼ã€‘\næŒ‰ [WASD] è°ƒèŠ‚æ™¶ä½“åè½¬è§’", tipStyle);
         }
         else
         {
-            tipStyle.normal.textColor = Color.gray;
-            GUILayout.Label("¼¤¹âÆ÷Î´Ñ¡ÖĞ\nÇëË«»÷¼¤¹âÆ÷½âËøµ÷½Ú", tipStyle);
+            tipStyle.normal.textColor = Color.blue;
+            GUILayout.Label("ã€ç›‘æ§æ¨¡å¼å¼€å¯ã€‘\nè¯·å•å‡»ç»¿è‰²å…ƒä»¶ä»¥æŒ‡æ´¾æ§åˆ¶æƒ", tipStyle);
         }
 
         GUILayout.EndArea();
