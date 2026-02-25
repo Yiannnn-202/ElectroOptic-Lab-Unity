@@ -17,12 +17,15 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
     public float screenLocalWidth = 0.05f;
     public float screenLocalHeight = 0.05f;
 
-    [Tooltip("【核心修复】如果发现左右移动光屏，红点却上下跑，请勾选这个对调XY轴")]
-    public bool swapXY = false;
+    [Header("🔧 偏移与反转微调")]
+    [Tooltip("微调红点的左右位置（填入微小的数值，如 0.01 或 -0.01）")]
+    public float offsetX = 0f;
+    [Tooltip("微调红点的上下位置（填入微小的数值，如 0.01 或 -0.01）")]
+    public float offsetY = 0f;
 
-    [Tooltip("如果发现激光往左，红点往右，就勾选这个反转X轴")]
+    [Tooltip("如果发现激光往左，红点往右，就勾选这个反转 X 轴")]
     public bool invertX = false;
-    [Tooltip("如果发现激光往上，红点往下，就勾选这个反转Y轴")]
+    [Tooltip("如果发现激光往上，红点往下，就勾选这个反转 Y 轴")]
     public bool invertY = false;
 
     // --- 内部变量 ---
@@ -57,7 +60,9 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
         }
 
         sharedTexture = new Texture2D(512, 512, TextureFormat.RGBA32, false);
-        objRenderer.material.mainTexture = sharedTexture;
+
+        // 【方案A：仅注释掉下面这一行，不让贴图显示在3D模型上】
+        // objRenderer.material.mainTexture = sharedTexture;
 
         colorBuffer = new Color[512 * 512];
 
@@ -93,13 +98,14 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
         // 1. 获取激光打在光屏上的局部坐标
         Vector3 localPos = screenCube.transform.InverseTransformPoint(hitPoint);
 
-        // 2. 根据面板开关，决定谁是 X 轴，谁是 Y 轴 (修复上下左右错乱)
-        float rawX = swapXY ? localPos.y : localPos.x;
-        float rawY = swapXY ? localPos.x : localPos.y;
+        // 2. 【核心修复：为你量身定制的坐标轴！】
+        // 根据你的反馈：左右是绿色(Y轴)，上下是蓝色(Z轴)
+        float rawX = localPos.y;
+        float rawY = localPos.z;
 
-        // 3. 计算 0~1 的比例 (将微小的局部坐标放大)
-        float normalizedX = (rawX / screenLocalWidth) + 0.5f;
-        float normalizedY = (rawY / screenLocalHeight) + 0.5f;
+        // 3. 计算 0~1 的比例 (加入 offsetX 和 offsetY 进行中心微调)
+        float normalizedX = ((rawX + offsetX) / screenLocalWidth) + 0.5f;
+        float normalizedY = ((rawY + offsetY) / screenLocalHeight) + 0.5f;
 
         // 4. 处理可能的反向问题
         if (invertX) normalizedX = 1f - normalizedX;
@@ -265,6 +271,16 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
         if (txt.font == null) txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
         txt.fontSize = 24;
+    }
+
+    // --- 内存清理补丁，防止 Unity 关闭时卡死 ---
+    private void OnDestroy()
+    {
+        if (sharedTexture != null)
+        {
+            // 手动销毁动态创建的纹理，释放显存
+            Destroy(sharedTexture);
+        }
     }
 }
 
