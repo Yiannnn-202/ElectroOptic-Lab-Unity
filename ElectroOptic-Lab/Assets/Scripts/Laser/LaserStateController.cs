@@ -4,12 +4,12 @@ using System.Collections;
 
 /// <summary>
 /// 激光器选中状态控制器
-/// 功能：双击高亮，仅作为状态标记，不涉及移动
+/// 功能：双击切换颜色高亮（深蓝色）
 /// </summary>
 public class LaserStateController : MonoBehaviour
 {
     [Header("高亮设置")]
-    public Color selectedColor = Color.green; // 选中时的颜色
+    public Color selectedColor = new Color(0f, 0f, 0.5f, 1f); // 深蓝色
     private Color originalColor;
     private Renderer objRenderer;
 
@@ -23,49 +23,64 @@ public class LaserStateController : MonoBehaviour
 
     void Start()
     {
+        // 自动获取 Renderer，如果父物体没有，就去子物体找
         objRenderer = GetComponent<Renderer>();
-        if (objRenderer != null) originalColor = objRenderer.material.color;
+        if (objRenderer == null)
+        {
+            objRenderer = GetComponentInChildren<Renderer>();
+        }
+
+        if (objRenderer != null)
+        {
+            // 记录初始颜色以便恢复
+            originalColor = objRenderer.material.color;
+        }
     }
 
     void Update()
     {
-        // 简单的双击检测逻辑
         if (Input.GetMouseButtonDown(0))
         {
-            // 防止UI穿透
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit))
+
+            // 使用 RaycastAll 确保能穿透透明物体点中模型
+            RaycastHit[] hits = Physics.RaycastAll(ray);
+            bool hitThisObject = false;
+
+            foreach (RaycastHit hit in hits)
             {
-                // 射线检测是否点击到本物体
                 if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform))
                 {
-                    float timeSinceLastClick = Time.time - lastClickTime;
-                    if (timeSinceLastClick <= doubleClickInterval)
-                    {
-                        // 触发双击
-                        ToggleSelection();
-                        lastClickTime = 0f;
-                    }
-                    else
-                    {
-                        lastClickTime = Time.time;
-                    }
+                    hitThisObject = true;
+                    break;
+                }
+            }
+
+            if (hitThisObject)
+            {
+                float timeSinceLastClick = Time.time - lastClickTime;
+                if (timeSinceLastClick <= doubleClickInterval)
+                {
+                    ToggleSelection();
+                    lastClickTime = 0f;
+                }
+                else
+                {
+                    lastClickTime = Time.time;
                 }
             }
         }
     }
 
-    // 切换选中状态
     public void ToggleSelection()
     {
         IsSelected = !IsSelected;
         UpdateVisuals();
-        Debug.Log(IsSelected ? "激光器已选中 (可调节)" : "激光器已取消选中");
+        Debug.Log(IsSelected ? "激光器已选中" : "激光器已取消选中");
     }
 
-    // 强制取消选中 (供其他脚本调用)
     public void Deselect()
     {
         IsSelected = false;
@@ -76,6 +91,7 @@ public class LaserStateController : MonoBehaviour
     {
         if (objRenderer != null)
         {
+            // 直接修改材质颜色
             objRenderer.material.color = IsSelected ? selectedColor : originalColor;
         }
     }

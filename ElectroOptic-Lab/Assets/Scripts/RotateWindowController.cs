@@ -1,10 +1,8 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-//ZYX
-/// <summary>
-/// 偏振片旋转窗口创建
-/// </summary>
+
+// ZYX 修改版：修复 API 兼容性并同步旋转
 public class RotateWindowController : MonoBehaviour
 {
     [Header("窗口配置")]
@@ -72,7 +70,8 @@ public class RotateWindowController : MonoBehaviour
 
     private static void EnsureEventSystem()
     {
-        if (Object.FindFirstObjectByType<EventSystem>() == null)
+        // 兼容 2022.1 及更早版本的 API
+        if (Object.FindObjectOfType<EventSystem>() == null)
         {
             GameObject eventSystemObj = new GameObject("EventSystem");
             eventSystemObj.AddComponent<EventSystem>();
@@ -180,7 +179,6 @@ public class RotateWindowController : MonoBehaviour
             {
                 RotateStandController.DeselectAll();
             }
-            Debug.Log($"🪟 关闭窗口: {gameObject.name}");
             gameObject.SetActive(false);
         });
     }
@@ -200,19 +198,16 @@ public class RotateWindowController : MonoBehaviour
 
         dialImage = dialObj.AddComponent<Image>();
 
-        // 🔥🔥🔥 核心修改点：直接读变量，不读 Resources 🔥🔥🔥
         if (rotateStand != null && rotateStand.customDialTexture != null)
         {
             Texture2D tex = rotateStand.customDialTexture;
             dialImage.sprite = Sprite.Create(tex,
                 new Rect(0, 0, tex.width, tex.height),
                 new Vector2(0.5f, 0.5f));
-            Debug.Log("✅ 成功加载拖拽的图片！");
         }
         else
         {
             dialImage.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
-            Debug.LogWarning("⚠️ 警告：RotateStandController 上没有拖拽 customDialTexture 图片！");
         }
 
         dialImage.preserveAspect = true;

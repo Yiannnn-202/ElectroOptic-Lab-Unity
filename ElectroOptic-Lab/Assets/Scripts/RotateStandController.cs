@@ -2,10 +2,7 @@
 using UnityEngine.EventSystems;
 using System.Collections;
 
-//ZYX
-/// <summary>
-/// 偏振片控制脚本（双击跳出窗口，选中时单击取消选中）
-/// </summary>
+// ZYX 最终完美版：逻辑与表现分离，颜色完全交由 Outline 组件自己控制
 public class RotateStandController : MonoBehaviour
 {
     [Header("旋转配置")]
@@ -31,22 +28,26 @@ public class RotateStandController : MonoBehaviour
     private float lastClickTime = 0f;
     private RotateWindowController rotateWindow;
     private bool isProcessingClick = false;
-
-    // 避免与父物体冲突
     private bool isSelected = false;
-    private Renderer objectRenderer;
-    private Color originalColor;
+
+    // QuickOutline 引用
+    private Outline outline;
 
     // 静态变量管理当前选中的旋转座
     private static RotateStandController currentSelectedStand = null;
 
     void Start()
     {
-        objectRenderer = GetComponent<Renderer>();
-        if (objectRenderer != null)
+        // 自动获取或添加 Outline 组件
+        outline = GetComponent<Outline>();
+        if (outline == null)
         {
-            originalColor = objectRenderer.material.color;
+            outline = gameObject.AddComponent<Outline>();
         }
+
+        // 🔥 核心修改：不再强行覆盖颜色和粗细！
+        // 只负责在游戏开始时，把轮廓灯“关掉”
+        outline.enabled = false;
     }
 
     void Update()
@@ -108,20 +109,8 @@ public class RotateStandController : MonoBehaviour
                 else
                 {
                     lastClickTime = currentTime;
-
-                    // ==========================================
-                    // 🎯 【核心新增】：单击时的状态反转逻辑
-                    // ==========================================
-                    if (isSelected)
-                    {
-                        // 如果已经被选中了，单击一下就取消选中
-                        DeselectStand();
-                    }
-                    else
-                    {
-                        // 如果没被选中，单击一下就选中
-                        SelectThisStand();
-                    }
+                    if (isSelected) DeselectStand();
+                    else SelectThisStand();
                 }
             }
             isProcessingClick = false;
@@ -141,14 +130,14 @@ public class RotateStandController : MonoBehaviour
         isSelected = true;
         IsAnyStandSelected = true;
 
-        if (objectRenderer != null) objectRenderer.material.color = Color.green;
+        if (outline != null) outline.enabled = true; // 打开高光
         if (showDebug) Debug.Log($"✅ 选中旋转座: {gameObject.name}");
     }
 
     public void DeselectStand()
     {
         isSelected = false;
-        if (objectRenderer != null) objectRenderer.material.color = originalColor;
+        if (outline != null) outline.enabled = false; // 关闭高光
 
         if (currentSelectedStand == this)
         {
@@ -170,15 +159,10 @@ public class RotateStandController : MonoBehaviour
     private bool IsClickingThisRotateStand()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        RaycastHit[] hits = Physics.RaycastAll(ray);
-
-        foreach (RaycastHit hit in hits)
+        if (Physics.Raycast(ray, out RaycastHit hit))
         {
-            if (hit.collider.gameObject == this.gameObject || hit.collider.transform.IsChildOf(this.transform))
-                return true;
-
-            RotateStandController clickedStand = hit.collider.GetComponentInParent<RotateStandController>();
-            if (clickedStand == this) return true;
+            // 检查点击的是否是自己或子物体
+            return hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform);
         }
         return false;
     }
@@ -192,6 +176,7 @@ public class RotateStandController : MonoBehaviour
             rotateWindow.ShowWindow();
     }
 
+    // --- 给 UI 调用的公共接口 ---
     public float GetCurrentRotateAngle() => transform.eulerAngles.z;
     public string GetRotateStandName() => gameObject.name;
 

@@ -28,9 +28,20 @@ public class OpticalComponent : MonoBehaviour
     private float lastClickTime = 0f;
     private const float DOUBLE_CLICK_TIME = 0.3f; // 0.3秒内点击两次算双击
 
+    // --- 【新增】QuickOutline 引用 ---
+    private Outline outline;
+
     void Start()
     {
         originalPos = transform.position;
+
+        // 初始化 Outline 组件
+        outline = GetComponent<Outline>();
+        if (outline == null)
+        {
+            outline = gameObject.AddComponent<Outline>();
+        }
+        outline.enabled = false; // 默认关闭高光
     }
 
     // 1. 鼠标点击：触发“拿起”或“放下”
@@ -79,9 +90,11 @@ public class OpticalComponent : MonoBehaviour
     void PickUp()
     {
         isSelected = true;
-        // 拿起时，确保 isOnRail 为 false，否则逻辑会打架
         isOnRail = false;
         currentRail = null;
+
+        // --- 打开高光 ---
+        if (outline != null) outline.enabled = true;
 
         Vector3 currentPos = transform.position;
         currentPos.y = originalPos.y + hoverHeight;
@@ -94,7 +107,6 @@ public class OpticalComponent : MonoBehaviour
 
     void HandleKeyboardMove()
     {
-        // 这里保留了你之前修改过的移动逻辑（W/S与A/D控制可能反转或调换过轴向）
         float h = Input.GetAxis("Vertical"); // A/D
         float v = Input.GetAxis("Horizontal");   // W/S
 
@@ -118,14 +130,15 @@ public class OpticalComponent : MonoBehaviour
             transform.position = landPos;
             Debug.Log("放置在桌面上");
         }
+
+        // --- 关闭高光 ---
+        if (outline != null) outline.enabled = false;
     }
 
     private bool CheckDropTarget()
     {
-        // 获取范围内所有碰撞体
         Collider[] hitColliders = Physics.OverlapSphere(transform.position, detectionRadius, railLayer);
 
-        // 遍历数组寻找合法的导轨
         foreach (var col in hitColliders)
         {
             OpticalRail railScript = col.GetComponent<OpticalRail>();
@@ -133,10 +146,9 @@ public class OpticalComponent : MonoBehaviour
             if (railScript != null)
             {
                 SnapToRail(railScript);
-                return true; // 找到了就立刻返回成功
+                return true;
             }
         }
-
         return false;
     }
 
@@ -145,16 +157,9 @@ public class OpticalComponent : MonoBehaviour
         isOnRail = true;
         currentRail = rail;
 
-        // 1. 获取导轨给出的表面吸附位置
         Vector3 finalPos = rail.GetSnapPosition(transform.position);
-
-        // 2. 【核心修改】加上物体自身的 Y 轴高度补偿，把陷进去的部分“拔”出来！
         finalPos.y += snapYOffset;
-
-        // 3. 应用最终坐标
         transform.position = finalPos;
-
-        // 4. 设置吸附后的朝向
         transform.rotation = Quaternion.Euler(0, snapRotationY, 0);
 
         Debug.Log("已吸附并锁定！");
