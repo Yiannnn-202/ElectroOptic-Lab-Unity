@@ -1774,7 +1774,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76bd02ae0d2c85a4ebbf0abf06732f16, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 0.5
+  moveSpeed: 0.1
   moveRange: 0.035
   isCalibrationDone: 0
 --- !u!114 &623546758
