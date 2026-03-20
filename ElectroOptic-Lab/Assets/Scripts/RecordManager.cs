@@ -1,43 +1,82 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
 public class RecordManager : MonoBehaviour
 {
-    [Header("UI ÒıÓÃ")]
-    public TextMeshProUGUI readingText;
-    public Button recordButton;
+    [Header("UI å¼•ç”¨ (å·¦ä¾§ä»ªå™¨)")]
+    public TextMeshProUGUI voltageText;
+    public TextMeshProUGUI receiverText;
 
-    [Header("¹Ì¶¨±í¸ñÉèÖÃ")]
-    // ÓÃÒ»¸öÊı×éÀ´´æ·ÅÄãÌáÇ°°ÚºÃµÄËùÓĞ¿Õ°×¸ñ×Ó
+    [Header("UI å¼•ç”¨ (å³ä¾§è¡¨æ ¼)")]
+    public Button recordButton;
     public TextMeshProUGUI[] tableSlots;
 
-    // Õâ¸ö±äÁ¿¾ÍÏñÒ»¸öÓÎ±ê£¬¼ÇÂ¼µ±Ç°¸ÃÌîµÚ¼¸¸ö¸ñ×ÓÁË
+    [Header("å®éªŒç‰©ç†å‚æ•°")]
+    public float currentVoltage = 0.0f;   // å½“å‰å¤–åŠ ç”µå‹ (u)
+    public float voltageStep = 10.0f;     // æ¯æ¬¡æŒ‰é”®å¢å‡çš„ç”µå‹é‡
+
+    [Space(10)]
+    public float halfWaveVoltage = 150.0f; // åŠæ³¢ç”µå‹ (u_pi) - å¯åœ¨é¢æ¿è°ƒèŠ‚
+    public float maxIntensity = 100.0f;    // æœ€å¤§å…‰å¼º (I_0) - å¯åœ¨é¢æ¿è°ƒèŠ‚
+
     private int currentIndex = 0;
 
     void Start()
     {
-        Debug.Log("¿ªÊ¼ÔËĞĞ");
         recordButton.onClick.AddListener(RecordData);
+        UpdateInstrumentUI();
+    }
+
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.A))
+        {
+            currentVoltage -= voltageStep;
+            UpdateInstrumentUI();
+        }
+        else if (Input.GetKeyDown(KeyCode.D))
+        {
+            currentVoltage += voltageStep;
+            UpdateInstrumentUI();
+        }
+    }
+
+    // ğŸŒŸ æ ¸å¿ƒå…¬å¼ï¼šå…‰å¼ºåº¦ç”µå…‰è°ƒåˆ¶å…¬å¼
+    float CalculateReceiverValue(float voltage)
+    {
+        // å…¬å¼: I = I_0 * sin^2( (PI * u) / (2 * u_pi) )
+        // 1. è®¡ç®—æ‹¬å·é‡Œçš„ç›¸ä½å€¼
+        float phase = (Mathf.PI * voltage) / (2f * halfWaveVoltage);
+
+        // 2. è®¡ç®— sin çš„å¹³æ–¹ï¼Œå†ä¹˜ä»¥æœ€å¤§å…‰å¼º
+        float result = maxIntensity * Mathf.Pow(Mathf.Sin(phase), 2);
+
+        return result;
+    }
+
+    void UpdateInstrumentUI()
+    {
+        voltageText.text = currentVoltage.ToString("F1") + " V";
+
+        float receiverValue = CalculateReceiverValue(currentVoltage);
+        // ç¤ºæ•°ä¿ç•™ä¸¤ä½å°æ•°
+        receiverText.text = receiverValue.ToString("F2");
     }
 
     void RecordData()
     {
-        // ¼ì²é±í¸ñÊÇ²»ÊÇÒÑ¾­ÌîÂúÁË£¿
         if (currentIndex >= tableSlots.Length)
         {
-            Debug.Log("±í¸ñÒÑ¾­ÂúÁË£¡ÎŞ·¨ÔÙ¼ÇÂ¼¡£");
-            return; // ÂúÁË¾ÍÖ±½ÓÍ£Ö¹ÔËĞĞºóÃæµÄ´úÂë
+            Debug.Log("è¡¨æ ¼å·²ç»å¡«æ»¡äº†ï¼");
+            return;
         }
 
-        Debug.Log("¿ªÊ¼¼ÇÂ¼");
+        float currentReceiverValue = CalculateReceiverValue(currentVoltage);
 
-        // 1. °Ñ×ó²àµÄ¶ÁÊı£¬ÌîÈëµ±Ç°µÄ¿Õ¸ñ×ÓÀï
-        tableSlots[currentIndex].text = readingText.text;
+        string recordString = string.Format("{0:F1} V   |   {1:F2}", currentVoltage, currentReceiverValue);
 
-        // 2. ÓÎ±êÍùÏÂ×ßÒ»¸ñ£¬×¼±¸Ó­½ÓÏÂÒ»´Î¼ÇÂ¼
+        tableSlots[currentIndex].text = recordString;
         currentIndex++;
-
-        Debug.Log("³É¹¦¼ÇÂ¼Êı¾İµ½ÁËµÚ " + currentIndex + " ĞĞ");
     }
 }
