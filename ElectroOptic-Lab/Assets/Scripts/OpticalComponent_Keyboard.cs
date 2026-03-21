@@ -1,17 +1,19 @@
 using UnityEngine;
 
-// µ¥´Îµã»÷ÄÃÆğ£¬ÒÆ¶¯µ½µ¼¹ìÉÏ·½¿Õ¸ñ¼ü·ÅÏÂ£¬ Ë«»÷ÔÙ´ÎÄÃÆğ
+// ï¿½ï¿½ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï·ï¿½ï¿½Õ¸ï¿½ï¿½ï¿½ï¿½ï¿½Â£ï¿½ Ë«ï¿½ï¿½ï¿½Ù´ï¿½ï¿½ï¿½ï¿½ï¿½
 public class OpticalComponent : MonoBehaviour
 {
-    [Header("ÉèÖÃ")]
+    [Header("ï¿½ï¿½ï¿½ï¿½")]
     public LayerMask railLayer;
     public float hoverHeight = 0.5f;
     public float moveSpeed = 2.0f;
 
-    [Header("Îü¸½ÉèÖÃ")]
-    // ¡¾ĞÂÔö¡¿ÔÚÕâÀïÌîÈëÄãÏëÒªµÄÎü¸½½Ç¶È£¬±ÈÈç -90, 90, 180 µÈ
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½")]
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¶È£ï¿½ï¿½ï¿½ï¿½ï¿½ -90, 90, 180 ï¿½ï¿½
     public float snapRotationY = -90f;
     public float detectionRadius = 0.5f;
+    [Tooltip("æ‰‹åŠ¨ Y åç§»ï¼šæ­£å€¼ä¸ŠæŠ¬ï¼Œè´Ÿå€¼ä¸‹å‹ï¼Œä¿®æ­£ç¢°æ’ä½“ä¸æ¨¡å‹åº•éƒ¨ä¸ä¸€è‡´")]
+    public float snapYOffset = 0f;
 
     [Header("×´Ì¬")]
     public bool isSelected = false;
@@ -20,29 +22,29 @@ public class OpticalComponent : MonoBehaviour
     private Vector3 originalPos;
     private OpticalRail currentRail;
 
-    // ¡¾ĞÂÔö¡¿ÓÃÓÚ¼ì²âË«»÷µÄ±äÁ¿
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú¼ï¿½ï¿½Ë«ï¿½ï¿½ï¿½Ä±ï¿½ï¿½ï¿½
     private float lastClickTime = 0f;
-    private const float DOUBLE_CLICK_TIME = 0.3f; // 0.3ÃëÄÚµã»÷Á½´ÎËãË«»÷
+    private const float DOUBLE_CLICK_TIME = 0.3f; // 0.3ï¿½ï¿½ï¿½Úµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë«ï¿½ï¿½
 
     void Start()
     {
         originalPos = transform.position;
     }
 
-    // 1. Êó±êµã»÷£º´¥·¢¡°ÄÃÆğ¡±»ò¡°·ÅÏÂ¡±
+    // 1. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ğ¡±»ò¡°·ï¿½ï¿½Â¡ï¿½
     void OnMouseDown()
     {
         float timeSinceLastClick = Time.time - lastClickTime;
         lastClickTime = Time.time;
-        // ĞÂÔöË«»÷¼ì²â
-        // ¡¾ºËĞÄĞŞ¸Äµã 1¡¿
-        // Èç¹ûÒÑ¾­Îü¸½ÔÚµ¼¹ìÉÏÁË£¬Ö±½Ó¡°return¡±£¨ÍË³öº¯Êı£©
-        // ÕâÒâÎ¶×Åµã»÷Ëü½«Ã»ÓĞÈÎºÎ·´Ó¦£¬²»»áÔÙ½øÈë¡°ÄÃÆğ¡±×´Ì¬
+        // ï¿½ï¿½ï¿½ï¿½Ë«ï¿½ï¿½ï¿½ï¿½ï¿½
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ş¸Äµï¿½ 1ï¿½ï¿½
+        // ï¿½ï¿½ï¿½ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Úµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë£ï¿½Ö±ï¿½Ó¡ï¿½returnï¿½ï¿½ï¿½ï¿½ï¿½Ë³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        // ï¿½ï¿½ï¿½ï¿½Î¶ï¿½Åµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½ÎºÎ·ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù½ï¿½ï¿½ë¡°ï¿½ï¿½ï¿½ï¿½×´Ì¬
         if (isOnRail)
         {
             if(timeSinceLastClick < DOUBLE_CLICK_TIME)
             {
-                Debug.Log("Ë«»÷¼ì²â£º³¢ÊÔÄÃÆğ");
+                Debug.Log("Ë«ï¿½ï¿½ï¿½ï¿½â£ºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
                 isOnRail = false;
                 PickUp();
             }
@@ -59,7 +61,7 @@ public class OpticalComponent : MonoBehaviour
         }
     }
 
-    // 2. Ã¿Ò»Ö¡´¦Àí¼üÅÌÒÆ¶¯
+    // 2. Ã¿Ò»Ö¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¶ï¿½
     void Update()
     {
         if (isSelected)
@@ -76,7 +78,7 @@ public class OpticalComponent : MonoBehaviour
     void PickUp()
     {
         isSelected = true;
-        // ÄÃÆğÊ±£¬È·±£ isOnRail Îª false£¬·ñÔòÂß¼­»á´ò¼Ü
+        // ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½È·ï¿½ï¿½ isOnRail Îª falseï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß¼ï¿½ï¿½ï¿½ï¿½ï¿½
         isOnRail = false;
         currentRail = null;
 
@@ -86,18 +88,18 @@ public class OpticalComponent : MonoBehaviour
 
         if (GetComponent<Rigidbody>()) GetComponent<Rigidbody>().isKinematic = true;
 
-        Debug.Log("ÒÑÑ¡ÖĞ£º" + gameObject.name);
+        Debug.Log("ï¿½ï¿½Ñ¡ï¿½Ğ£ï¿½" + gameObject.name);
     }
 
     void HandleKeyboardMove()
     {
-        // ×¢Òâ£º¸ù¾İÄãµÄÉÏÒ»Ìõ·´À¡£¬ÄãºÃÏñÒÑ¾­×Ô¼ºµ÷»»ÁË h ºÍ v µÄÂß¼­
-        // Èç¹ûÄãµÄ³¡¾°Àï W/S ÊÇ×óÓÒ£¬A/D ÊÇÇ°ºó£¬Çë±£ÁôÄãµÄĞŞ¸Ä¡£
-        // ÏÂÃæÊÇ±ê×¼µÄ X/Z Æ½ÃæÒÆ¶¯Âß¼­£¬Äã¿ÉÒÔ¸ù¾İÊÖ¸ĞÎ¢µ÷£º
+        // ×¢ï¿½â£ºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¾ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ h ï¿½ï¿½ v ï¿½ï¿½ï¿½ß¼ï¿½
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½ï¿½ï¿½ï¿½ W/S ï¿½ï¿½ï¿½ï¿½ï¿½Ò£ï¿½A/D ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ë±£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ş¸Ä¡ï¿½
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ç±ï¿½×¼ï¿½ï¿½ X/Z Æ½ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½ß¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¸ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½Î¢ï¿½ï¿½ï¿½ï¿½
         float h = Input.GetAxis("Vertical"); // A/D
         float v = Input.GetAxis("Horizontal");   // W/S
 
-        // ÕâÀïÊ¹ÓÃÁËÄãµÄÂß¼­£ºxÖáºÍzÖá¶Ôµ÷£¬ÇÒ¿ÉÄÜ·´Ïò
+        // ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß¼ï¿½ï¿½ï¿½xï¿½ï¿½ï¿½zï¿½ï¿½Ôµï¿½ï¿½ï¿½ï¿½Ò¿ï¿½ï¿½Ü·ï¿½ï¿½ï¿½
         Vector3 movement = new Vector3(-h, 0, v) * moveSpeed * Time.deltaTime;
 
         transform.Translate(movement, Space.World);
@@ -108,58 +110,69 @@ public class OpticalComponent : MonoBehaviour
         if (CheckDropTarget())
         {
             isSelected = false;
-            // isOnRail = true; // Õâ¾äÔÚ SnapToRail ÀïÒÑ¾­Ğ´ÁË
+            // isOnRail = true; // ï¿½ï¿½ï¿½ï¿½ï¿½ SnapToRail ï¿½ï¿½ï¿½Ñ¾ï¿½Ğ´ï¿½ï¿½
         }
         else
         {
             isSelected = false;
-            // Ã»¶Ô×¼£¬·Å»ØÔ­´¦£¨×ÀÃæ£©
+            // Ã»ï¿½ï¿½×¼ï¿½ï¿½ï¿½Å»ï¿½Ô­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½æ£©
             Vector3 landPos = transform.position;
             landPos.y = originalPos.y;
             transform.position = landPos;
-            Debug.Log("·ÅÖÃÔÚ×ÀÃæÉÏ");
+            Debug.Log("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
         }
     }
 
     private bool CheckDropTarget()
     {
-        // »ñÈ¡·¶Î§ÄÚËùÓĞÅö×²Ìå
+        // ï¿½ï¿½È¡ï¿½ï¿½Î§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×²ï¿½ï¿½
         Collider[] hitColliders = Physics.OverlapSphere(transform.position, detectionRadius, railLayer);
 
-        // ¡¾¹Ø¼üĞŞ¸Ä¡¿±éÀúÊı×é£¬¶ø²»ÊÇÖ»¿´µÚ 0 ¸ö
+        // ï¿½ï¿½ï¿½Ø¼ï¿½ï¿½Ş¸Ä¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½é£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö»ï¿½ï¿½ï¿½ï¿½ 0 ï¿½ï¿½
         foreach (var col in hitColliders)
         {
-            // ³¢ÊÔ»ñÈ¡½Å±¾£¨½¨ÒéÍ¬Ê±¼ì²é¸¸ÎïÌå£¬¼ûÏÂÒ»µã£©
+            // ï¿½ï¿½ï¿½Ô»ï¿½È¡ï¿½Å±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¬Ê±ï¿½ï¿½é¸¸ï¿½ï¿½ï¿½å£¬ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ã£©
             OpticalRail railScript = col.GetComponent<OpticalRail>();
 
-            // Èç¹ûÕÒµ½ÁËºÏ·¨µÄµ¼¹ì
+            // ï¿½ï¿½ï¿½ï¿½Òµï¿½ï¿½ËºÏ·ï¿½ï¿½Äµï¿½ï¿½ï¿½
             if (railScript != null)
             {
                 SnapToRail(railScript);
-                return true; // ÕÒµ½ÁË¾ÍÁ¢¿Ì·µ»Ø³É¹¦
+                return true; // ï¿½Òµï¿½ï¿½Ë¾ï¿½ï¿½ï¿½ï¿½Ì·ï¿½ï¿½Ø³É¹ï¿½
             }
         }
 
-        // Ñ­»·×ßÍê¶¼Ã»ÕÒµ½£¬²Å·µ»ØÊ§°Ü
+        // Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ê¶¼Ã»ï¿½Òµï¿½ï¿½ï¿½ï¿½Å·ï¿½ï¿½ï¿½Ê§ï¿½ï¿½
         return false;
     }
 
     private void SnapToRail(OpticalRail rail)
     {
-        // ±ê¼ÇÎªÒÑÉÏµ¼¹ì£¨Õâ½«´¥·¢ OnMouseDown ÀïµÄËø¶¨Âß¼­£©
+        // ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½Ïµï¿½ï¿½ì£¨ï¿½â½«ï¿½ï¿½ï¿½ï¿½ OnMouseDown ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß¼ï¿½ï¿½ï¿½
         isOnRail = true;
         currentRail = rail;
 
-        // »ñÈ¡Îü¸½Î»ÖÃ
-        Vector3 finalPos = rail.GetSnapPosition(transform.position);
-        transform.position = finalPos;
-
-        // ¡¾ºËĞÄĞŞ¸Äµã 2£ºĞı×ªÂß¼­¡¿
-        // Ê¹ÓÃ Inspector Ãæ°åÀïÌîĞ´µÄ snapRotationY ½Ç¶È
-        // ÕâÑù¾ÍÊµÏÖÁËÄãÒªÇóµÄ -90 ¶ÈĞı×ª
+        // å…ˆåº”ç”¨æ—‹è½¬ï¼Œä½¿ bounds åæ˜ æœ€ç»ˆæœå‘
         transform.rotation = Quaternion.Euler(0, snapRotationY, 0);
 
-        Debug.Log("ÒÑÎü¸½²¢Ëø¶¨£¡");
+        // ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+        Vector3 finalPos = rail.GetSnapPosition(transform.position);
+
+        // è‡ªåŠ¨ä¿®æ­£ï¼šè®¡ç®— pivot åˆ°ç¢°æ’ä½“åº•éƒ¨çš„è·ç¦»ï¼Œå‘ä¸Šåç§»ä½¿åº•éƒ¨è´´åˆå¯¼è½¨
+        Collider col = GetComponent<Collider>();
+        if (col == null) col = GetComponentInChildren<Collider>();
+        if (col != null)
+        {
+            float pivotToBottom = transform.position.y - col.bounds.min.y;
+            finalPos.y += pivotToBottom;
+        }
+
+        // æ‰‹åŠ¨ä¿®æ­£ï¼šè¡¥å¿ç¢°æ’ä½“ä¸æ¨¡å‹è§†è§‰åº•éƒ¨çš„å·®å¼‚
+        finalPos.y += snapYOffset;
+
+        transform.position = finalPos;
+
+        Debug.Log("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
     }
 
     void OnDrawGizmos()
