@@ -2,9 +2,8 @@
 
 /// <summary>
 /// 导轨物体移动控制器 (最终版)
-/// 功能：支持轴向选择，中文注释，互斥逻辑
+/// 功能：支持轴向选择，中文注释，互斥逻辑，集成 QuickOutline
 /// </summary>
-
 public class RailObjectMover : MonoBehaviour
 {
     private static RailObjectMover currentActiveMover;
@@ -19,34 +18,25 @@ public class RailObjectMover : MonoBehaviour
     public float moveSpeed = 0.5f;
 
     [Header("移动范围")]
-
     public float minLimit = -3.0f;
     public float maxLimit = 3.0f;
-
-
-    [Header("选中反馈")]
-    public Color selectedColor = Color.yellow;
-    private Color defaultColor;
-    private Renderer myRenderer;
 
     [Header("冲突设置")]
     public bool ignoreRotateStandClicks = true;
 
+    // --- 【新增】QuickOutline 引用 ---
+    private Outline outline;
+
     // 初始化
     void Start()
     {
-        myRenderer = GetComponent<Renderer>();
-        if (myRenderer == null)
+        // 极简处理：只获取或添加 Outline，不再管 Renderer 的颜色了
+        outline = GetComponent<Outline>();
+        if (outline == null)
         {
-            Transform baseModel = transform.Find("滑座");
-            if (baseModel != null) myRenderer = baseModel.GetComponent<Renderer>();
-            else myRenderer = GetComponentInChildren<Renderer>();
+            outline = gameObject.AddComponent<Outline>();
         }
-
-        if (myRenderer != null)
-        {
-            defaultColor = myRenderer.material.color;
-        }
+        outline.enabled = false; // 默认关闭高光
     }
 
     // 点击事件
@@ -67,7 +57,6 @@ public class RailObjectMover : MonoBehaviour
             Deselect();
             currentActiveMover = null;
         }
-
         else
         {
             if (currentActiveMover != null) currentActiveMover.Deselect();
@@ -90,12 +79,14 @@ public class RailObjectMover : MonoBehaviour
 
     void Select()
     {
-        if (myRenderer != null) myRenderer.material.color = selectedColor;
+        // --- 打开高光 ---
+        if (outline != null) outline.enabled = true;
     }
 
     public void Deselect()
     {
-        if (myRenderer != null) myRenderer.material.color = defaultColor;
+        // --- 关闭高光 ---
+        if (outline != null) outline.enabled = false;
     }
 
     // 键盘移动逻辑
@@ -111,15 +102,12 @@ public class RailObjectMover : MonoBehaviour
         if (moveDirection != 0f) MoveObject(moveDirection);
     }
 
-
-
     // 核心移动计算
     void MoveObject(float direction)
     {
         Vector3 currentPos = transform.localPosition;
         float newVal = 0f;
 
-        // 根据选择的轴向进行移动
         switch (moveAxis)
         {
             case MoveAxis.X_Axis:
