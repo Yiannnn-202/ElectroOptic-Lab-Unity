@@ -2,36 +2,44 @@ using UnityEngine;
 
 public class OpticalRail : MonoBehaviour
 {
-    [Header("µ¼¹ìÉèÖÃ")]
-    // ÏÖÔÚµÄµ¼¹ìÊÇÑØ×Å X ÖáÑÓÉìµÄ
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½")]
+    // ï¿½ï¿½ï¿½ÚµÄµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ X ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     public Vector3 railDirection = Vector3.right;
-    public float railLength = 1.0f;       // µ¼¹ìÒ»°ëµÄ³¤¶È
-    public float railHeightOffset = 0.1f; // µ¼¹ìÃæµÄ¸ß¶È
+    public float railLength = 1.0f;       // ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Ä³ï¿½ï¿½ï¿½
+    public float railHeightOffset = 0.1f; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¸ß¶ï¿½
 
     void OnDrawGizmos()
     {
         Gizmos.color = Color.green;
-        // »­³ö X Öá·½ÏòµÄ¸¨ÖúÏß
+        // ï¿½ï¿½ï¿½ï¿½ X ï¿½á·½ï¿½ï¿½Ä¸ï¿½ï¿½ï¿½ï¿½ï¿½
         Gizmos.DrawLine(transform.position - transform.right * railLength,
                         transform.position + transform.right * railLength);
     }
 
     public Vector3 GetSnapPosition(Vector3 worldPosition)
     {
-        // 1. ×ªÎª¾Ö²¿×ø±ê
+        // 1. ×ªÎªï¿½Ö²ï¿½ï¿½ï¿½ï¿½ï¿½
         Vector3 localPos = transform.InverseTransformPoint(worldPosition);
 
-        // 2. ¡¾ºËĞÄĞŞ¸Ä¡¿
-        // XÖá£º±£ÁôÔ­À´µÄÖµ£¨ÔÊĞí»¬¶¯£©£¬µ«ÏŞÖÆÔÚµ¼¹ì³¤¶È·¶Î§ÄÚ
-        // YÖá£º¹Ì¶¨¸ß¶È
-        // ZÖá£ºÇ¿ÖÆ¹éÁã£¨¶ÔÆëÖĞĞÄ£©
+        // 2. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ş¸Ä¡ï¿½
+        // Xï¿½á£ºï¿½ï¿½ï¿½ï¿½Ô­ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Úµï¿½ï¿½ì³¤ï¿½È·ï¿½Î§ï¿½ï¿½
+        // Yï¿½á£ºï¿½Ì¶ï¿½ï¿½ß¶ï¿½
+        // Zï¿½á£ºÇ¿ï¿½Æ¹ï¿½ï¿½ã£¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½
+        // è‡ªåŠ¨è·å–è½¨é“é¡¶é¢é«˜åº¦
+        float topY = railHeightOffset;
+        var col = GetComponent<BoxCollider>();
+        if (col != null)
+        {
+            topY = col.center.y + col.size.y / 2f;
+        }
+
         Vector3 snappedLocal = new Vector3(
-            Mathf.Clamp(localPos.x, -railLength, railLength), // Ö»ÓĞ X ÊÇ±äÁ¿
-            railHeightOffset,                                 // Y ¹Ì¶¨
-            0                                                 // Z ¹Ì¶¨Îª 0
+            Mathf.Clamp(localPos.x, -railLength, railLength), // Ö»ï¿½ï¿½ X ï¿½Ç±ï¿½ï¿½ï¿½
+            topY,                                              // Y è½¨é“é¡¶é¢
+            0                                                  // Z ï¿½Ì¶ï¿½Îª 0
         );
 
-        // 3. ×ª»ØÊÀ½ç×ø±ê
+        // 3. ×ªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         return transform.TransformPoint(snappedLocal);
     }
 }
