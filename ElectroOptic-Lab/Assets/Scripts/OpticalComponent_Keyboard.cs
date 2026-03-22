@@ -1,62 +1,60 @@
 using UnityEngine;
 
-// µ¥´Îµã»÷ÄÃÆğ£¬ÒÆ¶¯µ½µ¼¹ìÉÏ·½¿Õ¸ñ¼ü·ÅÏÂ£¬ Ë«»÷ÔÙ´ÎÄÃÆğ
+// é”®ç›˜æ§åˆ¶ï¼šæ‹¾å–ç§»åŠ¨ï¼Œç‚¹å‡»æ”¾ä¸‹/å¸é™„å¯¼è½¨ï¼ŒåŒå‡»å†æ¬¡æ‹¾èµ·
 public class OpticalComponent : MonoBehaviour
 {
-    [Header("ÉèÖÃ")]
+    [Header("åŸºç¡€")]
     public LayerMask railLayer;
     public float hoverHeight = 0.5f;
     public float moveSpeed = 2.0f;
 
-    [Header("Îü¸½ÉèÖÃ")]
-    // ÔÚÕâÀïÌîÈëÄãÏëÒªµÄÎü¸½½Ç¶È£¬±ÈÈç -90, 0, 90, 180 µÈ£¨½â¾ö¹âÆÁ²àÉíµÄÎÊÌâ£©
+    [Header("å¸é™„é…ç½®")]
+    // å¸é™„åç‰©ä½“æœå‘ï¼Œéœ€è¦æ‰‹åŠ¨å¡«è§’åº¦ï¼Œå¦‚ -90, 0, 90, 180 ç­‰ï¼ˆæ ¹æ®ç‰©ä½“æœå‘è‡ªè¡Œè°ƒæ•´ï¼‰
     public float snapRotationY = -90f;
     public float detectionRadius = 0.5f;
-
-    // ¡¾ĞÂÔö¡¿Îü¸½¸ß¶È²¹³¥£¡ÓÃÓÚ½â¾öÄ£ĞÍÖĞĞÄµãÔÚÖĞ¼äµ¼ÖÂÏİ½øµ¼¹ìµÄÎÊÌâ
-    [Tooltip("Èç¹ûÄ£ĞÍÎü¸½ºóÏİ½øµ¼¹ì£¬ÇëÔö´óÕâ¸öÖµ£»Èç¹ûĞü¿Õ£¬Çë¼õĞ¡")]
+    [Tooltip("æ‰‹åŠ¨ Y åç§»ï¼šæ­£å€¼ä¸ŠæŠ¬ï¼Œè´Ÿå€¼ä¸‹å‹ï¼Œä¿®æ­£ç¢°æ’ä½“ä¸æ¨¡å‹åº•éƒ¨ä¸ä¸€è‡´")]
     public float snapYOffset = 0f;
 
-    [Header("×´Ì¬")]
+    [Header("çŠ¶æ€")]
     public bool isSelected = false;
     public bool isOnRail = false;
 
     private Vector3 originalPos;
     private OpticalRail currentRail;
 
-    // ÓÃÓÚ¼ì²âË«»÷µÄ±äÁ¿
+    // ç”¨äºæ£€æµ‹åŒå‡»çš„å˜é‡
     private float lastClickTime = 0f;
-    private const float DOUBLE_CLICK_TIME = 0.3f; // 0.3ÃëÄÚµã»÷Á½´ÎËãË«»÷
+    private const float DOUBLE_CLICK_TIME = 0.3f; // 0.3ç§’å†…ç‚¹å‡»ä¸¤æ¬¡ç®—åŒå‡»
 
-    // --- ¡¾ĞÂÔö¡¿QuickOutline ÒıÓÃ ---
+    // --- é«˜äº®ç»„ä»¶ï¼ˆQuickOutline æ’ä»¶ï¼‰ ---
     private Outline outline;
 
     void Start()
     {
         originalPos = transform.position;
 
-        // ³õÊ¼»¯ Outline ×é¼ş
+        // åˆå§‹åŒ– Outline ç»„ä»¶
         outline = GetComponent<Outline>();
         if (outline == null)
         {
             outline = gameObject.AddComponent<Outline>();
         }
-        outline.enabled = false; // Ä¬ÈÏ¹Ø±Õ¸ß¹â
+        outline.enabled = false; // é»˜è®¤å…³é—­é«˜å…‰
     }
 
-    // 1. Êó±êµã»÷£º´¥·¢¡°ÄÃÆğ¡±»ò¡°·ÅÏÂ¡±
+    // 1. ç‚¹å‡»ç‰©ä½“ï¼šåˆ‡æ¢"æ‹¾èµ·"æˆ–"æ”¾ä¸‹"
     void OnMouseDown()
     {
         float timeSinceLastClick = Time.time - lastClickTime;
         lastClickTime = Time.time;
 
-        // ĞÂÔöË«»÷¼ì²â
-        // Èç¹ûÒÑ¾­Îü¸½ÔÚµ¼¹ìÉÏÁË£¬µã»÷Ëü²»»áÖ±½ÓÄÃÆğ£¬Ö»ÓĞË«»÷²Å»á
+        // å¤„ç†åŒå‡»é€»è¾‘
+        // å¦‚æœå·²ç»å¸é™„åœ¨å¯¼è½¨ä¸Šï¼Œå•å‡»ç›´æ¥å¿½ç•¥ï¼Œåªæœ‰åŒå‡»æ‰ä¼šæ‹¾èµ·
         if (isOnRail)
         {
             if (timeSinceLastClick < DOUBLE_CLICK_TIME)
             {
-                Debug.Log("Ë«»÷¼ì²â£º³¢ÊÔÄÃÆğ");
+                Debug.Log("åŒå‡»æ£€æµ‹ï¼šä»å¯¼è½¨å–ä¸‹");
                 isOnRail = false;
                 PickUp();
             }
@@ -73,7 +71,7 @@ public class OpticalComponent : MonoBehaviour
         }
     }
 
-    // 2. Ã¿Ò»Ö¡´¦Àí¼üÅÌÒÆ¶¯
+    // 2. æ¯ä¸€å¸§ï¼šé”®ç›˜ç§»åŠ¨
     void Update()
     {
         if (isSelected)
@@ -93,7 +91,7 @@ public class OpticalComponent : MonoBehaviour
         isOnRail = false;
         currentRail = null;
 
-        // --- ´ò¿ª¸ß¹â ---
+        // --- æ‰“å¼€é«˜å…‰ ---
         if (outline != null) outline.enabled = true;
 
         Vector3 currentPos = transform.position;
@@ -102,7 +100,7 @@ public class OpticalComponent : MonoBehaviour
 
         if (GetComponent<Rigidbody>()) GetComponent<Rigidbody>().isKinematic = true;
 
-        Debug.Log("ÒÑÑ¡ÖĞ£º" + gameObject.name);
+        Debug.Log("å·²é€‰ä¸­ï¼š" + gameObject.name);
     }
 
     void HandleKeyboardMove()
@@ -124,14 +122,14 @@ public class OpticalComponent : MonoBehaviour
         else
         {
             isSelected = false;
-            // Ã»¶Ô×¼£¬·Å»ØÔ­´¦£¨×ÀÃæ£©
+            // æ²¡æœ‰å¯¹å‡†å¯¼è½¨ï¼Œå›åˆ°åŸå§‹é«˜åº¦
             Vector3 landPos = transform.position;
             landPos.y = originalPos.y;
             transform.position = landPos;
-            Debug.Log("·ÅÖÃÔÚ×ÀÃæÉÏ");
+            Debug.Log("æ”¾ä¸‹ï¼Œæœªå¸é™„å¯¼è½¨");
         }
 
-        // --- ¹Ø±Õ¸ß¹â ---
+        // --- å…³é—­é«˜å…‰ ---
         if (outline != null) outline.enabled = false;
     }
 
@@ -157,12 +155,27 @@ public class OpticalComponent : MonoBehaviour
         isOnRail = true;
         currentRail = rail;
 
-        Vector3 finalPos = rail.GetSnapPosition(transform.position);
-        finalPos.y += snapYOffset;
-        transform.position = finalPos;
+        // å…ˆåº”ç”¨æ—‹è½¬ï¼Œä½¿ bounds åæ˜ æœ€ç»ˆæœå‘
         transform.rotation = Quaternion.Euler(0, snapRotationY, 0);
 
-        Debug.Log("ÒÑÎü¸½²¢Ëø¶¨£¡");
+        // è·å–å¸é™„ä½ç½®
+        Vector3 finalPos = rail.GetSnapPosition(transform.position);
+
+        // è‡ªåŠ¨ä¿®æ­£ï¼šè®¡ç®— pivot åˆ°ç¢°æ’ä½“åº•éƒ¨çš„è·ç¦»ï¼Œå‘ä¸Šåç§»ä½¿åº•éƒ¨è´´åˆå¯¼è½¨
+        Collider col = GetComponent<Collider>();
+        if (col == null) col = GetComponentInChildren<Collider>();
+        if (col != null)
+        {
+            float pivotToBottom = transform.position.y - col.bounds.min.y;
+            finalPos.y += pivotToBottom;
+        }
+
+        // æ‰‹åŠ¨ä¿®æ­£ï¼šè¡¥å¿ç¢°æ’ä½“ä¸æ¨¡å‹è§†è§‰åº•éƒ¨çš„å·®å¼‚
+        finalPos.y += snapYOffset;
+
+        transform.position = finalPos;
+
+        Debug.Log("å·²å¸é™„åˆ°å¯¼è½¨");
     }
 
     void OnDrawGizmos()
