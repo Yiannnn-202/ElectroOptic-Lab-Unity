@@ -1809,8 +1809,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   crystalOpticalComponent: {fileID: 308149087}
   screenCube: {fileID: 0}
-  windowSize: {x: 600, y: 600}
-  doubleClickInterval: 0.3
   screenLocalWidth: 0.01
   screenLocalHeight: 0.025
   offsetX: 0
@@ -2244,7 +2242,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
-  snapYOffset: 0.3
+  snapYOffset: -0.3
   isSelected: 0
   isOnRail: 0
 --- !u!114 &695835587
@@ -3016,7 +3014,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: -90
   detectionRadius: 0.6
-  snapYOffset: 0
+  snapYOffset: -0.3
   isSelected: 0
   isOnRail: 0
 --- !u!114 &824895147
@@ -5657,6 +5655,54 @@ MonoBehaviour:
   precomputeOutline: 0
   bakeKeys: []
   bakeValues: []
+--- !u!1 &1931840618
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1931840620}
+  - component: {fileID: 1931840619}
+  m_Layer: 0
+  m_Name: ScreenDisplayPanel
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1931840619
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1931840618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f34ed8e10873f4549954e94d5ac5a3e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  directScreenController: {fileID: 621459487}
+  panelSize: {x: 250, y: 250}
+  panelPosition: {x: 320, y: 200}
+  transitionDuration: 0.3
+--- !u!4 &1931840620
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1931840618}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.73979044, y: 5.213406, z: 0.35022733}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1942150922
 GameObject:
   m_ObjectHideFlags: 0
@@ -5751,6 +5797,54 @@ Light:
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 0
   m_ShadowAngle: 0
+--- !u!1 &1975395314
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1975395316}
+  - component: {fileID: 1975395315}
+  m_Layer: 0
+  m_Name: CrystalInitializer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1975395315
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1975395314}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdae2608cbc262447b5c9344e7385cb8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  crystalModel: {fileID: 308149085}
+  renderTextureSize: 512
+  conoscopicFOV: 10
+  laserColor: {r: 1, g: 0, b: 0, a: 1}
+--- !u!4 &1975395316
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1975395314}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.73979044, y: 5.213406, z: 0.35022733}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2031916390
 GameObject:
   m_ObjectHideFlags: 0
@@ -6137,3 +6231,5 @@ SceneRoots:
   - {fileID: 849998963}
   - {fileID: 981158825}
   - {fileID: 1636275411}
+  - {fileID: 1975395316}
+  - {fileID: 1931840620}
