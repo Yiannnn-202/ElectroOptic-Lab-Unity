@@ -5,8 +5,9 @@
 | 项目 | 内容 |
 |------|------|
 | 项目名称 | 光屏显示重构 - 统一面板架构 |
-| 版本 | v1.0 |
+| 版本 | v1.1 |
 | 创建日期 | 2026-03-15 |
+| 更新日期 | 2026-03-16 |
 | 技术方案 | A+C 综合方案（双图层 + 预渲染） |
 
 ---
@@ -20,28 +21,46 @@
 1. **红点追踪模式**（DirectScreenController）
    - 显示激光在光屏上的投射位置（红色光点）
    - 白色背景
-   - 使用 Texture2D 动态绘制
-   - 双击弹出浮动窗口
+   - 使用 Texture2D 动态绘制（SetPixels + Apply）
+   - 双击弹出浮动窗口（旧逻辑，待移除）
 
-2. **锥光干涉模式**（ConoscopicWindowView）
+2. **锥光干涉模式**（ConoscopicTextureRenderer）
    - 显示晶体锥光干涉图案
    - 黑色背景
    - 使用 RenderTexture + GPU Shader 渲染
-   - 晶体在光屏附近时双击弹出
 
-### 1.2 问题与痛点
+### 1.2 场景现状（重要）
+
+通过 GUID 核查，**Scene2.The Lab.unity** 中目前实际挂载的脚本为：
+
+| 已挂载 | 未挂载（已写好但未部署） |
+|--------|--------------------------|
+| DirectScreenController | ScreenPopupManager |
+| OpticalComponent (OpticalComponent_Keyboard.cs) | ConoscopicWindowView |
+| LaserEmitter | CrystalComponentInitializer |
+| PolarizerPhysics | ConoscopicTextureRenderer |
+| OpticalRail | CrystalControllerWrapper |
+| 其他基础组件 | CrystalRotationPanel |
+
+结论：
+- `ScreenPopupManager` / `ConoscopicWindowView` 从未进入场景，可以**直接删除** .cs 文件，无 Missing Script 风险
+- 实验模块（`CrystalComponentInitializer` 等）已写好但未部署，本次重构需要将其加入场景作为前置依赖
+
+### 1.3 问题与痛点
 
 1. **用户体验不连贯**：两种模式使用独立的弹窗，切换时有明显的空白帧
 2. **代码重复**：Canvas/EventSystem 创建逻辑在多处重复
 3. **状态管理分散**：模式切换逻辑分散在多个组件中
 4. **视觉跳跃**：直接切换背景色（白/黑）导致视觉闪烁
+5. **旧实验模块未部署**：ConoscopicTextureRenderer 等组件写好但未挂载到场景
 
-### 1.3 重构目标
+### 1.4 重构目标
 
 - 统一显示面板（左下角固定位置，非弹窗）
 - 实现平滑的淡入淡出过渡效果
 - 预渲染机制避免空白帧
 - 代码结构清晰、可维护
+- 将实验模块正式部署到场景
 
 ---
 
@@ -54,13 +73,14 @@
 | F1 | 左下角固定面板显示，替代原有弹窗 | P0 |
 | F2 | 红点追踪模式显示（白色背景） | P0 |
 | F3 | 锥光干涉模式显示（黑色背景） | P0 |
-| F4 | 根据晶体位置自动切换模式 | P0 |
+| F4 | 根据晶体吸附状态自动切换模式（crystalOpticalComponent.isOnRail） | P0 |
 | F5 | 切换时淡入淡出过渡动画（约 0.3s） | P0 |
 | F6 | 切换前预渲染目标纹理，避免空白帧 | P0 |
-| F7 | 面板可拖拽移动 | P1 |
-| F8 | 面板可关闭/展开 | P1 |
-| F9 | 手动切换模式按钮 | P2 |
-| F10 | 面板尺寸可调整 | P2 |
+| F7 | 面板可关闭/展开 | P1 |
+| F8 | 手动切换模式按钮 | P2 |
+| F9 | 面板尺寸可调整 | P2 |
+
+> **注**：面板为固定位置，不支持拖拽。
 
 ### 2.2 非功能需求
 
@@ -89,33 +109,40 @@ UnifiedScreenPanel (Panel Container)
 ├── DirectLayer (顶层 - 红点追踪)
 │   ├── CanvasGroup (alpha 控制)
 │   └── RawImage (Texture2D)
-├── TitleBar (标题栏 + 拖拽 + 关闭)
-└── ModeIndicator (模式指示器)
+└── TitleBar (标题栏，无拖拽)
 ```
 
 ### 3.2 核心组件
 
 #### 3.2.1 UnifiedScreenPanel（统一面板控制器）
 
-- 职责：管理面板生命周期、模式切换、过渡动画
-- 位置：左下角固定（anchoredPosition: (320, 200)）
+- 职责：管理面板生命周期、模式切换、过渡动画、每帧驱动纹理更新
+- 位置：左下角固定（anchoredPosition: (320, 200)，可在 Inspector 手动调整）
+- 锚点/轴心：anchor = (0, 0)，pivot = (0, 0)（面板左下角对齐屏幕左下角）
 - 尺寸：600x600（可配置）
+- 模式检测：通过引用 `DirectScreenController`，读取 `crystalOpticalComponent.isOnRail`
 
 #### 3.2.2 双图层系统
 
 | 图层 | 纹理类型 | 背景色 | 显示条件 |
 |------|----------|--------|----------|
-| ConoscopicLayer | RenderTexture | 黑色 | 晶体在光屏附近 |
-| DirectLayer | Texture2D | 白色 | 无晶体或红点追踪模式 |
+| ConoscopicLayer | RenderTexture | 黑色 | 晶体吸附导轨（isOnRail == true） |
+| DirectLayer | Texture2D | 白色 | 晶体未吸附（isOnRail == false） |
 
-#### 3.2.3 预渲染机制
+#### 3.2.3 纹理更新驱动
+
+`UnifiedScreenPanel.Update()` 负责：
+- 处于 **Conoscopic 模式**时：每帧调用 `CrystalRuntime.TextureRenderer.UpdateAndRender()`（接管原 `ConoscopicWindowView.Update()` 的职责）
+- 处于 **Direct 模式**时：`DirectScreenController` 已在自身 `Update()` 中就地修改 `sharedTexture`，面板只需初始化时绑定一次 texture 引用，无需每帧重新赋值
+
+#### 3.2.4 预渲染机制
 
 ```
 切换流程：
-1. 检测模式变化
-2. 准备目标纹理（调用 UpdateAndRender）
+1. 检测 isOnRail 状态变化
+2. 预渲染目标纹理（调用 UpdateAndRender）
 3. 等待 GPU 完成渲染（WaitForEndOfFrame）
-4. 设置目标图层 alpha = 0，显示目标图层
+4. 设置目标图层 alpha = 0，激活目标图层
 5. 淡出当前图层（alpha 1 -> 0）
 6. 淡入目标图层（alpha 0 -> 1）
 7. 隐藏原图层
@@ -131,23 +158,37 @@ UnifiedScreenPanel (Panel Container)
 | 过渡中 | 0.x | 0.x | 混合背景 |
 | 锥光干涉 | 1 | 0 | 黑色背景 |
 
+### 3.4 模式检测逻辑
+
+```csharp
+// 在 UnifiedScreenPanel.Update() 中
+bool crystalOnRail = _directScreenController != null
+    && _directScreenController.crystalOpticalComponent != null
+    && _directScreenController.crystalOpticalComponent.isOnRail;
+
+ScreenMode targetMode = crystalOnRail ? ScreenMode.Conoscopic : ScreenMode.Direct;
+if (targetMode != _currentMode && !_isTransitioning)
+{
+    StartCoroutine(SwitchModeWithTransition(targetMode));
+}
+```
+
 ---
 
 ## 4. 需求拆分（优先级）
 
 ### 4.1 P0 核心功能
 
-- 基础面板框架
+- 基础面板框架（场景 GameObject 挂载方式）
 - 双图层架构
 - 红点追踪集成
 - 锥光干涉集成
-- 自动模式切换
+- 自动模式切换（基于 isOnRail）
 - 淡入淡出过渡
 - 预渲染机制
 
 ### 4.2 P1 增强功能
 
-- 面板拖拽
 - 关闭/展开功能
 
 ### 4.3 P2 可选功能
@@ -159,71 +200,78 @@ UnifiedScreenPanel (Panel Container)
 
 ## 5. 详细开发计划
 
+### 前置步骤：场景组件部署
+
+**目标**：将已写好但未挂载的实验模块正式加入 Scene2
+
+| 操作 | 说明 |
+|------|------|
+| 在场景中创建 GameObject "ExperimentManager" | 挂载 `CrystalComponentInitializer` |
+| 确认晶体 GameObject 上有 `CrystalPhysicalCore` | CrystalComponentInitializer 依赖此组件 |
+| 验证 `CrystalRuntime.IsInitialized` 在运行时为 true | 通过 Debug.Log 确认 |
+
+> **注**：此步骤在代码开发完成后，在 Unity Editor 中手动操作。
+
+---
+
 ### Phase 1: 基础架构（预计 2-3 小时）
 
 **目标**：搭建统一面板框架和双图层结构
 
 #### 任务列表
 
-1. 创建 UnifiedScreenPanel.cs 基础框架
-2. 创建双图层 UI 结构
-3. 实现 CanvasGroup 淡入淡出工具类
-4. 创建面板 Prefab
+1. 创建 `ScreenMode.cs` 枚举定义
+2. 创建 `IScreenDataProvider.cs` 接口
+3. 创建 `CanvasGroupTweener.cs` 工具类
+4. 创建 `UnifiedScreenPanel.cs` 基础框架（UI 层级、双图层）
 
 #### 涉及文件
 
 | 操作 | 文件路径 |
 |------|----------|
-| 新建 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/UnifiedScreenPanel.cs` |
-| 新建 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/ScreenMode.cs` |
-| 新建 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/CanvasGroupTweener.cs` |
-| 新建 | `ElectroOptic-Lab/Assets/Prefabs/UI/UnifiedScreenPanel.prefab` |
-| 新建 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/IScreenDataProvider.cs` |
+| 新建 | `Assets/Scripts/UI/ScreenDisplay/ScreenMode.cs` |
+| 新建 | `Assets/Scripts/UI/ScreenDisplay/IScreenDataProvider.cs` |
+| 新建 | `Assets/Scripts/UI/ScreenDisplay/CanvasGroupTweener.cs` |
+| 新建 | `Assets/Scripts/UI/ScreenDisplay/UnifiedScreenPanel.cs` |
 
 ---
 
 ### Phase 2: 红点追踪集成（预计 1-2 小时）
 
-**目标**：将 DirectScreenController 的纹理显示到 DirectLayer
+**目标**：将 DirectScreenController 的 sharedTexture 显示到 DirectLayer
 
 #### 任务列表
 
-1. 修改 DirectScreenController，添加 SharedTexture 公共属性
-2. 创建 DirectScreenDataProvider 实现数据提供者接口
-3. 在 UnifiedScreenPanel 中集成红点追踪显示
+1. 修改 `DirectScreenController`，将 `sharedTexture` 改为公开属性 `SharedTexture`
+2. 创建 `DirectScreenDataProvider` 实现数据提供者接口
+3. 在 `UnifiedScreenPanel` 中绑定 DirectLayer 纹理
 4. 测试红点位置映射正确性
 
 #### 涉及文件
 
 | 操作 | 文件路径 |
 |------|----------|
-| 修改 | `ElectroOptic-Lab/Assets/Scripts/LightScreen/DirectScreenController.cs` |
-| 新建 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/DirectScreenDataProvider.cs` |
-| 修改 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/UnifiedScreenPanel.cs` |
+| 修改 | `Assets/Scripts/LightScreen/DirectScreenController.cs` |
+| 新建 | `Assets/Scripts/UI/ScreenDisplay/DirectScreenDataProvider.cs` |
 
-#### DirectScreenController 修改点
+#### DirectScreenController 修改内容
 
 ```csharp
-// 新增公共属性
+// 将 private Texture2D sharedTexture 改为：
 public Texture2D SharedTexture => sharedTexture;
-
-// 新增方法（可选，用于外部触发重绘）
-public void ForceRedraw()
-{
-    DrawPattern(currentIntensity, targetCenterX, targetCenterY);
-}
+private Texture2D sharedTexture;
 ```
 
 ---
 
 ### Phase 3: 锥光干涉集成（预计 1-2 小时）
 
-**目标**：将 ConoscopicTextureRenderer 的纹理显示到 ConoscopicLayer
+**目标**：将 ConoscopicTextureRenderer 的 RenderTexture 显示到 ConoscopicLayer
 
 #### 任务列表
 
-1. 创建 ConoscopicScreenDataProvider 实现数据提供者接口
-2. 在 UnifiedScreenPanel 中集成锥光干涉显示
+1. 创建 `ConoscopicScreenDataProvider` 实现数据提供者接口
+2. 在 `UnifiedScreenPanel` 中绑定 ConoscopicLayer 纹理
 3. 实现预渲染调用逻辑
 4. 测试干涉图显示正确性
 
@@ -231,9 +279,7 @@ public void ForceRedraw()
 
 | 操作 | 文件路径 |
 |------|----------|
-| 新建 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/ConoscopicScreenDataProvider.cs` |
-| 修改 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/UnifiedScreenPanel.cs` |
-| 参考 | `ElectroOptic-Lab/Assets/Scripts/Experiment/Renderer/ConoscopicTextureRenderer.cs` |
+| 新建 | `Assets/Scripts/UI/ScreenDisplay/ConoscopicScreenDataProvider.cs` |
 
 ---
 
@@ -243,20 +289,12 @@ public void ForceRedraw()
 
 #### 任务列表
 
-1. 实现晶体位置检测（使用 CrystalRuntime）
-2. 实现模式切换状态机
-3. 实现预渲染 + WaitForEndOfFrame 机制
-4. 实现淡入淡出动画
-5. 添加背景色同步过渡
+1. 实现 `isOnRail` 状态检测（每帧轮询，通过 `DirectScreenController` 引用）
+2. 实现模式切换状态机（防止过渡期间重复触发）
+3. 实现预渲染 + `WaitForEndOfFrame` 机制
+4. 实现淡入淡出动画（CanvasGroupTweener.CrossFade）
+5. **在 `Update()` 中驱动 `UpdateAndRender()`**（Conoscopic 模式时每帧调用，接管原 ConoscopicWindowView 的职责）
 6. 测试切换流畅性
-
-#### 涉及文件
-
-| 操作 | 文件路径 |
-|------|----------|
-| 修改 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/UnifiedScreenPanel.cs` |
-| 修改 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/CanvasGroupTweener.cs` |
-| 参考 | `ElectroOptic-Lab/Assets/Scripts/DataTransfer/CrystalRuntime.cs` |
 
 #### 核心切换逻辑
 
@@ -266,28 +304,26 @@ private IEnumerator SwitchModeWithTransition(ScreenMode newMode)
     if (_isTransitioning) yield break;
     _isTransitioning = true;
 
-    // 1. 确定目标图层
     CanvasGroup targetLayer = (newMode == ScreenMode.Conoscopic) ? _conoscopicLayerGroup : _directLayerGroup;
     CanvasGroup currentLayer = (newMode == ScreenMode.Conoscopic) ? _directLayerGroup : _conoscopicLayerGroup;
 
-    // 2. 预渲染目标纹理
+    // 预渲染目标纹理
     if (newMode == ScreenMode.Conoscopic && CrystalRuntime.TextureRenderer != null)
     {
         CrystalRuntime.TextureRenderer.UpdateAndRender();
     }
 
-    // 3. 等待 GPU 完成
+    // 等待 GPU 完成
     yield return new WaitForEndOfFrame();
 
-    // 4. 显示目标图层（alpha=0）
+    // 显示目标图层（alpha=0）
     targetLayer.gameObject.SetActive(true);
     targetLayer.alpha = 0f;
 
-    // 5. 并行淡入淡出
-    float duration = 0.3f;
-    yield return StartCoroutine(CanvasGroupTweener.CrossFade(currentLayer, targetLayer, duration));
+    // 并行淡入淡出
+    yield return StartCoroutine(CanvasGroupTweener.CrossFade(currentLayer, targetLayer, 0.3f));
 
-    // 6. 隐藏原图层
+    // 隐藏原图层
     currentLayer.gameObject.SetActive(false);
 
     _currentMode = newMode;
@@ -295,47 +331,72 @@ private IEnumerator SwitchModeWithTransition(ScreenMode newMode)
 }
 ```
 
+#### Update 驱动示意
+
+```csharp
+private void Update()
+{
+    // 检测模式切换
+    bool crystalOnRail = _directScreenController != null
+        && _directScreenController.crystalOpticalComponent != null
+        && _directScreenController.crystalOpticalComponent.isOnRail;
+    ScreenMode targetMode = crystalOnRail ? ScreenMode.Conoscopic : ScreenMode.Direct;
+    if (targetMode != _currentMode && !_isTransitioning)
+        StartCoroutine(SwitchModeWithTransition(targetMode));
+
+    // 驱动锥光干涉每帧渲染
+    if (_currentMode == ScreenMode.Conoscopic && !_isTransitioning
+        && CrystalRuntime.IsInitialized && CrystalRuntime.TextureRenderer != null)
+    {
+        CrystalRuntime.TextureRenderer.UpdateAndRender();
+    }
+}
+```
+
 ---
 
-### Phase 5: 清理与优化（预计 1-2 小时）
+### Phase 5: 清理旧代码（预计 1 小时）
 
-**目标**：移除旧代码，优化性能
+**目标**：删除旧弹窗系统，迁移 SimpleDrag，清理 DirectScreenController
 
 #### 任务列表
 
-1. 移除或标记过时的 ScreenPopupManager
-2. 移除或标记过时的 ConoscopicWindowView
-3. 移除 DirectScreenController 中的弹窗逻辑
-4. 添加面板拖拽功能（P1）
+1. **迁移 `SimpleDrag`**：将 `SimpleDrag` 类从 `DirectScreenController.cs` 底部独立为 `SimpleDrag.cs`（`CrystalRotationPanel` 仍依赖此类）
+2. **清理 `DirectScreenController`**：移除弹窗相关方法和字段（见下方清单）
+3. **删除 `ScreenPopupManager.cs`**：未挂载场景，可直接删除
+4. **删除 `ConoscopicWindowView.cs`**：未挂载场景，可直接删除
 5. 添加关闭/展开功能（P1）
-6. 性能测试与优化
-7. 文档更新
+
+#### DirectScreenController 清理内容
+
+```csharp
+// 移除以下字段：
+// private GameObject displayWindow;
+// private RawImage uiDisplayImage;
+// private float lastClickTime;
+
+// 移除以下方法：
+// OnMouseDown()          —— 双击检测逻辑
+// OpenDisplayWindow()
+// CreateDisplayWindow()
+// CreateCloseBtn()
+
+// 保留以下核心逻辑：
+// ReceiveLight()         —— 光学链接收
+// DrawPattern()          —— 纹理绘制
+// Update()               —— 纹理更新驱动
+// SharedTexture          —— 公开纹理属性
+// OnDestroy()            —— 纹理内存释放
+```
 
 #### 涉及文件
 
 | 操作 | 文件路径 |
 |------|----------|
-| 标记过时 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenPopup/ScreenPopupManager.cs` |
-| 标记过时 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenPopup/ConoscopicWindowView.cs` |
-| 修改 | `ElectroOptic-Lab/Assets/Scripts/LightScreen/DirectScreenController.cs` |
-| 新建 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/PanelDragHandler.cs` |
-| 修改 | `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/UnifiedScreenPanel.cs` |
-
-#### DirectScreenController 清理点
-
-```csharp
-// 移除/注释以下方法：
-// - OnMouseDown() 中的双击检测逻辑
-// - OpenDisplayWindow()
-// - CreateDisplayWindow()
-// - CreateCloseBtn()
-// - displayWindow 相关字段
-
-// 保留以下核心逻辑：
-// - ReceiveLight()
-// - DrawPattern()
-// - sharedTexture 管理
-```
+| 新建（迁移） | `Assets/Scripts/LightScreen/SimpleDrag.cs` |
+| 修改 | `Assets/Scripts/LightScreen/DirectScreenController.cs` |
+| **删除** | `Assets/Scripts/UI/ScreenPopup/ScreenPopupManager.cs` |
+| **删除** | `Assets/Scripts/UI/ScreenPopup/ConoscopicWindowView.cs` |
 
 ---
 
@@ -348,27 +409,26 @@ private IEnumerator SwitchModeWithTransition(ScreenMode newMode)
 │                         Scene2 场景                              │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ┌──────────────┐    LightData    ┌───────────────────────┐    │
-│  │ LaserEmitter │ ──────────────► │ DirectScreenController │    │
-│  └──────────────┘                 │  (IOpticalReceiver)    │    │
-│                                   │  - ReceiveLight()      │    │
-│                                   │  - SharedTexture       │    │
-│                                   └───────────┬───────────┘    │
-│                                               │                 │
-│                                               │ Texture2D       │
-│                                               ▼                 │
-│  ┌──────────────────┐             ┌───────────────────────┐    │
-│  │ CrystalRuntime   │             │ UnifiedScreenPanel    │    │
-│  │  - TextureRenderer │─────────► │  - DirectLayer        │    │
-│  │  - IsInitialized  │ RenderTex  │  - ConoscopicLayer    │    │
-│  └──────────────────┘             │  - SwitchMode()       │    │
-│         ▲                         └───────────────────────┘    │
-│         │                                                       │
-│         │ 检测晶体位置                                           │
-│         │                                                       │
-│  ┌──────┴───────────────────────────────────────────────────┐  │
-│  │ CrystalPhysicalCore (晶体物理核心)                         │  │
-│  └───────────────────────────────────────────────────────────┘  │
+│  ┌──────────────┐    LightData    ┌───────────────────────────┐ │
+│  │ LaserEmitter │ ──────────────► │  DirectScreenController   │ │
+│  └──────────────┘                 │   - ReceiveLight()        │ │
+│                                   │   - SharedTexture (pub)   │ │
+│                                   └────────────┬──────────────┘ │
+│                                                │ Texture2D      │
+│  ┌─────────────────────┐                       │                │
+│  │ CrystalComponentInit│──► CrystalRuntime      │                │
+│  │ (ExperimentManager) │    - TextureRenderer   │                │
+│  └─────────────────────┘    - IsInitialized     │                │
+│                                     │           │                │
+│                              RenderTex│          │                │
+│                                     ▼           ▼                │
+│                          ┌───────────────────────────────────┐  │
+│                          │       UnifiedScreenPanel          │  │
+│                          │  - ConoscopicLayer (RenderTex)    │  │
+│                          │  - DirectLayer (Texture2D)        │  │
+│                          │  - SwitchModeWithTransition()     │  │
+│                          │  - Update() 驱动 UpdateAndRender  │  │
+│                          └───────────────────────────────────┘  │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -376,21 +436,22 @@ private IEnumerator SwitchModeWithTransition(ScreenMode newMode)
 ### 6.2 模式切换数据流
 
 ```
-用户操作/晶体位置变化
+每帧 Update() 轮询
         │
         ▼
 ┌───────────────────┐
-│ 检测触发条件       │
-│ - 晶体进入/离开    │
-│ - 手动切换(可选)   │
+│ 读取 isOnRail      │
+│ DirectScreenCtrl  │
+│ .crystalOptical   │
+│ Component.isOnRail│
 └────────┬──────────┘
          │
          ▼
 ┌───────────────────┐
-│ 确定目标模式       │
-│ ScreenMode 枚举    │
+│ 状态变化？         │
+│ (防抖：过渡中忽略)  │
 └────────┬──────────┘
-         │
+         │ 有变化
          ▼
 ┌───────────────────┐
 │ 预渲染目标纹理     │
@@ -405,14 +466,14 @@ private IEnumerator SwitchModeWithTransition(ScreenMode newMode)
          │
          ▼
 ┌───────────────────┐
-│ 并行淡入淡出       │
 │ CrossFade 协程     │
+│ 0.3s 淡入淡出      │
 └────────┬──────────┘
          │
          ▼
 ┌───────────────────┐
 │ 隐藏原图层         │
-│ 更新当前模式       │
+│ 更新 _currentMode │
 └───────────────────┘
 ```
 
@@ -425,19 +486,11 @@ private IEnumerator SwitchModeWithTransition(ScreenMode newMode)
 ```csharp
 namespace ElectroOptics.UI.ScreenDisplay
 {
-    /// <summary>
-    /// 光屏显示模式
-    /// </summary>
     public enum ScreenMode
     {
-        /// <summary>
-        /// 红点追踪模式（无晶体）
-        /// </summary>
+        /// <summary>红点追踪模式（晶体未上导轨）</summary>
         Direct = 0,
-
-        /// <summary>
-        /// 锥光干涉模式（有晶体）
-        /// </summary>
+        /// <summary>锥光干涉模式（晶体已上导轨）</summary>
         Conoscopic = 1
     }
 }
@@ -448,30 +501,11 @@ namespace ElectroOptics.UI.ScreenDisplay
 ```csharp
 namespace ElectroOptics.UI.ScreenDisplay
 {
-    /// <summary>
-    /// 光屏数据提供者接口
-    /// 用于解耦数据源和显示面板
-    /// </summary>
     public interface IScreenDataProvider
     {
-        /// <summary>
-        /// 获取显示纹理
-        /// </summary>
         Texture GetTexture();
-
-        /// <summary>
-        /// 预渲染一帧（用于切换前准备）
-        /// </summary>
         void PreRender();
-
-        /// <summary>
-        /// 数据提供者是否可用
-        /// </summary>
         bool IsAvailable { get; }
-
-        /// <summary>
-        /// 模式名称（用于调试）
-        /// </summary>
         string ModeName { get; }
     }
 }
@@ -484,50 +518,18 @@ namespace ElectroOptics.UI.ScreenDisplay
 {
     public class UnifiedScreenPanel : MonoBehaviour
     {
-        /// <summary>
-        /// 当前显示模式
-        /// </summary>
-        public ScreenMode CurrentMode { get; private set; }
+        [Header("引用配置")]
+        [SerializeField] private DirectScreenController directScreenController;
 
-        /// <summary>
-        /// 是否正在过渡中
-        /// </summary>
+        public ScreenMode CurrentMode { get; private set; }
         public bool IsTransitioning { get; private set; }
 
-        /// <summary>
-        /// 切换到指定模式（带过渡动画）
-        /// </summary>
-        public void SwitchToMode(ScreenMode mode);
-
-        /// <summary>
-        /// 切换到指定模式（立即切换，无动画）
-        /// </summary>
-        public void SwitchToModeImmediate(ScreenMode mode);
-
-        /// <summary>
-        /// 显示面板
-        /// </summary>
+        public void SwitchToMode(ScreenMode mode);           // 带过渡动画
+        public void SwitchToModeImmediate(ScreenMode mode);  // 立即切换
         public void Show();
-
-        /// <summary>
-        /// 隐藏面板
-        /// </summary>
         public void Hide();
-
-        /// <summary>
-        /// 设置面板位置
-        /// </summary>
         public void SetPosition(Vector2 anchoredPosition);
-
-        /// <summary>
-        /// 设置面板尺寸
-        /// </summary>
         public void SetSize(Vector2 size);
-
-        /// <summary>
-        /// 静态工厂方法：创建面板实例
-        /// </summary>
-        public static UnifiedScreenPanel Create(Transform parent = null);
     }
 }
 ```
@@ -539,24 +541,9 @@ namespace ElectroOptics.UI.ScreenDisplay
 {
     public static class CanvasGroupTweener
     {
-        /// <summary>
-        /// 淡入
-        /// </summary>
         public static IEnumerator FadeIn(CanvasGroup group, float duration);
-
-        /// <summary>
-        /// 淡出
-        /// </summary>
         public static IEnumerator FadeOut(CanvasGroup group, float duration);
-
-        /// <summary>
-        /// 交叉淡入淡出（并行）
-        /// </summary>
         public static IEnumerator CrossFade(CanvasGroup from, CanvasGroup to, float duration);
-
-        /// <summary>
-        /// 设置 alpha（立即）
-        /// </summary>
         public static void SetAlpha(CanvasGroup group, float alpha);
     }
 }
@@ -570,40 +557,21 @@ namespace ElectroOptics.UI.ScreenDisplay
 
 | 错误场景 | 处理方式 | 用户反馈 |
 |----------|----------|----------|
-| CrystalRuntime 未初始化 | 保持红点追踪模式 | 无（静默处理） |
-| ConoscopicTextureRenderer 为空 | 保持红点追踪模式 | 无 |
+| CrystalRuntime 未初始化 | 保持 Direct 模式 | 无（静默处理） |
+| ConoscopicTextureRenderer 为空 | 保持 Direct 模式 | Console 警告 |
+| DirectScreenController 引用为空 | 默认 Direct 模式，禁用自动切换 | Console 错误 |
 | DirectScreenController.SharedTexture 为空 | 显示占位图 | Console 警告 |
-| 过渡动画被中断 | 立即完成过渡到目标状态 | 无 |
+| 过渡动画被中断（快速反复切换） | _isTransitioning 锁防止重入，等待当前过渡完成 | 无 |
 | 预渲染超时 | 跳过预渲染，直接切换 | Console 警告 |
 
 ### 8.2 日志规范
 
 ```csharp
-// 使用统一前缀
 private const string LOG_PREFIX = "[UnifiedScreenPanel]";
 
-// 日志级别
 Debug.Log($"{LOG_PREFIX} 模式切换: {CurrentMode} -> {newMode}");
-Debug.LogWarning($"{LOG_PREFIX} CrystalRuntime 未初始化，保持红点追踪模式");
-Debug.LogError($"{LOG_PREFIX} 无法创建面板，Canvas 未找到");
-```
-
-### 8.3 空值安全检查
-
-```csharp
-// 所有外部引用在使用前进行空值检查
-private void UpdateDisplay()
-{
-    if (_directDataProvider != null && _directDataProvider.IsAvailable)
-    {
-        _directLayerImage.texture = _directDataProvider.GetTexture();
-    }
-
-    if (_conoscopicDataProvider != null && _conoscopicDataProvider.IsAvailable)
-    {
-        _conoscopicLayerImage.texture = _conoscopicDataProvider.GetTexture();
-    }
-}
+Debug.LogWarning($"{LOG_PREFIX} CrystalRuntime 未初始化，保持 Direct 模式");
+Debug.LogError($"{LOG_PREFIX} DirectScreenController 引用为空，自动切换禁用");
 ```
 
 ---
@@ -623,30 +591,22 @@ private void UpdateDisplay()
 
 | 测试场景 | 操作步骤 | 预期结果 |
 |----------|----------|----------|
-| 场景启动 | 加载 Scene2 | 面板自动创建并显示在左下角 |
-| 无晶体时显示 | 不放置晶体 | 显示红点追踪（白底） |
-| 放置晶体 | 将晶体放到导轨上 | 自动切换到锥光干涉（黑底），过渡平滑 |
-| 移除晶体 | 将晶体从导轨移开 | 自动切换回红点追踪，过渡平滑 |
+| 场景启动 | 加载 Scene2 | 面板自动显示在左下角，Direct 模式（白底） |
 | 激光照射 | 开启激光照射光屏 | 红点正确显示位置 |
+| 放置晶体 | 将晶体吸附到导轨上 | 自动切换锥光干涉（黑底），过渡平滑 |
+| 移除晶体 | 将晶体从导轨移开 | 自动切换回红点追踪（白底），过渡平滑 |
+| 快速反复切换 | 快速拖拽晶体进出导轨 | 不崩溃，过渡有序完成 |
 | 电压调节 | 调节晶体电压 | 干涉图案实时变化 |
+| CrystalRuntime 未初始化 | 不挂载 CrystalComponentInitializer | 保持 Direct 模式，Console 警告 |
 
 ### 9.3 性能测试
 
-| 测试项目 | 基准值 | 通过条件 |
-|----------|--------|----------|
-| 过渡动画帧率 | 60fps | >= 30fps |
-| 切换响应时间 | 100ms | < 200ms |
-| 内存增量 | 50MB | < 100MB |
-| GPU 渲染时间 | 5ms | < 16ms |
-
-### 9.4 兼容性测试
-
-| 测试项 | 说明 |
-|--------|------|
-| 现有光学链 | 确保激光发射-偏振片-晶体-光屏链路正常 |
-| 场景切换 | 确保切换场景后面板正确销毁 |
-| 多实例 | 确保不会创建重复的面板实例 |
-| 分辨率缩放 | 确保 1920x1080 和其他分辨率下显示正常 |
+| 测试项目 | 通过条件 |
+|----------|----------|
+| 过渡动画帧率 | >= 30fps |
+| 切换响应时间 | < 200ms |
+| 内存增量 | < 100MB |
+| GPU 渲染时间 | < 16ms/frame |
 
 ---
 
@@ -656,58 +616,64 @@ private void UpdateDisplay()
 
 | 文件路径 | 说明 |
 |----------|------|
-| `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/UnifiedScreenPanel.cs` | 统一面板主控制器 |
-| `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/ScreenMode.cs` | 显示模式枚举 |
-| `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/CanvasGroupTweener.cs` | CanvasGroup 动画工具类 |
-| `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/IScreenDataProvider.cs` | 数据提供者接口 |
-| `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/DirectScreenDataProvider.cs` | 红点追踪数据提供者 |
-| `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/ConoscopicScreenDataProvider.cs` | 锥光干涉数据提供者 |
-| `ElectroOptic-Lab/Assets/Scripts/UI/ScreenDisplay/PanelDragHandler.cs` | 面板拖拽处理 |
-| `ElectroOptic-Lab/Assets/Prefabs/UI/UnifiedScreenPanel.prefab` | 面板 Prefab |
+| `Assets/Scripts/UI/ScreenDisplay/UnifiedScreenPanel.cs` | 统一面板主控制器（MonoBehaviour，挂载到场景 GameObject） |
+| `Assets/Scripts/UI/ScreenDisplay/ScreenMode.cs` | 显示模式枚举 |
+| `Assets/Scripts/UI/ScreenDisplay/CanvasGroupTweener.cs` | CanvasGroup 动画工具类（静态类） |
+| `Assets/Scripts/UI/ScreenDisplay/IScreenDataProvider.cs` | 数据提供者接口 |
+| `Assets/Scripts/UI/ScreenDisplay/DirectScreenDataProvider.cs` | 红点追踪数据提供者 |
+| `Assets/Scripts/UI/ScreenDisplay/ConoscopicScreenDataProvider.cs` | 锥光干涉数据提供者 |
 
-### 10.2 修改文件
+### 10.2 迁移文件
+
+| 操作 | 原位置 | 新位置 | 原因 |
+|------|--------|--------|------|
+| 迁移 SimpleDrag 类 | `DirectScreenController.cs` 底部 | `Assets/Scripts/LightScreen/SimpleDrag.cs` | CrystalRotationPanel 仍依赖此类；原文件要移除弹窗代码块 |
+
+### 10.3 修改文件
 
 | 文件路径 | 修改内容 |
 |----------|----------|
-| `ElectroOptic-Lab/Assets/Scripts/LightScreen/DirectScreenController.cs` | 添加 SharedTexture 属性，移除弹窗逻辑 |
-| `ElectroOptic-Lab/Assets/Scripts/DataTransfer/CrystalRuntime.cs` | 确保接口兼容（无需修改） |
-| `ElectroOptic-Lab/Assets/Scripts/Experiment/Renderer/ConoscopicTextureRenderer.cs` | 确保接口兼容（无需修改） |
+| `Assets/Scripts/LightScreen/DirectScreenController.cs` | 暴露 SharedTexture 属性；移除 OnMouseDown/OpenDisplayWindow/CreateDisplayWindow/CreateCloseBtn 及相关字段；移除 SimpleDrag 类定义（已迁移） |
 
-### 10.3 标记过时文件
+### 10.4 删除文件
 
-| 文件路径 | 处理方式 |
-|----------|----------|
-| `ElectroOptic-Lab/Assets/Scripts/UI/ScreenPopup/ScreenPopupManager.cs` | 添加 [Obsolete] 标记 |
-| `ElectroOptic-Lab/Assets/Scripts/UI/ScreenPopup/ConoscopicWindowView.cs` | 添加 [Obsolete] 标记 |
+| 文件路径 | 原因 |
+|----------|------|
+| `Assets/Scripts/UI/ScreenPopup/ScreenPopupManager.cs` | 从未挂载到任何场景，功能由 UnifiedScreenPanel 替代 |
+| `Assets/Scripts/UI/ScreenPopup/ConoscopicWindowView.cs` | 从未挂载到任何场景，功能由 UnifiedScreenPanel 替代 |
+
+### 10.5 无需修改（接口已兼容）
+
+| 文件路径 | 说明 |
+|----------|------|
+| `Assets/Scripts/DataTransfer/CrystalRuntime.cs` | 接口兼容，UnifiedScreenPanel 直接读取 TextureRenderer |
+| `Assets/Scripts/Experiment/Renderer/ConoscopicTextureRenderer.cs` | UpdateAndRender() / RenderTexture 接口不变 |
+| `Assets/Scripts/Experiment/Initializer/CrystalComponentInitializer.cs` | 需部署到场景，代码本身无需修改 |
+| `Assets/Scripts/UI/ControlPanel/CrystalRotationPanel.cs` | 依赖 SimpleDrag（迁移后自动解析，无需修改） |
 
 ---
 
-## 11. 风险与缓解
+## 11. 场景配置指引（Unity Editor 操作）
+
+代码开发完成后，在 Unity Editor 中执行：
+
+1. **部署实验模块**：创建空 GameObject "ExperimentManager"，挂载 `CrystalComponentInitializer`
+2. **部署统一面板**：创建空 GameObject "ScreenDisplayPanel"，挂载 `UnifiedScreenPanel`，在 Inspector 中将光屏上的 `DirectScreenController` 拖入引用槽
+3. **移除旧组件**：确认光屏 GameObject 上没有 `ScreenPopupManager`（已确认未挂载，无需操作）
+4. **验证**：运行场景，确认 Console 无报错，`CrystalRuntime.IsInitialized` 输出 true
+
+---
+
+## 12. 风险与缓解
 
 | 风险 | 影响 | 缓解措施 |
 |------|------|----------|
 | WaitForEndOfFrame 在某些情况下可能不生效 | 空白帧 | 添加超时机制，超时后直接切换 |
-| Canvas 重复创建 | UI 异常 | 使用单例模式或静态缓存 |
-| 晶体检测不准确 | 错误切换 | 增加检测容错范围，添加手动切换按钮 |
-| 内存泄漏（纹理未释放） | 内存增长 | 在 OnDestroy 中正确释放资源 |
-
----
-
-## 12. 附录
-
-### 12.1 相关代码引用
-
-- DirectScreenController: `G:\ElectroOptic_Lab_Unity\v2\ElectroOptic-Lab-Unity\ElectroOptic-Lab\Assets\Scripts\LightScreen\DirectScreenController.cs`
-- ConoscopicTextureRenderer: `G:\ElectroOptic_Lab_Unity\v2\ElectroOptic-Lab-Unity\ElectroOptic-Lab\Assets\Scripts\Experiment\Renderer\ConoscopicTextureRenderer.cs`
-- CrystalRuntime: `G:\ElectroOptic_Lab_Unity\v2\ElectroOptic-Lab-Unity\ElectroOptic-Lab\Assets\Scripts\DataTransfer\CrystalRuntime.cs`
-- ScreenPopupManager: `G:\ElectroOptic_Lab_Unity\v2\ElectroOptic-Lab-Unity\ElectroOptic-Lab\Assets\Scripts\UI\ScreenPopup\ScreenPopupManager.cs`
-- ConoscopicWindowView: `G:\ElectroOptic_Lab_Unity\v2\ElectroOptic-Lab-Unity\ElectroOptic-Lab\Assets\Scripts\UI\ScreenPopup\ConoscopicWindowView.cs`
-
-### 12.2 参考设计
-
-- WindowsCanvas 配置: RenderMode.ScreenSpaceOverlay, ReferenceResolution 1920x1080
-- 双图层叠加: ConoscopicLayer 在底层，DirectLayer 在顶层
-- 淡入淡出: 使用 CanvasGroup.alpha 控制，DOTween 或协程实现
+| Canvas 重复创建 | UI 异常 | UnifiedScreenPanel 直接挂载到场景 GameObject，不动态创建 Canvas |
+| isOnRail 检测误判（如晶体动画过渡中抖动） | 反复切换 | _isTransitioning 锁 + 过渡期间忽略状态变化 |
+| CrystalComponentInitializer 未部署 | Conoscopic 模式无法显示 | 降级到 Direct 模式，Console 警告提示 |
+| 内存泄漏（纹理未释放） | 内存增长 | OnDestroy 中正确释放 RenderTexture 和 Texture2D |
+| SimpleDrag 迁移后 CrystalRotationPanel 找不到类 | 编译错误 | SimpleDrag 迁移到同目录或全局命名空间，保证可见性 |
 
 ---
 
@@ -716,3 +682,4 @@ private void UpdateDisplay()
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
 | v1.0 | 2026-03-15 | 初始版本 |
+| v1.1 | 2026-03-16 | 确认设计决策：固定面板（移除拖拽需求）；模式检测改为 isOnRail 直接读取；补充场景现状分析（GUID 核查）；ScreenPopupManager/ConoscopicWindowView 改为直接删除；新增 SimpleDrag 迁移条目；新增 Update() 驱动 UpdateAndRender() 机制；新增场景配置指引；更新文件清单 |
