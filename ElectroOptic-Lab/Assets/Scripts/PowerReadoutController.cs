@@ -1,23 +1,19 @@
 ﻿using UnityEngine;
 
 /// <summary>
-/// 光功率计读数控制 (互斥锁调度器)
+/// 光功率计读数控制 (方案 A：完全独立版)
+/// 仅负责接收器的读数和UI，不再干涉晶体的选中状态
 /// </summary>
 public class PowerReadoutController : MonoBehaviour
 {
     [Header("关联设置")]
-    public CrystalStateController crystalController;
+    // 删除了 CrystalStateController 的引用，彻底解绑
     public ReceiverStateController receiverController;
 
-    [Header("第一步：接收器调节参数")]
+    [Header("接收器调节参数")]
     public float maxPowerReceiver = 198.5f;
     private float receiverDevX;
     private float receiverDevY;
-
-    [Header("第四步：晶体调节参数")]
-    public float maxPowerCrystal = 145.0f;
-    private float crystalDevX;
-    private float crystalDevY;
 
     [Header("通用物理参数")]
     public float adjustSpeed = 0.2f;
@@ -31,73 +27,32 @@ public class PowerReadoutController : MonoBehaviour
     private float currentPower;
     private int currentMode = -1;
 
-    private int lastReceiverState = 0;
-    private bool lastCrystalState = false;
-
     void Start()
     {
-        if (crystalController == null) crystalController = FindObjectOfType<CrystalStateController>();
         if (receiverController == null) receiverController = FindObjectOfType<ReceiverStateController>();
 
+        // 初始化接收器光路偏差
         receiverDevX = Random.Range(-initialDeviationRange, initialDeviationRange);
         receiverDevY = Random.Range(-initialDeviationRange, initialDeviationRange);
-
-        crystalDevX = Random.Range(-initialDeviationRange, initialDeviationRange);
-        crystalDevY = Random.Range(-initialDeviationRange, initialDeviationRange);
     }
 
     void Update()
     {
         int currentRecState = (receiverController != null) ? receiverController.CurrentState : 0;
-        bool currentCrysState = (crystalController != null && crystalController.IsSelected);
 
-        // 🎯 互斥锁逻辑：确保不会同时调两个
-        if (currentRecState == 2 && lastReceiverState != 2)
-        {
-            // 单击了接收器变绿，强行关掉晶体
-            if (currentCrysState)
-            {
-                crystalController.Deselect();
-                currentCrysState = false;
-            }
-        }
-        else if (currentCrysState && !lastCrystalState)
-        {
-            // 单击了晶体变绿，强行把接收器降回蓝色
-            if (receiverController != null && receiverController.CurrentState == 2)
-            {
-                receiverController.SetState(1);
-                currentRecState = 1;
-            }
-        }
-
-        lastReceiverState = currentRecState;
-        lastCrystalState = currentCrysState;
-
+        // 窗口是否显示，现在 100% 只看接收器的脸色，跟晶体毫无关系
         showWindow = (currentRecState == 1 || currentRecState == 2);
-
-        if (!showWindow && currentCrysState)
-        {
-            crystalController.Deselect();
-            currentCrysState = false;
-            lastCrystalState = false;
-        }
 
         if (showWindow)
         {
             if (currentRecState == 2)
             {
-                currentMode = 0;
+                currentMode = 0; // 进入接收器微调模式
                 HandleVirtualAdjustment(ref receiverDevX, ref receiverDevY);
-            }
-            else if (currentCrysState)
-            {
-                currentMode = 1;
-                HandleVirtualAdjustment(ref crystalDevX, ref crystalDevY);
             }
             else
             {
-                currentMode = -1;
+                currentMode = -1; // 仅监控模式，只能看不能调
             }
         }
 
@@ -122,16 +77,13 @@ public class PowerReadoutController : MonoBehaviour
 
         if (currentMode == 0)
         {
+            // 接收器调节时的读数变化
             float rSquared = receiverDevX * receiverDevX + receiverDevY * receiverDevY;
             currentPower = maxPowerReceiver * Mathf.Exp(-beamFocus * rSquared) + noise;
         }
-        else if (currentMode == 1)
-        {
-            float rSquared = crystalDevX * crystalDevX + crystalDevY * crystalDevY;
-            currentPower = maxPowerCrystal * Mathf.Exp(-beamFocus * rSquared) + noise;
-        }
         else
         {
+            // 未在调节状态时的底噪或归零
             currentPower = 0f;
         }
 
@@ -149,7 +101,6 @@ public class PowerReadoutController : MonoBehaviour
         if (GUI.Button(new Rect(rect.x + rect.width - closeBtnSize - 5, rect.y + 5, closeBtnSize, closeBtnSize), "X"))
         {
             if (receiverController != null) receiverController.ResetState();
-            if (crystalController != null) crystalController.Deselect();
             showWindow = false;
         }
 
@@ -173,15 +124,10 @@ public class PowerReadoutController : MonoBehaviour
             tipStyle.normal.textColor = Color.green;
             GUILayout.Label("【接收器微调模式】\n按 [WASD] 调节接收器光路", tipStyle);
         }
-        else if (currentMode == 1)
-        {
-            tipStyle.normal.textColor = Color.green;
-            GUILayout.Label("【晶体联机模式】\n按 [WASD] 调节晶体偏转角", tipStyle);
-        }
         else
         {
             tipStyle.normal.textColor = Color.blue;
-            GUILayout.Label("【监控模式开启】\n请单击绿色元件以指派控制权", tipStyle);
+            GUILayout.Label("【监控模式开启】\n请单击接收器以指派控制权", tipStyle);
         }
 
         GUILayout.EndArea();
