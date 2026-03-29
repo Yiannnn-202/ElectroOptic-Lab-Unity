@@ -1805,7 +1805,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d3753eb9996265548a5ebc58214ba966, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  crystalOpticalComponent: {fileID: 308149087}
+  crystalOpticalComponent: {fileID: 1187543443}
   screenCube: {fileID: 0}
   screenLocalWidth: 0.01
   screenLocalHeight: 0.025
@@ -19669,7 +19669,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bdae2608cbc262447b5c9344e7385cb8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  crystalModel: {fileID: 308149085}
+  crystalModel: {fileID: 1187543440}
   renderTextureSize: 512
   conoscopicFOV: 10
   laserColor: {r: 1, g: 0, b: 0, a: 1}
