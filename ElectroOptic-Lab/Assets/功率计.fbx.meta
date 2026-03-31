@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 5236c8e474960d14ebec2091f0c5cfc4
+guid: 41ff15853ba077f408b7715d13a29f51
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -7,8 +7,8 @@ ModelImporter:
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
-      name: roku
-    second: {fileID: 2800000, guid: aa47bb1e2f54c8f4b8c80157d206d36d, type: 3}
+      name: roku1
+    second: {fileID: 2800000, guid: 9d20ab123ecce584a94af9b9ffed85d2, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -83,7 +83,7 @@ ModelImporter:
     blendShapeNormalImportMode: 1
     normalSmoothingSource: 0
   referencedClips: []
-  importAnimation: 0
+  importAnimation: 1
   humanDescription:
     serializedVersion: 3
     human: []
