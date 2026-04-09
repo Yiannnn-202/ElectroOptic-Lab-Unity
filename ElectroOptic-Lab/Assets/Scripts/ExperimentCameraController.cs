@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class ExperimentCameraController : MonoBehaviour
 {
+    // 【新增】全局静态变量：标志当前是否处于特写模式
+    public static bool IsInCloseUpView { get; private set; } = false;
+
     [Header("运镜设置")]
     public float transitionDuration = 1.0f;
 
@@ -23,6 +26,9 @@ public class ExperimentCameraController : MonoBehaviour
 
         if (target != null && target.closeUpCameraAnchor != null)
         {
+            // 【新增】开启全局特写锁。此时全场其他原件会无视鼠标点击
+            IsInCloseUpView = true;
+
             target.isMovementLocked = true;
             lockedMover = target;
 
@@ -36,6 +42,9 @@ public class ExperimentCameraController : MonoBehaviour
 
     public void ReturnToDefaultView()
     {
+        // 【新增】关闭全局特写锁。此时恢复正常的 3D 点击交互
+        IsInCloseUpView = false;
+
         if (lockedMover != null)
         {
             lockedMover.isMovementLocked = false;

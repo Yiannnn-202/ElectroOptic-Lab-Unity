@@ -57,8 +57,16 @@ public class RailObjectMover : MonoBehaviour
         }
     }
 
+    // 点击事件
     private void OnMouseDown()
     {
+        //【核心新增】：如果当前处于全局特写模式，直接拦截点击，什么都不做！
+        if (ExperimentCameraController.IsInCloseUpView)
+        {
+            return;
+        }
+
+        // 原本的逻辑保持不变
         if (ignoreRotateStandClicks && IsClickingRotateStand()) return;
 
         if (RotateStandController.IsAnyStandSelected)
