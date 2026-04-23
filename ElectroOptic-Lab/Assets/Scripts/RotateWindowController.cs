@@ -262,7 +262,7 @@ public class RotateWindowController : MonoBehaviour
         if (rotateStand != null && dialImage != null)
         {
             float angle = rotateStand.GetCurrentRotateAngle();
-            dialImage.rectTransform.localRotation = Quaternion.Euler(0, 0, -angle);
+            dialImage.rectTransform.localRotation = Quaternion.Euler(0, 0, angle);
 
             if (titleText != null)
             {
