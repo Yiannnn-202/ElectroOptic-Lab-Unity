@@ -4,43 +4,35 @@ using System.Collections;
 
 /// <summary>
 /// 激光器选中状态控制器
-/// 功能：双击切换颜色高亮（深蓝色）
+/// 功能：单击切换光晕（Outline）高亮
 /// </summary>
 public class LaserStateController : MonoBehaviour
 {
-    [Header("高亮设置")]
-    public Color selectedColor = new Color(0f, 0f, 0.5f, 1f); // 深蓝色
-    private Color originalColor;
-    private Renderer objRenderer;
-
-    [Header("交互设置")]
-    public float doubleClickInterval = 0.3f;
+    // --- 已经移除了颜色替换相关的变量 ---
+    private Outline outline;
 
     // --- 对外公开的状态变量 ---
     public bool IsSelected { get; private set; } = false;
 
-    private float lastClickTime = 0f;
-
     void Start()
     {
-        // 自动获取 Renderer，如果父物体没有，就去子物体找
-        objRenderer = GetComponent<Renderer>();
-        if (objRenderer == null)
+        // 参考刻度盘逻辑：自动获取或添加 Outline 组件
+        outline = GetComponent<Outline>();
+        if (outline == null)
         {
-            objRenderer = GetComponentInChildren<Renderer>();
+            outline = gameObject.AddComponent<Outline>();
         }
 
-        if (objRenderer != null)
-        {
-            // 记录初始颜色以便恢复
-            originalColor = objRenderer.material.color;
-        }
+        // 游戏开始时，默认关闭轮廓光晕
+        outline.enabled = false;
     }
 
     void Update()
     {
+        // 监听鼠标左键单击
         if (Input.GetMouseButtonDown(0))
         {
+            // 防 UI 穿透
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -60,16 +52,8 @@ public class LaserStateController : MonoBehaviour
 
             if (hitThisObject)
             {
-                float timeSinceLastClick = Time.time - lastClickTime;
-                if (timeSinceLastClick <= doubleClickInterval)
-                {
-                    ToggleSelection();
-                    lastClickTime = 0f;
-                }
-                else
-                {
-                    lastClickTime = Time.time;
-                }
+                // 只要点中了，就直接触发切换状态
+                ToggleSelection();
             }
         }
     }
@@ -78,7 +62,7 @@ public class LaserStateController : MonoBehaviour
     {
         IsSelected = !IsSelected;
         UpdateVisuals();
-        Debug.Log(IsSelected ? "激光器已选中" : "激光器已取消选中");
+        Debug.Log(IsSelected ? "激光器已选中 (光晕开启)" : "激光器已取消选中 (光晕关闭)");
     }
 
     public void Deselect()
@@ -89,10 +73,10 @@ public class LaserStateController : MonoBehaviour
 
     private void UpdateVisuals()
     {
-        if (objRenderer != null)
+        // 核心表现层修改：通过开关 Outline 组件来控制光晕，而不是改材质颜色
+        if (outline != null)
         {
-            // 直接修改材质颜色
-            objRenderer.material.color = IsSelected ? selectedColor : originalColor;
+            outline.enabled = IsSelected;
         }
     }
 }
