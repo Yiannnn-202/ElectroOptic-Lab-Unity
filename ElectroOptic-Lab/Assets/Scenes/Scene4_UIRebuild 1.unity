@@ -6340,6 +6340,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1475552759}
   - component: {fileID: 1475552758}
+  - component: {fileID: 1475552760}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -6354,7 +6355,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1475552757}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b0829faea1de92547bcccd66f5b2e66a, type: 3}
   m_Name: 
@@ -6369,6 +6370,50 @@ MonoBehaviour:
   halfWaveVoltage: 150
   maxIntensity: 100
   clearTableOnStart: 1
+--- !u!114 &1475552760
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1475552757}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6d9c62409a1410da7ba1f65c45f4e32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  physicalCore: {fileID: 0}
+  fallbackProfile: {fileID: 11400000, guid: 27b41b6fc4ec0b14d8283d826138ad3e, type: 2}
+  initialVdc: 120
+  voltageStep: 0.5
+  modulationAmplitude: 5
+  frequency: 1000
+  sampleCount: 1024
+  displayPeriods: 2
+  modulationMode: 0
+  fieldAxis: 2
+  intensityMax: 1
+  autoScaleCh2Display: 1
+  ch2DisplayPaddingRatio: 0.12
+  logDiagnostics: 1
+  voltageText: {fileID: 1614430659}
+  statusText: {fileID: 1164442294}
+  modulationStatusText: {fileID: 516848306}
+  recordButton: {fileID: 750528274}
+  clearButton: {fileID: 453424529}
+  resetVoltageButton: {fileID: 1056826838}
+  ch1Block: {fileID: 1027236346}
+  ch2Block: {fileID: 1757151055}
+  keyPointVoltageTexts:
+  - {fileID: 1303791579}
+  - {fileID: 2023271716}
+  - {fileID: 1502427764}
+  - {fileID: 146155238}
+  keyPointLabelTexts:
+  - {fileID: 1407424296}
+  - {fileID: 1915670724}
+  - {fileID: 2004969253}
+  - {fileID: 1719129677}
 --- !u!4 &1475552759
 Transform:
   m_ObjectHideFlags: 0
