@@ -1050,6 +1050,34 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -2692787024934286082, guid: 7aad189010432b642b0390fe56e6a6ec, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7070799
+      objectReference: {fileID: 0}
+    - target: {fileID: -2692787024934286082, guid: 7aad189010432b642b0390fe56e6a6ec, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.7070799
+      objectReference: {fileID: 0}
+    - target: {fileID: -2692787024934286082, guid: 7aad189010432b642b0390fe56e6a6ec, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.0061705424
+      objectReference: {fileID: 0}
+    - target: {fileID: -2692787024934286082, guid: 7aad189010432b642b0390fe56e6a6ec, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.0061705424
+      objectReference: {fileID: 0}
+    - target: {fileID: -2692787024934286082, guid: 7aad189010432b642b0390fe56e6a6ec, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: -90
+      objectReference: {fileID: 0}
+    - target: {fileID: -2692787024934286082, guid: 7aad189010432b642b0390fe56e6a6ec, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: -2692787024934286082, guid: 7aad189010432b642b0390fe56e6a6ec, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0.5
+      objectReference: {fileID: 0}
     - target: {fileID: 651936764332830178, guid: 7aad189010432b642b0390fe56e6a6ec, type: 3}
       propertyPath: m_LocalPosition.y
       value: 1.76
@@ -5994,8 +6022,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1088047756}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.21143581, y: -0.83735627, z: 0.099462345, w: 0.49420315}
-  m_LocalPosition: {x: 2.1500049, y: 2.87, z: 1.6200048}
+  m_LocalRotation: {x: 0.08673856, y: -0.831165, z: 0.13510713, w: 0.53234136}
+  m_LocalPosition: {x: 2.0767074, y: 2.4982362, z: 1.0049793}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -22314,7 +22342,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   canMove: 0
-  allowInteractInCloseUp: 0
+  allowInteractInCloseUp: 1
   moveAxis: 0
   moveSpeed: 0.5
   minLimit: -3

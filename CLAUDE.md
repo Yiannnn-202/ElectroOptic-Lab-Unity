@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Unity 2022.3.62f2c1 project for an electro-optic lab simulation. The project simulates crystal optics experiments including conoscopic interference patterns, polarized light propagation, and electro-optic modulation.
 
+## Multi-Project Structure
+
+This repo contains multiple independent Unity projects:
+- **ElectroOptic-Lab/** — Main simulation project (primary working directory for all code below)
+- **3DAssets/** — Separate project for 3D model asset management
+- **Screen/** — Separate screen-related project
+- **TestRepo/** — Test/sandbox project
+
+All paths below are relative to the **ElectroOptic-Lab/** project directory.
+
 ## Build and Run
 
 This is a Unity project - open in Unity Editor (2022.3.62f2c1 or compatible) and build/run through Unity's standard build system. The main scene is `ElectroOptic-Lab/Assets/Scenes/Scene2.The Lab.unity`.
@@ -108,6 +118,13 @@ Located in `Scripts/Oscilloscope/`:
 - **VpiCalculator.cs**: Pure math — calculates half-wave voltage Vπ from wavelength, dimensions, sensitivity, and modulation mode
 - **WaveformCalculator.cs**: Pure math engine — fills Ch1 (AC voltage) and Ch2 (transmitted intensity) waveform arrays
 - **WaveformResult.cs**: Output container (ch1, ch2 float arrays, vPi, gamma0)
+- **OscilloscopeWaveformGraphic.cs**: Custom uGUI Graphic subclass rendering waveform lines via OnPopulateMesh (no texture/material needed)
+- **Scene4OscilloscopeDispatcher.cs**: Scene4 UI orchestrator — binds oscilloscope parameters to UI (voltage display, status, key-point recording), drives waveform refresh via OscilloscopeCore events, auto-binds UI references from DataCanvas hierarchy
+
+### Testing
+
+Editor tests in `Scripts/Oscilloscope/Editor/`:
+- **OscilloscopeCalcTests.cs**: Unity Editor-only tests for VpiCalculator and WaveformCalculator. Run via menu **ElectroOptics/Tests/Run Oscilloscope Calc Tests**. Tests include extinction, frequency doubling, same-frequency modulation, compensator phase, and array-reuse validation.
 
 ### Rotate Stand System
 
@@ -125,17 +142,23 @@ Located in `Scripts/exercise/`:
 
 ### Power Meter
 
-- **ReceiverStateController.cs**: Receiver state machine (0=off, 1=monitoring/blue, 2=selected for adjustment/green). Double-click to power on/off, single click to toggle monitor/selected
+- **ReceiverStateController.cs** (Scripts/Receiver/): Receiver state machine (0=off, 1=monitoring/blue, 2=selected for adjustment/green). Double-click to power on/off, single click to toggle monitor/selected
 - **PowerReadoutController.cs**: Power meter readout window with virtual adjustment via WASD, calculates power based on beam focus model
+
+### Voltage Switch / Camera Focus
+
+Located in `Scripts/UI/VoltageSwitch/`:
+
+- **CameraFocusController.cs**: Smooth camera focus transition to target transform based on click area
+- **ClickAreaFocus.cs**: Clickable zones that trigger camera focus transitions
 
 ### Other Systems
 
 - **CameraSwitch.cs**: Smooth camera transition between default, front, and top views
 - **ExperimentCameraController.cs**: Close-up view system — moves camera to object's closeUpCameraAnchor, notifies RailObjectMover to show/hide close-up UI
 - **RecordManager.cs**: Data recording table — records voltage/power pairs to table cells, supports delete and clear
-- **CameraFocusController.cs**: Smooth camera focus transition to target transform
-- **KnobAdjuster.cs**: Hold-down UI knob that rotates a target 3D knob model
-- **CoreDebugger.cs**: Development-only debug tool for directly driving CrystalPhysicalCore without LabController
+- **KnobAdjuster.cs** (Scripts/ViewButton/): Hold-down UI knob that rotates a target 3D knob model
+- **SceneLoad.cs** (Scripts/Buttons/): Button-based scene loading (used in main menu and navigation)
 
 ### Shader Visualization
 
@@ -147,16 +170,17 @@ Located in `Scripts/exercise/`:
 
 Main scenes in `Assets/Scenes/`:
 - **Scene0.Open Menu.unity**: Main menu
-- **Scene1.intro.unity**: Introduction
+- **Scene1.intro.unity**: Introduction / tutorial
 - **Scene2-preview.unity**: Crystal selection preview scene (CrystalCardSelector)
-- **Scene2.The Lab.unity**: Primary lab scene (main experiment area)
-- **Scene5.History Records.unity**: History records
+- **Scene2.The Lab.unity**: Primary lab scene (main experiment area with rail system, laser, crystal, screen, oscilloscope)
+- **Scene4_UIRebuild 1.unity**: Rebuild oscilloscope scene with waveform rendering, voltage/status UI, and key-point recording (Scene4OscilloscopeDispatcher)
+- **Scene5.History Records.unity**: History records / data log viewer
 - **Scene6_Quiz.unity**: Quiz/exercise scene
 
-Test/work-in-progress scenes (not for production):
+Work-in-progress / legacy scenes (not production):
 - SceneTest.unity, SceneTest2.unity, test.unity
-- Scene3.Exp1.unity, Scene4.Exp1 1.unity
-- Scene3_UIRebuild.unity, Scene4_UIRebuild 1.unity
+- Scene3.Exp1.unity, Scene3_UIRebuild.unity (earlier experiment UI prototypes)
+- Scene4.Exp1 1.unity (earlier experiment UI prototype)
 
 ### Deprecated Code (not referenced in any scene)
 
@@ -166,6 +190,12 @@ Test/work-in-progress scenes (not for production):
 ### Coordinate System Notes
 
 The native DLL uses right-handed coordinates; Unity uses left-handed. Conversion is handled in `CrystalPhysicalCore.cs` via Z-flip on rotation matrices.
+
+### Packages / Plugins
+
+- **QuickOutline** (Assets/QuickOutline/): Outline highlight effect used by selectable optical components
+- **Postprocessing** (via Package Manager): Post-processing stack for visual effects
+- **TextMesh Pro** (via Package Manager): Advanced text rendering for UI elements
 
 ### Code Language
 
@@ -209,7 +239,7 @@ Windowed UI is created dynamically at runtime:
 | `ElectroOptics.UI.ScreenDisplay` | UnifiedScreenPanel, IScreenDataProvider, ScreenMode, CanvasGroupTweener |
 | `ElectroOptics.UI.ControlPanel` | CrystalRotationPanel, RotationKnob, AngleDisplay |
 | `ElectroOptics.UI.CrystalSelector` | CrystalCardSelector |
-| `ElectroOptics.Oscilloscope` | OscilloscopeCore, OscilloscopeCrystalBridge, OscilloscopeParameters, WaveformCalculator, WaveformResult, VpiCalculator |
+| `ElectroOptics.Oscilloscope` | OscilloscopeCore, OscilloscopeCrystalBridge, OscilloscopeParameters, WaveformCalculator, WaveformResult, VpiCalculator, OscilloscopeWaveformGraphic, Scene4OscilloscopeDispatcher |
 
 ## Material Safety
 
