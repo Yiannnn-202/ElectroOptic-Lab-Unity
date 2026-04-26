@@ -22342,7 +22342,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   canMove: 0
-  allowInteractInCloseUp: 1
+  allowInteractInCloseUp: 0
   moveAxis: 0
   moveSpeed: 0.5
   minLimit: -3
