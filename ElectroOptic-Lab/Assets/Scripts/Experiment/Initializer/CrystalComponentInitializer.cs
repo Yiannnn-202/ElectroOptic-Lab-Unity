@@ -24,7 +24,10 @@ namespace ElectroOptics.Experiment.Initializer
         [SerializeField] private int renderTextureSize = 512;
 
         [Tooltip("锥光干涉视场角")]
-        [SerializeField] [Range(1f, 60f)] private float conoscopicFOV = 10f;
+        [SerializeField] [Range(1f, 120f)] private float conoscopicFOV = 10f;
+
+        [Tooltip("Phase scale for showing more rings without increasing FOV")]
+        [SerializeField] [Range(0.1f, 5f)] private float conoscopicPhaseScale = 1f;
 
         [Tooltip("激光颜色")]
         [SerializeField] private Color laserColor = Color.red;
@@ -185,7 +188,7 @@ namespace ElectroOptics.Experiment.Initializer
             }
 
             // 初始化渲染器
-            _textureRenderer.Initialize(_physicalCore, renderTextureSize, conoscopicFOV, laserColor);
+            _textureRenderer.Initialize(_physicalCore, renderTextureSize, conoscopicFOV, laserColor, conoscopicPhaseScale);
         }
 
         /// <summary>
