@@ -22942,6 +22942,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   directScreenController: {fileID: 621459487}
+  screenOpticalComponent: {fileID: 695835585}
+  beamExpanderOpticalComponent: {fileID: 1032930230}
+  crystalOpticalComponent: {fileID: 0}
   panelSize: {x: 250, y: 250}
   panelPosition: {x: 320, y: 200}
   transitionDuration: 0.3

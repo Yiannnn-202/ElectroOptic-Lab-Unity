@@ -20,6 +20,9 @@ namespace ElectroOptics.UI.ScreenDisplay
         [Header("引用配置")]
         [Tooltip("光屏上的 DirectScreenController 组件")]
         [SerializeField] private DirectScreenController directScreenController;
+        [SerializeField] private OpticalComponent screenOpticalComponent;
+        [SerializeField] private OpticalComponent beamExpanderOpticalComponent;
+        [SerializeField] private OpticalComponent crystalOpticalComponent;
 
         [Header("面板配置")]
         [Tooltip("面板尺寸")]
@@ -119,6 +122,7 @@ namespace ElectroOptics.UI.ScreenDisplay
             {
                 Debug.LogError($"{LOG_PREFIX} DirectScreenController 引用为空，自动切换禁用");
             }
+            ResolvePlacementReferences();
 
             // 创建数据提供者
             if (directScreenController != null)
@@ -283,9 +287,7 @@ namespace ElectroOptics.UI.ScreenDisplay
 
         private ScreenMode DetectTargetMode()
         {
-            if (directScreenController != null
-                && directScreenController.crystalOpticalComponent != null
-                && directScreenController.crystalOpticalComponent.isOnRail)
+            if (AreConoscopicRequiredComponentsOnRail())
             {
                 // 还需要确保锥光渲染器可用
                 if (_conoscopicDataProvider != null && _conoscopicDataProvider.IsAvailable)
@@ -294,6 +296,99 @@ namespace ElectroOptics.UI.ScreenDisplay
                 }
             }
             return ScreenMode.Direct;
+        }
+
+        private bool AreConoscopicRequiredComponentsOnRail()
+        {
+            ResolvePlacementReferences();
+
+            return IsComponentOnRail(screenOpticalComponent)
+                   && IsComponentOnRail(beamExpanderOpticalComponent)
+                   && IsComponentOnRail(crystalOpticalComponent);
+        }
+
+        private static bool IsComponentOnRail(OpticalComponent component)
+        {
+            return component != null && component.gameObject.activeInHierarchy && component.isOnRail;
+        }
+
+        private void ResolvePlacementReferences()
+        {
+            if (screenOpticalComponent == null && directScreenController != null)
+            {
+                screenOpticalComponent = directScreenController.GetComponentInParent<OpticalComponent>();
+            }
+
+            if (screenOpticalComponent == null)
+            {
+                screenOpticalComponent = FindOpticalComponentByName("光屏");
+            }
+
+            if (beamExpanderOpticalComponent == null)
+            {
+                beamExpanderOpticalComponent = FindOpticalComponentByName("扩束镜", "晶体盒");
+            }
+
+            if (ShouldResolveCrystalReference())
+            {
+                crystalOpticalComponent = GetCurrentCrystalOpticalComponent();
+            }
+
+            if (crystalOpticalComponent == null)
+            {
+                crystalOpticalComponent = FindOpticalComponentByName("晶体");
+            }
+        }
+
+        private bool ShouldResolveCrystalReference()
+        {
+            return crystalOpticalComponent == null
+                   || !crystalOpticalComponent.gameObject.activeInHierarchy
+                   || (CrystalRuntime.CrystalObject != null
+                       && !crystalOpticalComponent.transform.IsChildOf(CrystalRuntime.CrystalObject.transform)
+                       && crystalOpticalComponent.gameObject != CrystalRuntime.CrystalObject);
+        }
+
+        private OpticalComponent GetCurrentCrystalOpticalComponent()
+        {
+            if (CrystalRuntime.CrystalObject != null)
+            {
+                OpticalComponent runtimeCrystal = CrystalRuntime.CrystalObject.GetComponent<OpticalComponent>();
+                if (runtimeCrystal != null) return runtimeCrystal;
+
+                runtimeCrystal = CrystalRuntime.CrystalObject.GetComponentInChildren<OpticalComponent>();
+                if (runtimeCrystal != null) return runtimeCrystal;
+
+                runtimeCrystal = CrystalRuntime.CrystalObject.GetComponentInParent<OpticalComponent>();
+                if (runtimeCrystal != null) return runtimeCrystal;
+            }
+
+            if (directScreenController != null && directScreenController.crystalOpticalComponent != null)
+            {
+                return directScreenController.crystalOpticalComponent;
+            }
+
+            return null;
+        }
+
+        private static OpticalComponent FindOpticalComponentByName(params string[] objectNames)
+        {
+            foreach (string objectName in objectNames)
+            {
+                GameObject found = GameObject.Find(objectName);
+                if (found == null) continue;
+
+                OpticalComponent component = found.GetComponent<OpticalComponent>();
+                if (component != null) return component;
+
+                component = found.GetComponentInChildren<OpticalComponent>();
+                if (component != null) return component;
+
+                component = found.GetComponentInParent<OpticalComponent>();
+                if (component != null) return component;
+            }
+
+            return null;
         }
 
         #endregion
@@ -464,7 +559,9 @@ namespace ElectroOptics.UI.ScreenDisplay
                       $"  - DirectProvider 可用: {_directDataProvider?.IsAvailable}\n" +
                       $"  - ConoscopicProvider 可用: {_conoscopicDataProvider?.IsAvailable}\n" +
                       $"  - DirectScreenController: {(directScreenController != null ? "已设置" : "null")}\n" +
-                      $"  - crystalOnRail: {(directScreenController?.crystalOpticalComponent?.isOnRail)}");
+                      $"  - screenOnRail: {screenOpticalComponent?.isOnRail}\n" +
+                      $"  - beamExpanderOnRail: {beamExpanderOpticalComponent?.isOnRail}\n" +
+                      $"  - crystalOnRail: {crystalOpticalComponent?.isOnRail}");
         }
 #endif
 
