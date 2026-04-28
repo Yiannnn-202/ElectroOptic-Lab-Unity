@@ -31,6 +31,8 @@ namespace ElectroOptics.Experiment.Controller
         private CrystalProfile _profile;
         private Vector2 _rotation;  // X=俯仰, Y=偏航 (度)
         private bool _isInitialized;
+        private Transform _lightDirectionSource;
+        private Vector3 _lastAppliedWorldLightDirection = Vector3.forward;
 
         #endregion
 
@@ -59,24 +61,19 @@ namespace ElectroOptics.Experiment.Controller
             _physicalCore = physicalCore;
             _isInitialized = true;
 
-            // 初始化旋转状态（从当前 Transform 读取）
-            Vector3 euler = transform.localEulerAngles;
-            _rotation = new Vector2(
-                NormalizeAngle(euler.x),
-                NormalizeAngle(euler.y)
-            );
+            // This is the optical adjustment state, not the model placement.
+            // Scene2 uses transform rotation to visually align imported models;
+            // reading it here makes the first knob edit clamp a large placement
+            // angle into +/-15 degrees, so the pattern jumps and cannot return.
+            _rotation = Vector2.zero;
 
             Debug.Log($"[CrystalControllerWrapper] 初始化完成，晶体: {gameObject.name}");
         }
 
-        /// <summary>
-        /// 将角度归一化到 -180 到 180 范围
-        /// </summary>
-        private float NormalizeAngle(float angle)
+        public void SetLightDirectionSource(Transform source)
         {
-            while (angle > 180f) angle -= 360f;
-            while (angle < -180f) angle += 360f;
-            return angle;
+            _lightDirectionSource = source;
+            UpdatePhysicsConfig();
         }
 
         #endregion
@@ -164,6 +161,8 @@ namespace ElectroOptics.Experiment.Controller
                 return;
             }
 
+            Vector3 worldLightDirection = GetWorldLightDirection();
+
             // 构建配置
             var config = new CrystalConfig
             {
@@ -174,17 +173,46 @@ namespace ElectroOptics.Experiment.Controller
                 localEField = Vector3.zero,
                 probeFieldDirection = Vector3.zero,
 
-                // 光沿 +Z 方向传播（世界坐标）
-                worldLightDirection = Vector3.forward
+                // 光沿实际激光发射方向传播（世界坐标）
+                worldLightDirection = worldLightDirection
             };
 
             // 应用配置到物理核心
             _physicalCore.ApplyConfig(config);
+            _lastAppliedWorldLightDirection = worldLightDirection;
+        }
+
+        private Vector3 GetWorldLightDirection()
+        {
+            if (_lightDirectionSource != null)
+            {
+                Vector3 direction = -_lightDirectionSource.right;
+                if (direction.sqrMagnitude > 0.000001f)
+                {
+                    return direction.normalized;
+                }
+            }
+
+            return Vector3.forward;
         }
 
         #endregion
 
         #region Unity 生命周期
+
+        private void Update()
+        {
+            if (!_isInitialized || _profile == null || _physicalCore == null || _lightDirectionSource == null)
+            {
+                return;
+            }
+
+            Vector3 worldLightDirection = GetWorldLightDirection();
+            if (Vector3.Angle(_lastAppliedWorldLightDirection, worldLightDirection) > 0.01f)
+            {
+                UpdatePhysicsConfig();
+            }
+        }
 
         private void OnDestroy()
         {

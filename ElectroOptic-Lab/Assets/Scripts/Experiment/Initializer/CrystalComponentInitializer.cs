@@ -24,10 +24,17 @@ namespace ElectroOptics.Experiment.Initializer
         [SerializeField] private int renderTextureSize = 512;
 
         [Tooltip("锥光干涉视场角")]
-        [SerializeField] [Range(1f, 60f)] private float conoscopicFOV = 10f;
+        [SerializeField] [Range(1f, 120f)] private float conoscopicFOV = 10f;
+
+        [Tooltip("Phase scale for showing more rings without increasing FOV")]
+        [SerializeField] [Range(0.1f, 5f)] private float conoscopicPhaseScale = 1f;
 
         [Tooltip("激光颜色")]
         [SerializeField] private Color laserColor = Color.red;
+
+        [Header("光路配置")]
+        [Tooltip("激光发射器 Transform；留空时自动查找场景中的 LaserEmitter")]
+        [SerializeField] private Transform lightDirectionSource;
 
         #endregion
 
@@ -61,13 +68,16 @@ namespace ElectroOptics.Experiment.Initializer
             // 3. 设置晶体组件
             SetupCrystalComponents();
 
-            // 4. 设置纹理渲染器
+            // 4. 设置真实光路方向
+            SetupLightDirectionSource();
+
+            // 5. 设置纹理渲染器
             SetupTextureRenderer();
 
-            // 5. 注册到 CrystalRuntime
+            // 6. 注册到 CrystalRuntime
             RegisterToRuntime();
 
-            // 6. 加载选择的 Profile
+            // 7. 加载选择的 Profile
             LoadSelectedProfile();
         }
 
@@ -121,6 +131,23 @@ namespace ElectroOptics.Experiment.Initializer
             _controller.Initialize(_physicalCore);
         }
 
+        private void SetupLightDirectionSource()
+        {
+            if (lightDirectionSource == null)
+            {
+                global::LaserEmitter laserEmitter = Object.FindFirstObjectByType<global::LaserEmitter>();
+                if (laserEmitter != null)
+                {
+                    lightDirectionSource = laserEmitter.transform;
+                }
+            }
+
+            if (_controller != null)
+            {
+                _controller.SetLightDirectionSource(lightDirectionSource);
+            }
+        }
+
         /// <summary>
         /// 确保晶体有 Collider 组件
         /// </summary>
@@ -161,7 +188,7 @@ namespace ElectroOptics.Experiment.Initializer
             }
 
             // 初始化渲染器
-            _textureRenderer.Initialize(_physicalCore, renderTextureSize, conoscopicFOV, laserColor);
+            _textureRenderer.Initialize(_physicalCore, renderTextureSize, conoscopicFOV, laserColor, conoscopicPhaseScale);
         }
 
         /// <summary>
