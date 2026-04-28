@@ -22943,8 +22943,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   directScreenController: {fileID: 621459487}
   screenOpticalComponent: {fileID: 695835585}
-  beamExpanderOpticalComponent: {fileID: 1032930230}
-  crystalOpticalComponent: {fileID: 0}
+  beamExpanderOpticalComponent: {fileID: 1187543443}
+  crystalOpticalComponent: {fileID: 1032930230}
   panelSize: {x: 250, y: 250}
   panelPosition: {x: 320, y: 200}
   transitionDuration: 0.3
@@ -23208,7 +23208,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   crystalModel: {fileID: 1032930223}
   renderTextureSize: 512
-  conoscopicFOV: 10
+  conoscopicFOV: 15
   laserColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!4 &1975395316
 Transform:

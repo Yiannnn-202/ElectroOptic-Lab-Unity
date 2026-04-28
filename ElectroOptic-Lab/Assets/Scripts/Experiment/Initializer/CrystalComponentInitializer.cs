@@ -29,6 +29,10 @@ namespace ElectroOptics.Experiment.Initializer
         [Tooltip("激光颜色")]
         [SerializeField] private Color laserColor = Color.red;
 
+        [Header("光路配置")]
+        [Tooltip("激光发射器 Transform；留空时自动查找场景中的 LaserEmitter")]
+        [SerializeField] private Transform lightDirectionSource;
+
         #endregion
 
         #region 私有字段
@@ -61,13 +65,16 @@ namespace ElectroOptics.Experiment.Initializer
             // 3. 设置晶体组件
             SetupCrystalComponents();
 
-            // 4. 设置纹理渲染器
+            // 4. 设置真实光路方向
+            SetupLightDirectionSource();
+
+            // 5. 设置纹理渲染器
             SetupTextureRenderer();
 
-            // 5. 注册到 CrystalRuntime
+            // 6. 注册到 CrystalRuntime
             RegisterToRuntime();
 
-            // 6. 加载选择的 Profile
+            // 7. 加载选择的 Profile
             LoadSelectedProfile();
         }
 
@@ -119,6 +126,23 @@ namespace ElectroOptics.Experiment.Initializer
 
             // 4. 初始化控制器
             _controller.Initialize(_physicalCore);
+        }
+
+        private void SetupLightDirectionSource()
+        {
+            if (lightDirectionSource == null)
+            {
+                global::LaserEmitter laserEmitter = Object.FindFirstObjectByType<global::LaserEmitter>();
+                if (laserEmitter != null)
+                {
+                    lightDirectionSource = laserEmitter.transform;
+                }
+            }
+
+            if (_controller != null)
+            {
+                _controller.SetLightDirectionSource(lightDirectionSource);
+            }
         }
 
         /// <summary>

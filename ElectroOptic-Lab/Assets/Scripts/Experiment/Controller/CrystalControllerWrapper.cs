@@ -31,6 +31,8 @@ namespace ElectroOptics.Experiment.Controller
         private CrystalProfile _profile;
         private Vector2 _rotation;  // X=俯仰, Y=偏航 (度)
         private bool _isInitialized;
+        private Transform _lightDirectionSource;
+        private Vector3 _lastAppliedWorldLightDirection = Vector3.forward;
 
         #endregion
 
@@ -66,6 +68,12 @@ namespace ElectroOptics.Experiment.Controller
             _rotation = Vector2.zero;
 
             Debug.Log($"[CrystalControllerWrapper] 初始化完成，晶体: {gameObject.name}");
+        }
+
+        public void SetLightDirectionSource(Transform source)
+        {
+            _lightDirectionSource = source;
+            UpdatePhysicsConfig();
         }
 
         #endregion
@@ -153,6 +161,8 @@ namespace ElectroOptics.Experiment.Controller
                 return;
             }
 
+            Vector3 worldLightDirection = GetWorldLightDirection();
+
             // 构建配置
             var config = new CrystalConfig
             {
@@ -163,17 +173,46 @@ namespace ElectroOptics.Experiment.Controller
                 localEField = Vector3.zero,
                 probeFieldDirection = Vector3.zero,
 
-                // 光沿 +Z 方向传播（世界坐标）
-                worldLightDirection = Vector3.forward
+                // 光沿实际激光发射方向传播（世界坐标）
+                worldLightDirection = worldLightDirection
             };
 
             // 应用配置到物理核心
             _physicalCore.ApplyConfig(config);
+            _lastAppliedWorldLightDirection = worldLightDirection;
+        }
+
+        private Vector3 GetWorldLightDirection()
+        {
+            if (_lightDirectionSource != null)
+            {
+                Vector3 direction = -_lightDirectionSource.right;
+                if (direction.sqrMagnitude > 0.000001f)
+                {
+                    return direction.normalized;
+                }
+            }
+
+            return Vector3.forward;
         }
 
         #endregion
 
         #region Unity 生命周期
+
+        private void Update()
+        {
+            if (!_isInitialized || _profile == null || _physicalCore == null || _lightDirectionSource == null)
+            {
+                return;
+            }
+
+            Vector3 worldLightDirection = GetWorldLightDirection();
+            if (Vector3.Angle(_lastAppliedWorldLightDirection, worldLightDirection) > 0.01f)
+            {
+                UpdatePhysicsConfig();
+            }
+        }
 
         private void OnDestroy()
         {
