@@ -14,6 +14,7 @@
 
 ## DevLog（开发日志）
 - [DevLog_Conoscopic_KnobAdjust](DevLog/DevLog_Conoscopic_KnobAdjust.md)
+- [DevLog_Scene2_Conoscopic_FOV_And_Angle_Fix](DevLog/DevLog_Scene2_Conoscopic_FOV_And_Angle_Fix.md)
 - [DevLog_Oscilloscope_CalcCore](DevLog/DevLog_Oscilloscope_CalcCore.md)
 - [P0_P1_Development_Documentation](DevLog/P0_P1_Development_Documentation.md)
 - [P2_Development_Documentation](DevLog/P2_Development_Documentation.md)
