@@ -59,24 +59,13 @@ namespace ElectroOptics.Experiment.Controller
             _physicalCore = physicalCore;
             _isInitialized = true;
 
-            // 初始化旋转状态（从当前 Transform 读取）
-            Vector3 euler = transform.localEulerAngles;
-            _rotation = new Vector2(
-                NormalizeAngle(euler.x),
-                NormalizeAngle(euler.y)
-            );
+            // This is the optical adjustment state, not the model placement.
+            // Scene2 uses transform rotation to visually align imported models;
+            // reading it here makes the first knob edit clamp a large placement
+            // angle into +/-15 degrees, so the pattern jumps and cannot return.
+            _rotation = Vector2.zero;
 
             Debug.Log($"[CrystalControllerWrapper] 初始化完成，晶体: {gameObject.name}");
-        }
-
-        /// <summary>
-        /// 将角度归一化到 -180 到 180 范围
-        /// </summary>
-        private float NormalizeAngle(float angle)
-        {
-            while (angle > 180f) angle -= 360f;
-            while (angle < -180f) angle += 360f;
-            return angle;
         }
 
         #endregion
