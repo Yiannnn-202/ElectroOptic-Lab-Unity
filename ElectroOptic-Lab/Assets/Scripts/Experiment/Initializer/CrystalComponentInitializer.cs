@@ -27,10 +27,25 @@ namespace ElectroOptics.Experiment.Initializer
         [SerializeField] [Range(1f, 120f)] private float conoscopicFOV = 10f;
 
         [Tooltip("Phase scale for showing more rings without increasing FOV")]
-        [SerializeField] [Range(0.1f, 5f)] private float conoscopicPhaseScale = 1f;
+        [SerializeField] [Range(0.01f, 5f)] private float conoscopicPhaseScale = 0.1f;
 
         [Tooltip("激光颜色")]
         [SerializeField] private Color laserColor = Color.red;
+
+        [Tooltip("Display gamma applied after physical intensity calculation")]
+        [SerializeField] [Range(0.2f, 3f)] private float displayGamma = 1.25f;
+
+        [Tooltip("Low intensity cutoff for clearer black rings and cross")]
+        [SerializeField] [Range(0f, 0.25f)] private float blackCutoff = 0.012f;
+
+        [Tooltip("Controls derivative filtering for ring contrast")]
+        [SerializeField] [Range(0.25f, 4f)] private float ringSharpness = 1f;
+
+        [Tooltip("Angular width of the black cross")]
+        [SerializeField] [Range(0.01f, 0.35f)] private float crossWidth = 0.16f;
+
+        [Tooltip("Initial black cross center offset in normalized conoscopic view coordinates")]
+        [SerializeField] private Vector2 initialMelatopeOffset = new Vector2(0.035f, -0.025f);
 
         [Header("光路配置")]
         [Tooltip("激光发射器 Transform；留空时自动查找场景中的 LaserEmitter")]
@@ -188,7 +203,17 @@ namespace ElectroOptics.Experiment.Initializer
             }
 
             // 初始化渲染器
-            _textureRenderer.Initialize(_physicalCore, renderTextureSize, conoscopicFOV, laserColor, conoscopicPhaseScale);
+            _textureRenderer.Initialize(
+                _physicalCore,
+                renderTextureSize,
+                conoscopicFOV,
+                laserColor,
+                conoscopicPhaseScale,
+                displayGamma,
+                blackCutoff,
+                ringSharpness,
+                crossWidth,
+                initialMelatopeOffset);
         }
 
         /// <summary>

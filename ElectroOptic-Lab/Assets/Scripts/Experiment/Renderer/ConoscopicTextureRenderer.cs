@@ -14,6 +14,14 @@ namespace ElectroOptics.Experiment.Renderer
         private const float MAX_FOV = 120f;
         private const float WIDE_FOV_WARNING_THRESHOLD = 90f;
         private const float MIN_PHASE_SCALE = 0.01f;
+        private const float MIN_DISPLAY_GAMMA = 0.1f;
+        private const float MAX_BLACK_CUTOFF = 0.25f;
+        private const float MIN_RING_SHARPNESS = 0.01f;
+        private const float MIN_CROSS_WIDTH = 0.001f;
+        private const float MAX_CROSS_WIDTH = 0.9f;
+        private const float MIN_OPTIC_AXIS_SQR_MAGNITUDE = 0.000001f;
+        private const float MAX_INITIAL_MELATOPE_OFFSET = 0.25f;
+        private static readonly Vector2 DEFAULT_INITIAL_MELATOPE_OFFSET = new Vector2(0.035f, -0.025f);
 
         private RenderTexture _renderTexture;
         private GameObject _previewRoot;
@@ -24,7 +32,12 @@ namespace ElectroOptics.Experiment.Renderer
 
         private int _textureSize = 512;
         private float _fov = 10f;
-        private float _phaseScale = 1f;
+        private float _phaseScale = 0.1f;
+        private float _displayGamma = 1.25f;
+        private float _blackCutoff = 0.012f;
+        private float _ringSharpness = 1f;
+        private float _crossWidth = 0.16f;
+        private Vector2 _initialMelatopeOffset = DEFAULT_INITIAL_MELATOPE_OFFSET;
         private Color _laserColor = Color.red;
 
         private bool _isInitialized;
@@ -38,12 +51,46 @@ namespace ElectroOptics.Experiment.Renderer
             int textureSize = 512,
             float fov = 10f,
             Color laserColor = default,
-            float phaseScale = 1f)
+            float phaseScale = 0.1f,
+            float displayGamma = 1.25f,
+            float blackCutoff = 0.012f,
+            float ringSharpness = 1f,
+            float crossWidth = 0.16f)
+        {
+            Initialize(
+                sourcePhysicalCore,
+                textureSize,
+                fov,
+                laserColor,
+                phaseScale,
+                displayGamma,
+                blackCutoff,
+                ringSharpness,
+                crossWidth,
+                DEFAULT_INITIAL_MELATOPE_OFFSET);
+        }
+
+        public void Initialize(
+            CrystalPhysicalCore sourcePhysicalCore,
+            int textureSize,
+            float fov,
+            Color laserColor,
+            float phaseScale,
+            float displayGamma,
+            float blackCutoff,
+            float ringSharpness,
+            float crossWidth,
+            Vector2 initialMelatopeOffset)
         {
             _sourcePhysicalCore = sourcePhysicalCore;
             _textureSize = textureSize;
             _fov = Mathf.Clamp(fov, MIN_FOV, MAX_FOV);
             _phaseScale = Mathf.Max(MIN_PHASE_SCALE, phaseScale);
+            _displayGamma = Mathf.Max(MIN_DISPLAY_GAMMA, displayGamma);
+            _blackCutoff = Mathf.Clamp(blackCutoff, 0f, MAX_BLACK_CUTOFF);
+            _ringSharpness = Mathf.Max(MIN_RING_SHARPNESS, ringSharpness);
+            _crossWidth = Mathf.Clamp(crossWidth, MIN_CROSS_WIDTH, MAX_CROSS_WIDTH);
+            _initialMelatopeOffset = ClampInitialMelatopeOffset(initialMelatopeOffset);
             _laserColor = laserColor == default ? Color.red : laserColor;
 
             EnsurePreviewLayer();
@@ -175,15 +222,51 @@ namespace ElectroOptics.Experiment.Renderer
                 wavelengthMeters = 633e-9f;
             }
 
+            Vector3 opticAxisView = DeriveOpticAxisView(matrix);
             _previewMaterial.SetVector("_RefractiveIndices", indices);
             _previewMaterial.SetMatrix("_RotationMatrix", matrix);
+            _previewMaterial.SetVector("_OpticAxisView", new Vector4(opticAxisView.x, opticAxisView.y, opticAxisView.z, 0f));
             _previewMaterial.SetFloat("_CrystalLength", lengthMeters);
             _previewMaterial.SetFloat("_Wavelength", wavelengthMeters);
             _previewMaterial.SetFloat("_FOV", _fov);
             _previewMaterial.SetFloat("_PhaseScale", _phaseScale);
+            _previewMaterial.SetFloat("_DisplayGamma", _displayGamma);
+            _previewMaterial.SetFloat("_BlackCutoff", _blackCutoff);
+            _previewMaterial.SetFloat("_RingSharpness", _ringSharpness);
+            _previewMaterial.SetFloat("_CrossWidth", _crossWidth);
+            _previewMaterial.SetVector("_InitialMelatopeOffset", new Vector4(_initialMelatopeOffset.x, _initialMelatopeOffset.y, 0f, 0f));
             _previewMaterial.SetColor("_BaseColor", _laserColor);
 
             WarnIfWideFov();
+        }
+
+        private static Vector3 DeriveOpticAxisView(Matrix4x4 worldToPrincipalMatrix)
+        {
+            Vector3 opticAxisView = new Vector3(
+                worldToPrincipalMatrix.m02,
+                worldToPrincipalMatrix.m12,
+                worldToPrincipalMatrix.m22);
+
+            if (opticAxisView.sqrMagnitude < MIN_OPTIC_AXIS_SQR_MAGNITUDE)
+            {
+                return Vector3.forward;
+            }
+
+            opticAxisView.Normalize();
+
+            if (opticAxisView.z < 0f)
+            {
+                opticAxisView = -opticAxisView;
+            }
+
+            return opticAxisView;
+        }
+
+        private static Vector2 ClampInitialMelatopeOffset(Vector2 offset)
+        {
+            return new Vector2(
+                Mathf.Clamp(offset.x, -MAX_INITIAL_MELATOPE_OFFSET, MAX_INITIAL_MELATOPE_OFFSET),
+                Mathf.Clamp(offset.y, -MAX_INITIAL_MELATOPE_OFFSET, MAX_INITIAL_MELATOPE_OFFSET));
         }
 
         public void SetFOV(float fov)
@@ -204,6 +287,59 @@ namespace ElectroOptics.Experiment.Renderer
             {
                 _previewMaterial.SetFloat("_PhaseScale", _phaseScale);
             }
+        }
+
+        public void SetDisplayGamma(float displayGamma)
+        {
+            _displayGamma = Mathf.Max(MIN_DISPLAY_GAMMA, displayGamma);
+            if (_previewMaterial != null)
+            {
+                _previewMaterial.SetFloat("_DisplayGamma", _displayGamma);
+            }
+        }
+
+        public void SetBlackCutoff(float blackCutoff)
+        {
+            _blackCutoff = Mathf.Clamp(blackCutoff, 0f, MAX_BLACK_CUTOFF);
+            if (_previewMaterial != null)
+            {
+                _previewMaterial.SetFloat("_BlackCutoff", _blackCutoff);
+            }
+        }
+
+        public void SetRingSharpness(float ringSharpness)
+        {
+            _ringSharpness = Mathf.Max(MIN_RING_SHARPNESS, ringSharpness);
+            if (_previewMaterial != null)
+            {
+                _previewMaterial.SetFloat("_RingSharpness", _ringSharpness);
+            }
+        }
+
+        public void SetCrossWidth(float crossWidth)
+        {
+            _crossWidth = Mathf.Clamp(crossWidth, MIN_CROSS_WIDTH, MAX_CROSS_WIDTH);
+            if (_previewMaterial != null)
+            {
+                _previewMaterial.SetFloat("_CrossWidth", _crossWidth);
+            }
+        }
+
+        public void SetInitialMelatopeOffset(Vector2 offset)
+        {
+            _initialMelatopeOffset = ClampInitialMelatopeOffset(offset);
+            if (_previewMaterial != null)
+            {
+                _previewMaterial.SetVector("_InitialMelatopeOffset", new Vector4(_initialMelatopeOffset.x, _initialMelatopeOffset.y, 0f, 0f));
+            }
+        }
+
+        public void SetDisplayMapping(float displayGamma, float blackCutoff, float ringSharpness, float crossWidth)
+        {
+            SetDisplayGamma(displayGamma);
+            SetBlackCutoff(blackCutoff);
+            SetRingSharpness(ringSharpness);
+            SetCrossWidth(crossWidth);
         }
 
         public void SetLaserColor(Color color)
@@ -269,6 +405,11 @@ namespace ElectroOptics.Experiment.Renderer
                       $"  - TextureSize: {_textureSize}x{_textureSize}\n" +
                       $"  - FOV: {_fov} deg\n" +
                       $"  - PhaseScale: {_phaseScale}\n" +
+                      $"  - DisplayGamma: {_displayGamma}\n" +
+                      $"  - BlackCutoff: {_blackCutoff}\n" +
+                      $"  - RingSharpness: {_ringSharpness}\n" +
+                      $"  - CrossWidth: {_crossWidth}\n" +
+                      $"  - InitialMelatopeOffset: {_initialMelatopeOffset}\n" +
                       $"  - RenderTexture: {(_renderTexture != null ? "created" : "null")}\n" +
                       $"  - PreviewRoot: {(_previewRoot != null ? "created" : "null")}\n" +
                       $"  - PreviewCamera: {(_previewCamera != null ? "created" : "null")}\n" +

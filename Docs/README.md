@@ -25,4 +25,5 @@
 
 ## Plan（实施计划）
 - [implementation_plan](Plan/implementation_plan.md)
+- [Conoscopic_Realistic_Motion_Modification_Plan](Plan/Conoscopic_Realistic_Motion_Modification_Plan.md)
 - [Scene4_Oscilloscope_Dispatcher_Plan](Plan/Scene4_Oscilloscope_Dispatcher_Plan.md) — Scene4 示波器调度与波形显示开发/测试计划

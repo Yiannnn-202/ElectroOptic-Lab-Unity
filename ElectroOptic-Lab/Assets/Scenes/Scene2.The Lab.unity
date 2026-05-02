@@ -23208,9 +23208,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   crystalModel: {fileID: 1032930223}
   renderTextureSize: 1024
-  conoscopicFOV: 15
-  conoscopicPhaseScale: 5
+  conoscopicFOV: 5.5
+  conoscopicPhaseScale: 0.1
   laserColor: {r: 1, g: 0, b: 0, a: 1}
+  displayGamma: 1.25
+  blackCutoff: 0.012
+  ringSharpness: 1
+  crossWidth: 0.16
+  initialMelatopeOffset: {x: 1.14, y: -0.33}
   lightDirectionSource: {fileID: 1789540427}
 --- !u!4 &1975395316
 Transform:
