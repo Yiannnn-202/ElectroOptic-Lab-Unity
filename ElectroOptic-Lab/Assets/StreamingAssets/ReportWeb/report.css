@@ -1,0 +1,169 @@
+body {
+  margin: 0;
+  padding: 40px;
+  font-family: "Microsoft YaHei", Arial, sans-serif;
+  background: #eef2f7;
+  color: #1f2937;
+}
+
+.page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 54px 70px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.14);
+}
+
+.cover {
+  text-align: center;
+  padding-bottom: 32px;
+  margin-bottom: 42px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+h1 {
+  color: #0f172a;
+  margin-bottom: 8px;
+  font-size: 34px;
+}
+
+.subtitle {
+  color: #64748b;
+  font-size: 16px;
+  margin-bottom: 30px;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  text-align: left;
+  margin-top: 26px;
+}
+
+.meta-grid div {
+  padding: 18px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.meta-grid strong {
+  display: block;
+  color: #1e3a8a;
+  margin-bottom: 8px;
+}
+
+.meta-grid span {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+section {
+  margin-bottom: 46px;
+}
+
+h2 {
+  margin-top: 42px;
+  margin-bottom: 20px;
+  font-size: 26px;
+  color: #0f172a;
+  border-left: 6px solid #2563eb;
+  padding-left: 14px;
+}
+
+h3 {
+  margin-top: 28px;
+  margin-bottom: 12px;
+  font-size: 20px;
+  color: #1e3a8a;
+}
+
+h4 {
+  margin-top: 18px;
+  margin-bottom: 8px;
+  font-size: 17px;
+  color: #334155;
+}
+
+p,
+li {
+  font-size: 16px;
+  line-height: 1.9;
+}
+
+ol,
+ul {
+  padding-left: 24px;
+}
+
+li {
+  margin: 6px 0;
+}
+
+.formula-box {
+  margin: 18px 0 24px;
+  padding: 20px 24px;
+  background: #f8fafc;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+}
+
+.formula-box strong {
+  color: #1e3a8a;
+}
+
+.formula-text {
+  font-family: "Times New Roman", serif;
+  font-size: 20px;
+  text-align: center;
+  color: #0f172a;
+  background: white;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.placeholder-block {
+  margin: 18px 0 28px;
+  padding: 24px 28px;
+  border: 2px dashed #94a3b8;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.placeholder-block strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #1e3a8a;
+  font-size: 18px;
+}
+
+.placeholder-block p {
+  margin: 6px 0;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.placeholder-note {
+  color: #64748b;
+  font-size: 14px !important;
+}
+
+@media print {
+  body {
+    background: white;
+    padding: 0;
+  }
+
+  .page {
+    box-shadow: none;
+    border-radius: 0;
+    max-width: none;
+  }
+
+  .placeholder-block {
+    break-inside: avoid;
+  }
+}
