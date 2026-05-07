@@ -144,7 +144,7 @@ Shader "ElectroOptics/ConoscopicInterference"
                 float aperture = 1.0 - smoothstep(0.96, 1.0, radius);
                 if (aperture <= 0.0)
                 {
-                    return float4(0.0, 0.0, 0.0, 1.0);
+                    return float4(1.0, 1.0, 1.0, 1.0);
                 }
 
                 float halfSize = max(tan(radians(_FOV) * 0.5), 0.0001);
@@ -174,7 +174,7 @@ Shader "ElectroOptics/ConoscopicInterference"
                 intensity = smoothstep(_BlackCutoff, 1.0, intensity);
                 intensity = pow(intensity, 1.0 / max(_DisplayGamma, 0.0001));
 
-                float3 color = _BaseColor.rgb * intensity;
+                float3 color = lerp(float3(1.0, 1.0, 1.0), _BaseColor.rgb, intensity);
                 return float4(color, 1.0);
             }
             ENDCG

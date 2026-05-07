@@ -26,13 +26,18 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
     [Tooltip("反转 Y 轴")]
     public bool invertY = false;
 
+    [Header("显示调节")]
+    [Tooltip("红点亮度倍率，1=物理原始亮度，>1 更亮，<1 更暗")]
+    [Range(0.5f, 3f)]
+    public float dotBrightness = 1f;
+
     // --- 内部变量 ---
-    private Texture2D sharedTexture;
+    private RenderTexture _renderTexture;
+    private Material _dotMaterial;
     private Renderer objRenderer;
 
     private float currentIntensity = 0f;
     private bool receivedLightThisFrame = false;
-    private Color[] colorBuffer;
 
     private float lastDrawnIntensity = -1f;
 
@@ -45,7 +50,7 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
     /// <summary>
     /// 公开纹理供 UnifiedScreenPanel 读取
     /// </summary>
-    public Texture2D SharedTexture => sharedTexture;
+    public Texture SharedTexture => _renderTexture;
 
     void Start()
     {
@@ -58,8 +63,19 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
             return;
         }
 
-        sharedTexture = new Texture2D(512, 512, TextureFormat.RGBA32, false);
-        colorBuffer = new Color[512 * 512];
+        _renderTexture = new RenderTexture(512, 512, 0, RenderTextureFormat.ARGB32);
+        _renderTexture.Create();
+
+        Shader shader = Shader.Find("ElectroOptics/DotTracking");
+        if (shader != null)
+        {
+            _dotMaterial = new Material(shader);
+        }
+        else
+        {
+            Debug.LogError("[DirectScreenController] Shader 'ElectroOptics/DotTracking' not found, falling back to default.");
+            _dotMaterial = new Material(Shader.Find("Sprites/Default"));
+        }
 
         DrawPattern(0f, 256f, 256f);
     }
@@ -112,47 +128,27 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
 
     void DrawPattern(float brightness, float centerX = 256f, float centerY = 256f)
     {
-        float radius = 25f;
-        float radiusSq = radius * radius;
+        float u = centerX / 512f;
+        float v = centerY / 512f;
 
-        if (brightness < 0.005f)
-        {
-            System.Array.Fill(colorBuffer, Color.white);
-        }
-        else
-        {
-            for (int i = 0; i < colorBuffer.Length; i++)
-            {
-                int x = i % 512;
-                int y = i / 512;
+        _dotMaterial.SetVector("_HitUV", new Vector4(u, v, 0f, 0f));
+        _dotMaterial.SetFloat("_DotIntensity", brightness);
+        _dotMaterial.SetFloat("_DotBrightness", dotBrightness);
 
-                float dx = x - centerX;
-                float dy = y - centerY;
-                float distSq = dx * dx + dy * dy;
-
-                if (distSq < radiusSq)
-                {
-                    float normalizedDistSq = distSq / radiusSq;
-                    float softFactor = 1.0f - normalizedDistSq;
-                    float finalPixelIntensity = brightness * softFactor;
-                    colorBuffer[i] = Color.Lerp(Color.white, Color.red, finalPixelIntensity);
-                }
-                else
-                {
-                    colorBuffer[i] = Color.white;
-                }
-            }
-        }
-
-        sharedTexture.SetPixels(colorBuffer);
-        sharedTexture.Apply();
+        Graphics.Blit(null, _renderTexture, _dotMaterial);
     }
 
     private void OnDestroy()
     {
-        if (sharedTexture != null)
+        if (_renderTexture != null)
         {
-            Destroy(sharedTexture);
+            _renderTexture.Release();
+            Destroy(_renderTexture);
+        }
+
+        if (_dotMaterial != null)
+        {
+            Destroy(_dotMaterial);
         }
     }
 }

@@ -213,9 +213,8 @@ namespace ElectroOptics.UI.ScreenDisplay
             _conoscopicLayerGroup = _conoscopicLayerObj.AddComponent<CanvasGroup>();
             _conoscopicLayerGroup.alpha = 0f;
 
-            // 黑色背景 Image
             Image conoscopicBg = _conoscopicLayerObj.AddComponent<Image>();
-            conoscopicBg.color = Color.black;
+            conoscopicBg.color = Color.white;
             conoscopicBg.raycastTarget = false;
 
             // 内容 RawImage（子对象，留边距）
