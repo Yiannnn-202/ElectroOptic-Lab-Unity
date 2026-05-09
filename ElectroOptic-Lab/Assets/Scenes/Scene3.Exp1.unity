@@ -1428,14 +1428,17 @@ MonoBehaviour:
   voltageText: {fileID: 29472048}
   receiverText: {fileID: 575278069}
   recordButton: {fileID: 750528274}
-  tableSlots:
-  - {fileID: 274743663}
-  - {fileID: 306587308}
-  - {fileID: 1526849329}
+  clearButton: {fileID: 0}
+  tableArea: {fileID: 0}
+  arrowIncButton: {fileID: 0}
+  arrowDecButton: {fileID: 0}
+  arrowIncOutline: {fileID: 0}
+  arrowDecOutline: {fileID: 0}
   currentVoltage: 0
-  voltageStep: 0.5
+  voltageChangeSpeed: 20
   halfWaveVoltage: 150
   maxIntensity: 100
+  clearTableOnStart: 1
 --- !u!4 &1475552759
 Transform:
   m_ObjectHideFlags: 0

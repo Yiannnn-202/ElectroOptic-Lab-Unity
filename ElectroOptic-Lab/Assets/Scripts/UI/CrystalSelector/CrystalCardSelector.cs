@@ -83,20 +83,26 @@ namespace ElectroOptics.UI.CrystalSelector
 
         /// <summary>
         /// 加载目标场景
+        /// 优先使用 CrystalSelectionData.TargetSceneName（由 ExperimentNavigator 设定），
+        /// 未设置时 fallback 到 Inspector 配置的 targetSceneName
         /// </summary>
         private void LoadTargetScene()
         {
-            if (string.IsNullOrEmpty(targetSceneName))
+            string destination = ElectroOptics.DataTransfer.CrystalSelectionData.HasTargetScene
+                ? ElectroOptics.DataTransfer.CrystalSelectionData.TargetSceneName
+                : targetSceneName;
+
+            if (string.IsNullOrEmpty(destination))
             {
-                Debug.LogError("[CrystalCardSelector] targetSceneName 未配置");
+                Debug.LogError("[CrystalCardSelector] 目标场景未配置，请在 Inspector 设置 targetSceneName 或通过 ExperimentNavigator 预设");
                 return;
             }
 
-            Debug.Log($"[CrystalCardSelector] 正在加载场景: {targetSceneName}");
+            Debug.Log($"[CrystalCardSelector] 正在加载场景: {destination}");
 
             try
             {
-                SceneManager.LoadScene(targetSceneName);
+                SceneManager.LoadScene(destination);
             }
             catch (System.Exception e)
             {
