@@ -132,11 +132,22 @@ public class OscilloscopeCrystalBridge : MonoBehaviour
 
 构建 CrystalConfig 的方式：
 - `crystalRotation` = `Quaternion.identity`（固定 0°）
-- `worldLightDirection` = `Vector3.forward`（+Z）
+- `worldLightDirection` = 默认 `Vector3.forward`（+Z）；KTP 由 `CrystalWorkingGeometry` 覆盖为 `Vector3.up`（+Y）
 - `probeFieldDirection` = `fieldAxis` 对应单位向量（驱动 Probe Pass 计算 Sensitivity）
 - `localEField` = 同上单位向量（Render Pass 需要，但输出我们不使用）
 
 内部缓存 `_lastAxis` 和 `_lastMode`，避免参数未变时重复调用 DLL。
+
+KTP 的 Vπ 无效问题不是 Profile 传递失败，而是几何不一致：Scene2 锥光图使用当前激光方向，而 Scene4 原先硬编码 `worldLightDirection = Vector3.forward` 且默认 `E = Z`。对 KTP 来说，`k=Z, E=Z` 会让有效灵敏度接近 0，`VpiCalculator` 因此返回无穷大并让 ch2 置 0。
+
+修复后，Bridge 与 Scene2 共用 `CrystalWorkingGeometry`：
+
+```text
+普通晶体: k = 默认 +Z，E/probe = 用户请求轴，mode = 用户请求模式
+KTP:      k = +Y，E/probe = +Z，mode = Transverse
+```
+
+`OscilloscopeCore` 使用 Bridge 暴露的实际调制模式计算 Vπ，因此 KTP 的示波器调制方向与锥光显示方向保持一致。这个规则只覆盖 KTP，不改变 LiNbO3 和 KDP 的既有行为，也不新增传播轴 UI。
 
 ### 6. `OscilloscopeCore` — 顶层编排器
 

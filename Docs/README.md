@@ -8,6 +8,7 @@
 ## Architecture（架构设计）
 - [Architecture_Oscilloscope_CalcCore](Architecture/Architecture_Oscilloscope_CalcCore.md)
 - [Scene2_Click_DoubleClick_Selection_Highlight_Snap](Architecture/Scene2_Click_DoubleClick_Selection_Highlight_Snap.md)
+- [Architecture_Biaxial_Conoscopic_Display](Architecture/Architecture_Biaxial_Conoscopic_Display.md)
 
 ## API（接口文档）
 - [ScreenDisplay_API](API/ScreenDisplay_API.md) — 光屏显示与红点消光系统

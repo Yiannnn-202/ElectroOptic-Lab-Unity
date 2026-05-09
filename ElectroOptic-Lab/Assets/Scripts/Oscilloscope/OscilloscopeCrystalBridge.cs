@@ -16,10 +16,12 @@ namespace ElectroOptics.Oscilloscope
         private ModulationMode _lastMode;
         private CrystalProfile _lastProfile;
         private bool _hasConfigured;
+        private ModulationMode _effectiveMode = ModulationMode.Transverse;
 
         public float Sensitivity => _core != null ? _core.Sensitivity : 0f;
         public CrystalProfile Profile => _profile;
         public bool IsInitialized => _isInitialized;
+        public ModulationMode EffectiveModulationMode => _effectiveMode;
 
         public void Initialize(CrystalPhysicalCore core)
         {
@@ -60,35 +62,30 @@ namespace ElectroOptics.Oscilloscope
                 return 0f;
             }
 
-            Vector3 axisVec = AxisToVector(axis);
+            CrystalWorkingGeometry geometry = CrystalWorkingGeometry.ResolveOscilloscope(_profile, mode, axis, Vector3.forward);
             var config = new CrystalConfig
             {
                 profile = _profile,
                 crystalRotation = Quaternion.identity,
-                localEField = axisVec,
-                probeFieldDirection = axisVec,
-                worldLightDirection = Vector3.forward
+                localEField = geometry.LocalEFieldDirection,
+                probeFieldDirection = geometry.ProbeFieldDirection,
+                worldLightDirection = geometry.WorldLightDirection
             };
 
             _core.ApplyConfig(config);
+            _effectiveMode = geometry.ModulationMode;
 
             _lastAxis = axis;
             _lastMode = mode;
             _lastProfile = _profile;
             _hasConfigured = true;
 
-            return _core.Sensitivity;
-        }
+            Debug.Log($"[OscilloscopeCrystalBridge] Configured profile={_profile.crystalName}, " +
+                      $"requestedMode={mode}, effectiveMode={_effectiveMode}, requestedAxis={axis}, " +
+                      $"k={geometry.WorldLightDirection}, E={geometry.LocalEFieldDirection}, " +
+                      $"probe={geometry.ProbeFieldDirection}, sensitivity={_core.Sensitivity}");
 
-        private static Vector3 AxisToVector(ElectricFieldAxis axis)
-        {
-            switch (axis)
-            {
-                case ElectricFieldAxis.X_Axis: return Vector3.right;
-                case ElectricFieldAxis.Y_Axis: return Vector3.up;
-                case ElectricFieldAxis.Z_Axis: return Vector3.forward;
-                default: return Vector3.forward;
-            }
+            return _core.Sensitivity;
         }
     }
 }

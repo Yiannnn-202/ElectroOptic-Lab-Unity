@@ -9,6 +9,7 @@ Shader "ElectroOptics/ConoscopicInterference"
         // Driven by the runtime renderer.
         _RefractiveIndices ("Refractive Indices", Vector) = (2.286, 2.286, 2.200, 0)
         [HideInInspector] _OpticAxisView ("Optic Axis View", Vector) = (0, 0, 1, 0)
+        [HideInInspector] _BiaxialAxesView ("Biaxial Axes View", Vector) = (0, 0, 0, 0)
         _InitialMelatopeOffset ("Initial Melatope Offset", Vector) = (0.035, -0.025, 0, 0)
         _CrystalLength ("Crystal Length", Float) = 0.02
         _Wavelength ("Wavelength", Float) = 0.000000633
@@ -57,6 +58,7 @@ Shader "ElectroOptics/ConoscopicInterference"
             float _CrossWidth;
             float4x4 _RotationMatrix;
             float4 _OpticAxisView;
+            float4 _BiaxialAxesView;
             float4 _InitialMelatopeOffset;
 
             v2f vert (appdata v)
@@ -137,6 +139,48 @@ Shader "ElectroOptics/ConoscopicInterference"
                 return crossPattern * melatope;
             }
 
+            float3 GetBiaxialAxisView(float2 axisXY)
+            {
+                float zSqr = max(1.0 - dot(axisXY, axisXY), 0.0025);
+                return normalize(float3(axisXY.x, axisXY.y, sqrt(zSqr)));
+            }
+
+            float2 ClampBiaxialMelatopeOffset(float2 offset)
+            {
+                float maxRadius = 0.42;
+                float offsetRadius = length(offset);
+                if (offsetRadius > maxRadius)
+                {
+                    return offset * (maxRadius / max(offsetRadius, 0.0001));
+                }
+
+                return offset;
+            }
+
+            float GetBiaxialExtinctionPattern(float3 rayView, float halfSize, float2 p)
+            {
+                float hasAxes = step(0.000001, dot(_BiaxialAxesView, _BiaxialAxesView));
+                if (hasAxes <= 0.0)
+                {
+                    float3 opticAxisView = GetOpticAxisView();
+                    float2 melatopeOffset = GetMelatopeOffset(opticAxisView, halfSize) + _InitialMelatopeOffset.xy;
+                    float2 localP = p - melatopeOffset;
+                    float3 extinctionAxisView = GetAxisFromMelatopeOffset(melatopeOffset, halfSize);
+                    return GetExtinctionPattern(rayView, extinctionAxisView, localP);
+                }
+
+                float3 axisA = GetBiaxialAxisView(_BiaxialAxesView.xy);
+                float3 axisB = GetBiaxialAxisView(_BiaxialAxesView.zw);
+                float2 offsetA = ClampBiaxialMelatopeOffset(GetMelatopeOffset(axisA, halfSize)) + _InitialMelatopeOffset.xy;
+                float2 offsetB = ClampBiaxialMelatopeOffset(GetMelatopeOffset(axisB, halfSize)) + _InitialMelatopeOffset.xy;
+                float3 displayAxisA = GetAxisFromMelatopeOffset(offsetA - _InitialMelatopeOffset.xy, halfSize);
+                float3 displayAxisB = GetAxisFromMelatopeOffset(offsetB - _InitialMelatopeOffset.xy, halfSize);
+                float patternA = GetExtinctionPattern(rayView, displayAxisA, p - offsetA);
+                float patternB = GetExtinctionPattern(rayView, displayAxisB, p - offsetB);
+
+                return min(patternA, patternB);
+            }
+
             fixed4 frag (v2f i) : SV_Target
             {
                 float2 p = (i.uv - 0.5) * 2.0;
@@ -148,10 +192,6 @@ Shader "ElectroOptics/ConoscopicInterference"
                 }
 
                 float halfSize = max(tan(radians(_FOV) * 0.5), 0.0001);
-                float3 opticAxisView = GetOpticAxisView();
-                float2 melatopeOffset = GetMelatopeOffset(opticAxisView, halfSize) + _InitialMelatopeOffset.xy;
-                float2 localP = p - melatopeOffset;
-                float3 extinctionAxisView = GetAxisFromMelatopeOffset(melatopeOffset, halfSize);
                 float3 rayView = normalize(float3(p.x * halfSize, p.y * halfSize, 1.0));
 
                 float3 rayOptical = mul(rayView, (float3x3)_RotationMatrix);
@@ -163,7 +203,7 @@ Shader "ElectroOptics/ConoscopicInterference"
                 float PI = 3.14159265359;
                 float gamma = ((2.0 * PI * pathLength * delta_n) / _Wavelength) * _PhaseScale;
 
-                float crossPattern = GetExtinctionPattern(rayView, extinctionAxisView, localP);
+                float crossPattern = GetBiaxialExtinctionPattern(rayView, halfSize, p);
 
                 float phase = gamma * 0.5;
                 float gammaWidth = max(fwidth(gamma), 0.0001);

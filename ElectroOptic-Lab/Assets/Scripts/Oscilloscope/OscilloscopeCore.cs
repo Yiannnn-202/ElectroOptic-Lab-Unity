@@ -153,6 +153,7 @@ namespace ElectroOptics.Oscilloscope
                 sensitivity = _bridge.ConfigureAndGetSensitivity(p.fieldAxis, p.modulationMode);
             else
                 sensitivity = _bridge.Sensitivity;
+            ModulationMode effectiveMode = _bridge.EffectiveModulationMode;
 
             // Step 2: 计算 Vπ
             double vPi = VpiCalculator.Calculate(
@@ -160,7 +161,7 @@ namespace ElectroOptics.Oscilloscope
                 profile.defaultLength_mm,
                 profile.defaultThickness_mm,
                 sensitivity,
-                p.modulationMode);
+                effectiveMode);
 
             // Step 3: 计算波形
             _calculator.Compute(p, vPi, Result);
@@ -184,6 +185,7 @@ namespace ElectroOptics.Oscilloscope
                       $"  - V_m: {_parameters.vModulation:F2} V\n" +
                       $"  - Frequency: {_parameters.frequency:F1} Hz\n" +
                       $"  - Mode: {_parameters.modulationMode}\n" +
+                      $"  - EffectiveMode: {(_bridge != null ? _bridge.EffectiveModulationMode.ToString() : "N/A")}\n" +
                       $"  - FieldAxis: {_parameters.fieldAxis}\n" +
                       $"  - Vπ: {(Result != null ? Result.vPi.ToString("F2") : "N/A")} V\n" +
                       $"  - Γ₀: {(Result != null ? Result.gamma0.ToString("F4") : "N/A")} rad");
