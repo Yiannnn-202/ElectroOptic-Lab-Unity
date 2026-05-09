@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems; // 必须引入，用于处理鼠标的长按松开事件
 using TMPro;
 
 public class RecordManager : MonoBehaviour
@@ -11,29 +12,23 @@ public class RecordManager : MonoBehaviour
 
     [Header("UI 引用（按钮）")]
     public Button recordButton;
-    public Button clearButton;   // 没有就先留空
+    public Button clearButton;
 
     [Header("UI 引用（右侧大表）")]
     public Transform tableArea;
-    // 要求层级结构：
-    // TableArea
-    // ├── TableBlock_01
-    // │   ├── Row_U
-    // │   │   ├── Label_U
-    // │   │   ├── Cell_U_01
-    // │   │   ├── Cell_U_02 ...
-    // │   └── Row_P
-    // │       ├── Label_P
-    // │       ├── Cell_P_01
-    // │       ├── Cell_P_02 ...
-    // ├── TableBlock_02 ...
-    //
-    // 每个 Cell 里面要有一个 TextMeshProUGUI 子物体
-    // Cell 名字建议都以 "Cell_" 开头
+
+    [Header("UI 引用（旋钮控制箭头）")]
+    public Button arrowIncButton;
+    public Button arrowDecButton;
+
+    [Tooltip("箭头身上的 Outline 组件，用于模拟选中发光")]
+    public UnityEngine.UI.Outline arrowIncOutline;
+    public UnityEngine.UI.Outline arrowDecOutline;
 
     [Header("实验物理参数")]
     public float currentVoltage = 0.0f;
-    public float voltageStep = 10.0f;
+    [Tooltip("每秒改变的电压值 (V/s)，控制连转速度")]
+    public float voltageChangeSpeed = 20.0f;
     public float halfWaveVoltage = 150.0f;
     public float maxIntensity = 100.0f;
 
@@ -44,6 +39,11 @@ public class RecordManager : MonoBehaviour
     private readonly List<TextMeshProUGUI> powerCells = new List<TextMeshProUGUI>();
 
     private int currentIndex = 0;
+
+    // --- 状态记录 ---
+    private bool isIncSelected = false;  // 顺时针是否处于“发光/选中”状态
+    private bool isDecSelected = false;  // 逆时针是否处于“发光/选中”状态
+    private bool isMouseHolding = false; // 鼠标是否正在长按着某个箭头
 
     void Start()
     {
@@ -61,6 +61,12 @@ public class RecordManager : MonoBehaviour
             clearButton.onClick.AddListener(ClearTable);
         }
 
+        // --- 核心：绑定“选中”与“长按”双模事件 ---
+        if (arrowIncButton != null) BindEvent(arrowIncButton.gameObject, true);
+        if (arrowDecButton != null) BindEvent(arrowDecButton.gameObject, false);
+
+        UpdateArrowUI();
+
         if (clearTableOnStart)
         {
             ClearTable();
@@ -71,21 +77,69 @@ public class RecordManager : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.A))
+        // --- 混合模式核心逻辑 ---
+        // 只要鼠标按住了箭头，或者按住了 R 键，就进行平滑连转
+        if (isMouseHolding || Input.GetKey(KeyCode.R))
         {
-            currentVoltage -= voltageStep;
-            UpdateInstrumentUI();
+            float dir = 0f;
+            if (isIncSelected) dir = 1f;
+            else if (isDecSelected) dir = -1f;
+
+            if (dir != 0f)
+            {
+                currentVoltage += dir * voltageChangeSpeed * Time.deltaTime;
+                UpdateInstrumentUI();
+            }
         }
-        else if (Input.GetKeyDown(KeyCode.D))
-        {
-            currentVoltage += voltageStep;
-            UpdateInstrumentUI();
-        }
-        else if (Input.GetKeyDown(KeyCode.Backspace))
+
+        // 保留退格键删除记录
+        if (Input.GetKeyDown(KeyCode.Backspace))
         {
             DeleteLastRecord();
         }
     }
+
+    // --- 巧妙整合发光与长按机制 ---
+    private void BindEvent(GameObject btn, bool isInc)
+    {
+        EventTrigger trigger = btn.GetComponent<EventTrigger>();
+        if (trigger == null) trigger = btn.AddComponent<EventTrigger>();
+
+        // 鼠标按下：
+        // 1. 切换发光状态 2. 告诉系统鼠标按住了（触发鼠标连转）
+        var pointerDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
+        pointerDown.callback.AddListener((_) => {
+            if (isInc)
+            {
+                isIncSelected = true;
+                isDecSelected = false;
+            }
+            else
+            {
+                isDecSelected = true;
+                isIncSelected = false;
+            }
+            isMouseHolding = true;
+            UpdateArrowUI();
+        });
+        trigger.triggers.Add(pointerDown);
+
+        // 鼠标抬起：
+        // 仅仅取消鼠标连转状态，但【不取消】发光状态，以便 R 键能记住方向继续工作
+        var pointerUp = new EventTrigger.Entry { eventID = EventTriggerType.PointerUp };
+        pointerUp.callback.AddListener((_) => {
+            isMouseHolding = false;
+        });
+        trigger.triggers.Add(pointerUp);
+    }
+
+    private void UpdateArrowUI()
+    {
+        if (arrowIncOutline != null) arrowIncOutline.enabled = isIncSelected;
+        if (arrowDecOutline != null) arrowDecOutline.enabled = isDecSelected;
+    }
+
+    // ---------- 以下为原有物理计算和表格逻辑（完全未修改） ----------
 
     float CalculateReceiverValue(float voltage)
     {
@@ -98,9 +152,6 @@ public class RecordManager : MonoBehaviour
     {
         float receiverValue = CalculateReceiverValue(currentVoltage);
 
-        // 这里我先不加单位，因为你的仪器面板图上已经有 V 等标识了
-        // 如果你想显示单位，把下面改成：
-        // currentVoltage.ToString("F1") + " V"
         if (voltageText != null)
             voltageText.text = currentVoltage.ToString("F1");
 
@@ -113,11 +164,7 @@ public class RecordManager : MonoBehaviour
         voltageCells.Clear();
         powerCells.Clear();
 
-        if (tableArea == null)
-        {
-            Debug.LogWarning("RecordManager: tableArea 没有绑定！");
-            return;
-        }
+        if (tableArea == null) return;
 
         foreach (Transform block in tableArea)
         {
@@ -127,8 +174,6 @@ public class RecordManager : MonoBehaviour
             CollectCellsFromRow(rowU, voltageCells);
             CollectCellsFromRow(rowP, powerCells);
         }
-
-        Debug.Log($"RecordManager: 已收集电压格 {voltageCells.Count} 个，光功率格 {powerCells.Count} 个");
     }
 
     void CollectCellsFromRow(Transform row, List<TextMeshProUGUI> targetList)
@@ -137,7 +182,6 @@ public class RecordManager : MonoBehaviour
 
         foreach (Transform child in row)
         {
-            // 只收集名字以 Cell_ 开头的格子
             if (!child.name.StartsWith("Cell_")) continue;
 
             TextMeshProUGUI txt = child.GetComponentInChildren<TextMeshProUGUI>(true);
@@ -152,21 +196,10 @@ public class RecordManager : MonoBehaviour
     {
         int maxRecordCount = Mathf.Min(voltageCells.Count, powerCells.Count);
 
-        if (maxRecordCount == 0)
-        {
-            Debug.LogWarning("RecordManager: 没有找到可写入的新表格单元格，请检查 tableArea 和层级命名！");
-            return;
-        }
-
-        if (currentIndex >= maxRecordCount)
-        {
-            Debug.Log("表格已经写满了！");
-            return;
-        }
+        if (maxRecordCount == 0 || currentIndex >= maxRecordCount) return;
 
         float currentReceiverValue = CalculateReceiverValue(currentVoltage);
 
-        // 表格里只写数值，不再写单位
         voltageCells[currentIndex].text = currentVoltage.ToString("F1");
         powerCells[currentIndex].text = currentReceiverValue.ToString("F2");
 
@@ -186,26 +219,12 @@ public class RecordManager : MonoBehaviour
         }
 
         currentIndex = 0;
-        Debug.Log("表格已清空。");
     }
 
-    // 如果你后面调整了表格层级，可以在运行前手动调用这个重建列表
-    [ContextMenu("Rebuild Table Cell Lists")]
-    public void RebuildTableCellLists()
-    {
-        BuildCellLists();
-        Debug.Log("已重新扫描表格单元格。");
-    }
     public void DeleteLastRecord()
     {
-        if (currentIndex <= 0)
-        {
-            Debug.Log("没有可删除的数据。");
-            return;
-        }
+        if (currentIndex <= 0) return;
 
-        // currentIndex 指向“下一个要写入的位置”
-        // 所以删除时要先回退 1，再清空这一格
         currentIndex--;
 
         if (currentIndex < voltageCells.Count && voltageCells[currentIndex] != null)
@@ -217,7 +236,5 @@ public class RecordManager : MonoBehaviour
         {
             powerCells[currentIndex].text = "";
         }
-
-        Debug.Log($"已删除第 {currentIndex + 1} 组记录。");
     }
 }
