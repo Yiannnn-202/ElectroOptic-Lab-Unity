@@ -80,12 +80,15 @@ namespace ElectroOptics.Oscilloscope
             _lastProfile = _profile;
             _hasConfigured = true;
 
+            float signedSensitivity = _core.Sensitivity;
+            float absSensitivity = Mathf.Abs(signedSensitivity);
             Debug.Log($"[OscilloscopeCrystalBridge] Configured profile={_profile.crystalName}, " +
                       $"requestedMode={mode}, effectiveMode={_effectiveMode}, requestedAxis={axis}, " +
                       $"k={geometry.WorldLightDirection}, E={geometry.LocalEFieldDirection}, " +
-                      $"probe={geometry.ProbeFieldDirection}, sensitivity={_core.Sensitivity}");
+                      $"probe={geometry.ProbeFieldDirection}, signedSensitivity={signedSensitivity}, " +
+                      $"absSensitivity={absSensitivity}");
 
-            return _core.Sensitivity;
+            return signedSensitivity;
         }
     }
 }

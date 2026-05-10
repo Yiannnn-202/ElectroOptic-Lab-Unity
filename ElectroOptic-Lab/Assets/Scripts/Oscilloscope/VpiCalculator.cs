@@ -1,3 +1,4 @@
+using System;
 using ElectroOptics;
 
 namespace ElectroOptics.Oscilloscope
@@ -24,17 +25,22 @@ namespace ElectroOptics.Oscilloscope
             double sensitivity,
             ModulationMode mode)
         {
-            if (sensitivity < 1e-20)
+            double effectiveSensitivity = Math.Abs(sensitivity);
+            if (double.IsNaN(effectiveSensitivity) ||
+                double.IsInfinity(effectiveSensitivity) ||
+                effectiveSensitivity < 1e-20)
+            {
                 return double.PositiveInfinity;
+            }
 
             double lambda = wavelength_nm * 1e-9;
             double L = length_mm * 1e-3;
             double d = thickness_mm * 1e-3;
 
             if (mode == ModulationMode.Transverse)
-                return (lambda * d) / (2.0 * L * sensitivity);
+                return (lambda * d) / (2.0 * L * effectiveSensitivity);
             else
-                return lambda / (2.0 * sensitivity);
+                return lambda / (2.0 * effectiveSensitivity);
         }
     }
 }

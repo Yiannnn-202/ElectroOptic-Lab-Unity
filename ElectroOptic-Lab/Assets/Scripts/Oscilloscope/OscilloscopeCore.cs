@@ -154,6 +154,7 @@ namespace ElectroOptics.Oscilloscope
             else
                 sensitivity = _bridge.Sensitivity;
             ModulationMode effectiveMode = _bridge.EffectiveModulationMode;
+            double absSensitivity = Math.Abs(sensitivity);
 
             // Step 2: 计算 Vπ
             double vPi = VpiCalculator.Calculate(
@@ -164,6 +165,10 @@ namespace ElectroOptics.Oscilloscope
                 effectiveMode);
 
             // Step 3: 计算波形
+            Debug.Log($"[OscilloscopeCore] Vpi calculation profile={profile.crystalName}, " +
+                      $"mode={p.modulationMode}, effectiveMode={effectiveMode}, " +
+                      $"signedSensitivity={sensitivity}, absSensitivity={absSensitivity}, vPi={vPi}");
+
             _calculator.Compute(p, vPi, Result);
 
             // Step 4: 通知订阅者
