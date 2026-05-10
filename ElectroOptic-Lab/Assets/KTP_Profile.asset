@@ -10,30 +10,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe5065d303ef88043914366f8c09e8b0, type: 3}
-  m_Name: KDP
+  m_Name: KTP_Profile
   m_EditorClassIdentifier: 
-  crystalName: KDP
-  defaultWavelength_nm: 546
-  n_x: 1.511607
-  n_y: 1.511607
-  n_z: 1.469857
+  crystalName: KTP
+  defaultWavelength_nm: 632.8
+  n_x: 1.763569
+  n_y: 1.773327
+  n_z: 1.863399
   r11: 0
   r12: 0
-  r13: 0
+  r13: 9.5
   r21: 0
   r22: 0
-  r23: 0
+  r23: 15.7
   r31: 0
   r32: 0
-  r33: 0
-  r41: 8.8
-  r42: 0
+  r33: 36.3
+  r41: 0
+  r42: 9.3
   r43: 0
-  r51: 0
+  r51: 7.3
   r52: 0
   r53: 0
   r61: 0
   r62: 0
-  r63: 10.3
+  r63: 0
   defaultLength_mm: 20
   defaultThickness_mm: 1

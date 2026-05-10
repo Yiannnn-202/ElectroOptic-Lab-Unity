@@ -20,6 +20,7 @@ namespace ElectroOptics.Experiment.Renderer
         private const float MIN_CROSS_WIDTH = 0.001f;
         private const float MAX_CROSS_WIDTH = 0.9f;
         private const float MIN_OPTIC_AXIS_SQR_MAGNITUDE = 0.000001f;
+        private const float UNIAXIAL_EPSILON = 0.0005f;
         private const float MAX_INITIAL_MELATOPE_OFFSET = 0.25f;
         private static readonly Vector2 DEFAULT_INITIAL_MELATOPE_OFFSET = new Vector2(0.035f, -0.025f);
 
@@ -223,9 +224,11 @@ namespace ElectroOptics.Experiment.Renderer
             }
 
             Vector3 opticAxisView = DeriveOpticAxisView(matrix);
+            Vector4 biaxialAxesView = DeriveBiaxialAxesView(indices, matrix);
             _previewMaterial.SetVector("_RefractiveIndices", indices);
             _previewMaterial.SetMatrix("_RotationMatrix", matrix);
             _previewMaterial.SetVector("_OpticAxisView", new Vector4(opticAxisView.x, opticAxisView.y, opticAxisView.z, 0f));
+            _previewMaterial.SetVector("_BiaxialAxesView", biaxialAxesView);
             _previewMaterial.SetFloat("_CrystalLength", lengthMeters);
             _previewMaterial.SetFloat("_Wavelength", wavelengthMeters);
             _previewMaterial.SetFloat("_FOV", _fov);
@@ -260,6 +263,62 @@ namespace ElectroOptics.Experiment.Renderer
             }
 
             return opticAxisView;
+        }
+
+        private static Vector4 DeriveBiaxialAxesView(Vector3 indices, Matrix4x4 viewToPrincipalMatrix)
+        {
+            float nx = indices.x;
+            float ny = indices.y;
+            float nz = indices.z;
+
+            if (Mathf.Abs(nx - ny) < UNIAXIAL_EPSILON
+                || Mathf.Abs(ny - nz) < UNIAXIAL_EPSILON
+                || Mathf.Abs(nx - nz) < UNIAXIAL_EPSILON)
+            {
+                return Vector4.zero;
+            }
+
+            AxisIndex[] sorted =
+            {
+                new AxisIndex(nx, Vector3.right),
+                new AxisIndex(ny, Vector3.up),
+                new AxisIndex(nz, Vector3.forward)
+            };
+
+            System.Array.Sort(sorted, (a, b) => a.Index.CompareTo(b.Index));
+
+            float min2 = sorted[0].Index * sorted[0].Index;
+            float mid2 = sorted[1].Index * sorted[1].Index;
+            float max2 = sorted[2].Index * sorted[2].Index;
+            float span = Mathf.Max(max2 - min2, 0.000001f);
+            float cosFromMax = Mathf.Sqrt(Mathf.Clamp01((mid2 - min2) / span));
+            float sinFromMax = Mathf.Sqrt(Mathf.Clamp01(1f - cosFromMax * cosFromMax));
+
+            Vector3 minAxis = sorted[0].PrincipalAxis;
+            Vector3 maxAxis = sorted[2].PrincipalAxis;
+            Vector3 axisA = (minAxis * sinFromMax + maxAxis * cosFromMax).normalized;
+            Vector3 axisB = (-minAxis * sinFromMax + maxAxis * cosFromMax).normalized;
+
+            Matrix4x4 principalToView = viewToPrincipalMatrix.transpose;
+            axisA = principalToView.MultiplyVector(axisA).normalized;
+            axisB = principalToView.MultiplyVector(axisB).normalized;
+
+            if (axisA.z < 0f) axisA = -axisA;
+            if (axisB.z < 0f) axisB = -axisB;
+
+            return new Vector4(axisA.x, axisA.y, axisB.x, axisB.y);
+        }
+
+        private struct AxisIndex
+        {
+            public float Index;
+            public Vector3 PrincipalAxis;
+
+            public AxisIndex(float index, Vector3 principalAxis)
+            {
+                Index = index;
+                PrincipalAxis = principalAxis;
+            }
         }
 
         private static Vector2 ClampInitialMelatopeOffset(Vector2 offset)

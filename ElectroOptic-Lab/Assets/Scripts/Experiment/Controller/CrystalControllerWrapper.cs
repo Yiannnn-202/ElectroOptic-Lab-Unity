@@ -161,7 +161,8 @@ namespace ElectroOptics.Experiment.Controller
                 return;
             }
 
-            Vector3 worldLightDirection = GetWorldLightDirection();
+            Vector3 requestedWorldLightDirection = GetWorldLightDirection();
+            CrystalWorkingGeometry geometry = CrystalWorkingGeometry.ResolveConoscopic(_profile, requestedWorldLightDirection);
 
             // 构建配置
             var config = new CrystalConfig
@@ -170,16 +171,23 @@ namespace ElectroOptics.Experiment.Controller
                 crystalRotation = Quaternion.Euler(_rotation.x, _rotation.y, 0f),
 
                 // 锥光干涉模式：无电场
-                localEField = Vector3.zero,
-                probeFieldDirection = Vector3.zero,
+                localEField = geometry.LocalEFieldDirection,
+                probeFieldDirection = geometry.ProbeFieldDirection,
 
                 // 光沿实际激光发射方向传播（世界坐标）
-                worldLightDirection = worldLightDirection
+                worldLightDirection = geometry.WorldLightDirection
             };
 
             // 应用配置到物理核心
             _physicalCore.ApplyConfig(config);
-            _lastAppliedWorldLightDirection = worldLightDirection;
+            _lastAppliedWorldLightDirection = geometry.WorldLightDirection;
+
+            if (geometry.OverridesRequestedGeometry)
+            {
+                Debug.Log($"[CrystalControllerWrapper] Working geometry override for {_profile.crystalName}: " +
+                          $"requested k={requestedWorldLightDirection}, applied k={geometry.WorldLightDirection}, " +
+                          $"probe={geometry.ProbeFieldDirection}");
+            }
         }
 
         private Vector3 GetWorldLightDirection()
@@ -207,7 +215,8 @@ namespace ElectroOptics.Experiment.Controller
                 return;
             }
 
-            Vector3 worldLightDirection = GetWorldLightDirection();
+            Vector3 requestedWorldLightDirection = GetWorldLightDirection();
+            Vector3 worldLightDirection = CrystalWorkingGeometry.ResolveConoscopic(_profile, requestedWorldLightDirection).WorldLightDirection;
             if (Vector3.Angle(_lastAppliedWorldLightDirection, worldLightDirection) > 0.01f)
             {
                 UpdatePhysicsConfig();

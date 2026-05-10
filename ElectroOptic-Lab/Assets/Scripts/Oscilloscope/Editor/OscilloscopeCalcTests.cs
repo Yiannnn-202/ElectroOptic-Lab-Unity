@@ -26,6 +26,8 @@ public static class OscilloscopeCalcTests
         Test_Vpi_Transverse();
         Test_Vpi_Longitudinal();
         Test_Vpi_ZeroSensitivity();
+        Test_Vpi_NegativeSensitivityUsesMagnitude();
+        Test_Vpi_InvalidSensitivity();
 
         // WaveformCalculator 测试
         Test_Extinction();
@@ -80,6 +82,25 @@ public static class OscilloscopeCalcTests
     // =====================================================================
     // WaveformCalculator 测试
     // =====================================================================
+
+    static void Test_Vpi_NegativeSensitivityUsesMagnitude()
+    {
+        double positive = VpiCalculator.Calculate(632.8, 20.0, 1.0, 1e-10, ModulationMode.Transverse);
+        double negative = VpiCalculator.Calculate(632.8, 20.0, 1.0, -1e-10, ModulationMode.Transverse);
+
+        AssertTrue("Vpi_NegativeSensitivity finite", !double.IsInfinity(negative) && !double.IsNaN(negative) && negative > 0);
+        AssertClose("Vpi_NegativeSensitivity uses magnitude", negative, positive, 1e-6);
+    }
+
+    static void Test_Vpi_InvalidSensitivity()
+    {
+        AssertTrue("Vpi_NaNSensitivity Infinity",
+            double.IsPositiveInfinity(VpiCalculator.Calculate(633.0, 20.0, 1.0, double.NaN, ModulationMode.Transverse)));
+        AssertTrue("Vpi_InfinitySensitivity Infinity",
+            double.IsPositiveInfinity(VpiCalculator.Calculate(633.0, 20.0, 1.0, double.PositiveInfinity, ModulationMode.Transverse)));
+        AssertTrue("Vpi_TinySensitivity Infinity",
+            double.IsPositiveInfinity(VpiCalculator.Calculate(633.0, 20.0, 1.0, -1e-25, ModulationMode.Transverse)));
+    }
 
     static void Test_Extinction()
     {
