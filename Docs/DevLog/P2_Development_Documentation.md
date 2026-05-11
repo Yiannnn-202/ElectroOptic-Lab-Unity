@@ -1,15 +1,22 @@
 # 晶体锥光干涉实验 - P2 阶段开发文档
 
+> ⚠️ **架构变更说明**：本文档描述的 `ScreenPopupManager` + `ConoscopicWindowView` 弹窗方案已被 [统一面板架构](../PRD/PRD_ScreenDisplay_Refactor.md) 替代。当前实际使用的光屏显示方案为 `UnifiedScreenPanel` + `IScreenDataProvider` + `CanvasGroupTweener`。`ScreenPopupManager.cs` 和 `ConoscopicWindowView.cs` 已被删除。
+>
+> 本文档中关于 `CrystalRotationPanel`、`RotationKnob`、`AngleDisplay` 的描述仍然有效。
+>
+> 参见 [代码库审计](../Architecture/Architecture_Codebase_Audit.md) 了解完整的当前架构。
+
 ## 文档信息
 
 | 项目 | 内容 |
 |------|------|
 | **项目名称** | ElectroOptic Lab Unity - 晶体锥光干涉实验 |
-| **文档版本** | 1.0 |
+| **文档版本** | 1.1 |
 | **创建日期** | 2026-02-20 |
+| **更新日期** | 2026-05-12 |
 | **Unity版本** | 2022.3.62f2c1 |
 | **开发原则** | 解耦设计，不修改原代码 |
-| **当前阶段** | P0-P1-P2 已完成 |
+| **当前阶段** | P0-P1-P2 已完成（弹窗方案已归档，晶体旋转面板仍有效） |
 
 ---
 
@@ -19,9 +26,9 @@
 
 | ID | 需求描述 | 优先级 | 状态 | 实现文件 |
 |----|----------|--------|------|----------|
-| FR-004 | 双击光屏弹出锥光干涉图 | P2 | **已完成** | ScreenPopupManager.cs, ConoscopicWindowView.cs |
+| FR-004 | 光屏显示锥光干涉图 | P2 | **已完成（方案已变更）** | 原: ScreenPopupManager.cs, ConoscopicWindowView.cs → 现: UnifiedScreenPanel.cs |
 | FR-005 | 晶体XY轴旋转控制面板（旋钮UI） | P2 | **已完成** | CrystalRotationPanel.cs, RotationKnob.cs, AngleDisplay.cs |
-| FR-006 | 锥光干涉图随旋转实时变化 | P2 | **已完成** | ConoscopicWindowView.cs (每帧更新) |
+| FR-006 | 锥光干涉图随旋转实时变化 | P2 | **已完成** | UnifiedScreenPanel.cs (每帧驱动 UpdateAndRender) |
 
 ### 1.2 技术决策
 
@@ -242,12 +249,21 @@ public event Action<float> OnAngleChanged;
 
 ## 五、与 P0-P1 的接口衔接
 
+### 原弹窗方案（已替换）
+
 | P2 组件 | 依赖的 P0-P1 接口 | 用途 |
 |---------|------------------|------|
-| ScreenPopupManager | `CrystalRuntime.IsCrystalOnRail()` | 检测晶体 |
-| ScreenPopupManager | `CrystalRuntime.IsInitialized` | 检查初始化状态 |
-| ConoscopicWindowView | `CrystalRuntime.TextureRenderer.RenderTexture` | 获取渲染纹理 |
-| ConoscopicWindowView | `CrystalRuntime.TextureRenderer.UpdateAndRender()` | 每帧更新 |
+| ~~ScreenPopupManager~~ | ~~`CrystalRuntime.IsCrystalOnRail()`~~ | 已由 UnifiedScreenPanel 替代 |
+| ~~ConoscopicWindowView~~ | ~~`CrystalRuntime.TextureRenderer.RenderTexture`~~ | 已由 ConoscopicScreenDataProvider 替代 |
+
+### 当前方案（UnifiedScreenPanel）
+
+| 组件 | 依赖的 P0-P1 接口 | 用途 |
+|------|------------------|------|
+| UnifiedScreenPanel | `CrystalRuntime.TextureRenderer.RenderTexture` | 获取锥光渲染纹理 |
+| UnifiedScreenPanel | `CrystalRuntime.IsInitialized` | 检查初始化状态 |
+| UnifiedScreenPanel | `DirectScreenController.SharedTexture` | 获取红点纹理 |
+| UnifiedScreenPanel | `OpticalComponent.isOnRail` | 自动切换模式 |
 | CrystalRotationPanel | `CrystalRuntime.Controller.SetRotation()` | 设置旋转 |
 | CrystalRotationPanel | `CrystalRuntime.Controller.GetRotation()` | 获取当前旋转 |
 
@@ -306,8 +322,9 @@ public event Action<float> OnAngleChanged;
 | `ElectroOptics.Experiment.Initializer` | CrystalComponentInitializer |
 | `ElectroOptics.Experiment.Renderer` | ConoscopicTextureRenderer |
 | `ElectroOptics.UI.CrystalSelector` | CrystalCardSelector |
-| `ElectroOptics.UI.ScreenPopup` | ScreenPopupManager, ConoscopicWindowView |
+| ~~`ElectroOptics.UI.ScreenPopup`~~ | ~~ScreenPopupManager, ConoscopicWindowView~~ → 已删除，由 `ElectroOptics.UI.ScreenDisplay` 替代 |
 | `ElectroOptics.UI.ControlPanel` | CrystalRotationPanel, RotationKnob, AngleDisplay |
+| `ElectroOptics.UI.ScreenDisplay` | UnifiedScreenPanel, IScreenDataProvider, CanvasGroupTweener（新增） |
 
 ---
 

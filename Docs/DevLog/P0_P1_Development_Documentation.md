@@ -22,9 +22,9 @@
 | FR-001 | 从场景2-preview选择晶体进入Scene2 | P0 | **已完成** | CrystalCardSelector.cs, CrystalSelectionData.cs |
 | FR-002 | 偏振片消光观察 | P0 | 已完成（原有） | - |
 | FR-003 | 晶体建模放置到导轨 | P1 | **已完成** | CrystalComponentInitializer.cs |
-| FR-004 | 双击光屏弹出锥光干涉图 | P2 | **已完成** | ScreenPopupManager.cs, ConoscopicWindowView.cs |
+| FR-004 | 双击光屏弹出锥光干涉图 | P2 | **已完成（方案变更）** | 原规划: ScreenPopupManager.cs, ConoscopicWindowView.cs → 实际: UnifiedScreenPanel.cs |
 | FR-005 | 晶体XY轴旋转控制面板 | P2 | **已完成** | CrystalRotationPanel.cs, RotationKnob.cs, AngleDisplay.cs |
-| FR-006 | 锥光干涉图随旋转实时变化 | P2 | **已完成** | ConoscopicWindowView.cs (每帧更新) |
+| FR-006 | 锥光干涉图随旋转实时变化 | P2 | **已完成** | UnifiedScreenPanel.cs (每帧驱动) |
 | FR-007 | 调零操作（人工观察判别） | P3 | 已完成（无需代码） | - |
 
 ### 1.2 非功能需求
@@ -251,14 +251,20 @@ Assets/Scripts/
 │   └── Renderer/                                    # 渲染器
 │       └── ConoscopicTextureRenderer.cs             # 锥光干涉纹理渲染器
 │
-├── UI/                                              # UI模块 [P0 新增]
-│   └── CrystalSelector/                             # 晶体选择
-│       └── CrystalCardSelector.cs                   # 晶体卡片选择器
-│
-├── [P2 待新增目录]
-│   ├── UI/Common/                                   # 通用UI组件
-│   ├── UI/ScreenPopup/                              # 光屏弹窗
-│   └── UI/ControlPanel/                             # 控制面板
+├── UI/                                              # UI模块
+│   ├── CrystalSelector/                             # 晶体选择 [P0]
+│   │   └── CrystalCardSelector.cs
+│   ├── ScreenDisplay/                               # 统一显示面板 [P2 实际方案]
+│   │   ├── UnifiedScreenPanel.cs
+│   │   ├── IScreenDataProvider.cs
+│   │   ├── CanvasGroupTweener.cs
+│   │   ├── ScreenMode.cs
+│   │   ├── DirectScreenDataProvider.cs
+│   │   └── ConoscopicScreenDataProvider.cs
+│   └── ControlPanel/                                # 控制面板 [P2]
+│       ├── CrystalRotationPanel.cs
+│       ├── RotationKnob.cs
+│       └── AngleDisplay.cs
 │
 └── [原代码保持不变]
     ├── Business_logic/                              # 业务逻辑
@@ -397,34 +403,29 @@ CrystalComponentInitializer.Start()
                             └──→ physicalCore.ApplyConfig(config)
 ```
 
-### 6.3 P2 弹窗渲染流程（待实现）
+### 6.3 P2 统一面板显示流程（实际方案）
+
+> **注意**：实际 P2 实现未采用弹窗方案，而是采用统一面板架构。详见 [PRD_ScreenDisplay_Refactor](../PRD/PRD_ScreenDisplay_Refactor.md)。
 
 ```
-[用户双击光屏]
+[每帧 Update() 轮询]
     │
     ↓
-ScreenPopupManager.HandleDoubleClick()
+UnifiedScreenPanel.Update()
     │
-    ├──→ HasCrystalOnRail() → 检测晶体
+    ├──→ 读取 OpticalComponent.isOnRail
     │
-    ├──→ [有晶体]
+    ├──→ [isOnRail == true] → Conoscopic 模式
     │       │
-    │       ↓
-    │   ShowConoscopicWindow()
-    │       │
-    │       ├──→ 获取 CrystalRuntime.TextureRenderer.RenderTexture
-    │       │
-    │       └──→ ConoscopicWindowView.Show()
-    │               │
-    │               └──→ RawImage.texture = renderTexture
+    │       ├── 读取 CrystalRuntime.TextureRenderer.RenderTexture
+    │       └── 每帧调用 UpdateAndRender()
     │
-    └──→ [无晶体]
+    └──→ [isOnRail == false] → Direct 模式
             │
-            ↓
-        DirectScreenController.OpenDisplayWindow()
+            └── 读取 DirectScreenController.SharedTexture
 ```
 
-### 6.4 P2 旋转控制流程（待实现）
+### 6.4 P2 旋转控制流程（已实现）
 
 ```
 [用户双击晶体]
@@ -493,18 +494,22 @@ CrystalRuntime.Controller.SetRotation()
 
 ---
 
-## 八、P2 阶段规划
+## 八、P2 阶段规划（历史记录）
 
-### 8.1 待创建文件
+> **注**：以下为 P2 阶段原始规划。实际实施中，光屏显示方案改为统一面板架构（[PRD_ScreenDisplay_Refactor](../PRD/PRD_ScreenDisplay_Refactor.md)），`ScreenPopupManager` 和 `ConoscopicWindowView` 从未部署，已删除。`CrystalRotationPanel` 系列按原计划实现。
 
-| 文件路径 | 职责 |
-|---------|------|
-| `Scripts/UI/Common/WindowFactory.cs` | 窗口工厂，统一创建弹窗 UI |
-| `Scripts/UI/ScreenPopup/ScreenPopupManager.cs` | 光屏双击弹窗管理 |
-| `Scripts/UI/ScreenPopup/ConoscopicWindowView.cs` | 锥光干涉弹窗视图 |
-| `Scripts/UI/ControlPanel/CrystalRotationPanel.cs` | 晶体旋转控制面板 |
+### 8.1 原规划文件
 
-### 8.2 P2 实现要点
+| 文件路径 | 实际状态 |
+|---------|----------|
+| `Scripts/UI/Common/WindowFactory.cs` | 未创建（功能合并到 UnifiedScreenPanel） |
+| `Scripts/UI/ScreenPopup/ScreenPopupManager.cs` | 已创建但从未部署，后删除 |
+| `Scripts/UI/ScreenPopup/ConoscopicWindowView.cs` | 已创建但从未部署，后删除 |
+| `Scripts/UI/ControlPanel/CrystalRotationPanel.cs` | ✅ 已部署 |
+| `Scripts/UI/ControlPanel/RotationKnob.cs` | ✅ 已部署 |
+| `Scripts/UI/ControlPanel/AngleDisplay.cs` | ✅ 已部署 |
+
+### 8.2 P2 实际实现要点
 
 1. **ScreenPopupManager**
    - 挂载在光屏对象上
@@ -581,6 +586,7 @@ Debug.LogError("[CrystalComponentInitializer] 未找到晶体模型！");
 | `ElectroOptics.Experiment.Initializer` | CrystalComponentInitializer |
 | `ElectroOptics.Experiment.Renderer` | ConoscopicTextureRenderer |
 | `ElectroOptics.UI.CrystalSelector` | CrystalCardSelector |
+| `ElectroOptics.UI.ScreenDisplay` | UnifiedScreenPanel, IScreenDataProvider, CanvasGroupTweener (P2 新增) |
 
 ---
 
