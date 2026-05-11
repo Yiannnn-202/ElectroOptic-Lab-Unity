@@ -214,7 +214,7 @@ namespace ElectroOptics.UI.ScreenDisplay
             _conoscopicLayerGroup.alpha = 0f;
 
             Image conoscopicBg = _conoscopicLayerObj.AddComponent<Image>();
-            conoscopicBg.color = Color.white;
+            conoscopicBg.color = Color.black;
             conoscopicBg.raycastTarget = false;
 
             // 内容 RawImage（子对象，留边距）
@@ -245,7 +245,7 @@ namespace ElectroOptics.UI.ScreenDisplay
 
             // 白色背景 Image
             Image directBg = _directLayerObj.AddComponent<Image>();
-            directBg.color = Color.white;
+            directBg.color = Color.black;
             directBg.raycastTarget = false;
 
             // 内容 RawImage（子对象，留边距）

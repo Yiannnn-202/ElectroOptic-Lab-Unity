@@ -46,7 +46,7 @@ Shader "ElectroOptics/DotTracking"
             {
                 float dist = length(i.uv - _HitUV.xy);
                 float soft = 1.0 - smoothstep(0, _DotRadius, dist);
-                float3 bg = float3(1.0, 1.0, 1.0);
+                float3 bg = float3(0.0, 0.0, 0.0);
                 float3 fg = float3(1.0, 0.0, 0.0);
                 float effective = _DotIntensity * _DotBrightness;
                 float3 color = lerp(bg, fg, saturate(effective) * soft);
