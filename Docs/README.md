@@ -1,6 +1,6 @@
 # 开发文档索引
 
-> 最后更新：2026-05-12
+> 最后更新：2026-05-13
 
 ---
 
@@ -8,6 +8,7 @@
 
 | 文档 | 说明 |
 |------|------|
+| [PRD_Conoscopic_IntensitySurface_CalcCore](PRD/PRD_Conoscopic_IntensitySurface_CalcCore.md) | 锥光干涉图附加实验：光强曲面计算核心需求 |
 | [PRD_Conoscopic_KnobAdjust](PRD/PRD_Conoscopic_KnobAdjust.md) | 锥光干涉旋钮调节功能需求 |
 | [PRD_Oscilloscope_CalcCore](PRD/PRD_Oscilloscope_CalcCore.md) | 示波器计算核心需求 |
 | [PRD_ScreenDisplay_Refactor](PRD/PRD_ScreenDisplay_Refactor.md) | 光屏显示重构 — 统一面板架构（替代旧弹窗方案） |
@@ -34,6 +35,7 @@
 | [P0_P1_Development_Documentation](DevLog/P0_P1_Development_Documentation.md) | P0-P1 阶段：数据传递 + 晶体初始化 | 已落地 |
 | [P2_Development_Documentation](DevLog/P2_Development_Documentation.md) | P2 阶段：弹窗 + 旋转控制面板 | ⚠️ 弹窗方案已被 UnifiedScreenPanel 替代 |
 | [DevLog_Conoscopic_KnobAdjust](DevLog/DevLog_Conoscopic_KnobAdjust.md) | 锥光干涉旋钮调节开发日志 |
+| [DevLog_Conoscopic_Jones_Uniaxial_IntensitySurface](DevLog/DevLog_Conoscopic_Jones_Uniaxial_IntensitySurface.md) | 锥光干涉图 Jones 单轴光强曲面计算、可视化与测试日志 |
 | [DevLog_Oscilloscope_CalcCore](DevLog/DevLog_Oscilloscope_CalcCore.md) | 示波器计算核心开发日志 |
 | [DevLog_Scene2_Conoscopic_FOV_And_Angle_Fix](DevLog/DevLog_Scene2_Conoscopic_FOV_And_Angle_Fix.md) | Scene2 锥光干涉 FOV 与角度修复日志 |
 
@@ -50,6 +52,8 @@
 |------|------|------|
 | [implementation_plan](Plan/implementation_plan.md) | 原始总体实现计划 | 已完成 |
 | [Conoscopic_Realistic_Motion_Modification_Plan](Plan/Conoscopic_Realistic_Motion_Modification_Plan.md) | 锥光干涉真实运动修改计划 |
+| [Conoscopic_IntensitySurface_CalcCore_Development_Plan](Plan/Conoscopic_IntensitySurface_CalcCore_Development_Plan.md) | 锥光干涉图附加实验：光强曲面计算核心开发计划 |
+| [Conoscopic_Jones_IntensitySurface_GPU_Development_Plan](Plan/Conoscopic_Jones_IntensitySurface_GPU_Development_Plan.md) | 锥光干涉图 Jones 光强曲面 GPU 算法开发计划 |
 | [Scene4_Oscilloscope_Dispatcher_Plan](Plan/Scene4_Oscilloscope_Dispatcher_Plan.md) | Scene4 示波器调度与波形显示开发/测试计划 |
 
 ---

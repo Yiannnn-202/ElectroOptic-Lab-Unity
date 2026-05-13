@@ -64,11 +64,23 @@ public class CrystalPhysicalCore : MonoBehaviour
 
     void Awake()
     {
+        EnsureInitialized();
+    }
+
+    private void EnsureInitialized()
+    {
+        if (_isInitialized)
+        {
+            return;
+        }
+
         _inputData = new SimInputData();
         _inputData.Initialize();
         _outputData = new CrystalOutputData();
         _outputData.Initialize();
         _waveVectorLocal = new double[3];
+        _localPerturbationMatrix = Matrix4x4.identity;
+        _shaderCompositeMatrix = Matrix4x4.identity;
         _isInitialized = true;
     }
 
@@ -77,7 +89,8 @@ public class CrystalPhysicalCore : MonoBehaviour
     /// </summary>
     public void ApplyConfig(CrystalConfig config)
     {
-        if (!_isInitialized || config.profile == null) return;
+        EnsureInitialized();
+        if (config.profile == null) return;
 
         // 1. 探测通道 (Probe Pass): 当几何/探测轴变化时运行
         if (config.IsGeometryDifferent(_lastConfig))
