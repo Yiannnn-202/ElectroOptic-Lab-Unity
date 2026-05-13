@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems; // 必须引入，用于处理鼠标的长按松开事件
+using UnityEngine.EventSystems;
 using TMPro;
 
 public class RecordManager : MonoBehaviour
@@ -32,6 +32,16 @@ public class RecordManager : MonoBehaviour
     public float halfWaveVoltage = 150.0f;
     public float maxIntensity = 100.0f;
 
+    // ================= 修改点：改成可随意编辑的数组 =================
+    [Header("教学引导（幽灵提示）设置")]
+    [Tooltip("按行自定义提示电压，专门针对极值法设计（比如填入波峰波谷附近的电压）")]
+    public float[] suggestedVoltages = new float[] { 0f, 100f, 260f, 400f, 540f, 600f };
+    [Tooltip("提示文字的颜色（灰色）")]
+    public Color placeholderColor = new Color(0.6f, 0.6f, 0.6f, 0.8f); // 适中的灰色
+    [Tooltip("真实记录数据的文字颜色（深色）")]
+    public Color normalTextColor = new Color(0.1f, 0.1f, 0.1f, 1f);
+    // ==========================================================
+
     [Header("运行设置")]
     public bool clearTableOnStart = true;
 
@@ -40,10 +50,9 @@ public class RecordManager : MonoBehaviour
 
     private int currentIndex = 0;
 
-    // --- 状态记录 ---
-    private bool isIncSelected = false;  // 顺时针是否处于“发光/选中”状态
-    private bool isDecSelected = false;  // 逆时针是否处于“发光/选中”状态
-    private bool isMouseHolding = false; // 鼠标是否正在长按着某个箭头
+    private bool isIncSelected = false;
+    private bool isDecSelected = false;
+    private bool isMouseHolding = false;
 
     void Start()
     {
@@ -61,7 +70,6 @@ public class RecordManager : MonoBehaviour
             clearButton.onClick.AddListener(ClearTable);
         }
 
-        // --- 核心：绑定“选中”与“长按”双模事件 ---
         if (arrowIncButton != null) BindEvent(arrowIncButton.gameObject, true);
         if (arrowDecButton != null) BindEvent(arrowDecButton.gameObject, false);
 
@@ -77,8 +85,6 @@ public class RecordManager : MonoBehaviour
 
     void Update()
     {
-        // --- 混合模式核心逻辑 ---
-        // 只要鼠标按住了箭头，或者按住了 R 键，就进行平滑连转
         if (isMouseHolding || Input.GetKey(KeyCode.R))
         {
             float dir = 0f;
@@ -92,21 +98,17 @@ public class RecordManager : MonoBehaviour
             }
         }
 
-        // 保留退格键删除记录
         if (Input.GetKeyDown(KeyCode.Backspace))
         {
             DeleteLastRecord();
         }
     }
 
-    // --- 巧妙整合发光与长按机制 ---
     private void BindEvent(GameObject btn, bool isInc)
     {
         EventTrigger trigger = btn.GetComponent<EventTrigger>();
         if (trigger == null) trigger = btn.AddComponent<EventTrigger>();
 
-        // 鼠标按下：
-        // 1. 切换发光状态 2. 告诉系统鼠标按住了（触发鼠标连转）
         var pointerDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
         pointerDown.callback.AddListener((_) => {
             if (isInc)
@@ -124,8 +126,6 @@ public class RecordManager : MonoBehaviour
         });
         trigger.triggers.Add(pointerDown);
 
-        // 鼠标抬起：
-        // 仅仅取消鼠标连转状态，但【不取消】发光状态，以便 R 键能记住方向继续工作
         var pointerUp = new EventTrigger.Entry { eventID = EventTriggerType.PointerUp };
         pointerUp.callback.AddListener((_) => {
             isMouseHolding = false;
@@ -138,8 +138,6 @@ public class RecordManager : MonoBehaviour
         if (arrowIncOutline != null) arrowIncOutline.enabled = isIncSelected;
         if (arrowDecOutline != null) arrowDecOutline.enabled = isDecSelected;
     }
-
-    // ---------- 以下为原有物理计算和表格逻辑（完全未修改） ----------
 
     float CalculateReceiverValue(float voltage)
     {
@@ -200,6 +198,9 @@ public class RecordManager : MonoBehaviour
 
         float currentReceiverValue = CalculateReceiverValue(currentVoltage);
 
+        voltageCells[currentIndex].color = normalTextColor;
+        powerCells[currentIndex].color = normalTextColor;
+
         voltageCells[currentIndex].text = currentVoltage.ToString("F1");
         powerCells[currentIndex].text = currentReceiverValue.ToString("F2");
 
@@ -208,16 +209,11 @@ public class RecordManager : MonoBehaviour
 
     public void ClearTable()
     {
-        foreach (var cell in voltageCells)
+        int maxRecordCount = Mathf.Min(voltageCells.Count, powerCells.Count);
+        for (int i = 0; i < maxRecordCount; i++)
         {
-            if (cell != null) cell.text = "";
+            ResetCellToPlaceholder(i);
         }
-
-        foreach (var cell in powerCells)
-        {
-            if (cell != null) cell.text = "";
-        }
-
         currentIndex = 0;
     }
 
@@ -226,15 +222,41 @@ public class RecordManager : MonoBehaviour
         if (currentIndex <= 0) return;
 
         currentIndex--;
+        ResetCellToPlaceholder(currentIndex);
+    }
 
-        if (currentIndex < voltageCells.Count && voltageCells[currentIndex] != null)
+    private void ResetCellToPlaceholder(int index)
+    {
+        int blocksCount = tableArea.childCount;
+        int cellsPerRow = blocksCount > 0 ? voltageCells.Count / blocksCount : 1;
+
+        if (index % cellsPerRow == 0)
         {
-            voltageCells[currentIndex].text = "";
+            if (index < voltageCells.Count && voltageCells[index] != null)
+            {
+                int rowIndex = index / cellsPerRow;
+                voltageCells[index].color = placeholderColor;
+
+                // ================= 修改点：根据行数从数组里取值 =================
+                if (rowIndex < suggestedVoltages.Length)
+                {
+                    voltageCells[index].text = $"({suggestedVoltages[rowIndex]})";
+                }
+                else
+                {
+                    voltageCells[index].text = ""; // 如果行数超过了数组长度，就不显示
+                }
+            }
+            if (index < powerCells.Count && powerCells[index] != null)
+            {
+                powerCells[index].color = placeholderColor;
+                powerCells[index].text = "--";
+            }
         }
-
-        if (currentIndex < powerCells.Count && powerCells[currentIndex] != null)
+        else
         {
-            powerCells[currentIndex].text = "";
+            if (index < voltageCells.Count && voltageCells[index] != null) voltageCells[index].text = "";
+            if (index < powerCells.Count && powerCells[index] != null) powerCells[index].text = "";
         }
     }
 }
