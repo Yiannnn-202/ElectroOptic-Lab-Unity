@@ -4,6 +4,13 @@ using ElectroOptics;
 
 namespace ElectroOptics.ConoscopicAnalysis
 {
+    public enum ConoscopicBiaxialDisplayMode
+    {
+        ConoscopicTeaching = 0,
+        RawJones = 1,
+        PaperKtp1 = 2
+    }
+
     [Serializable]
     public class ConoscopicJonesParameters
     {
@@ -29,7 +36,22 @@ namespace ElectroOptics.ConoscopicAnalysis
         public const float MaxApertureRadius = 1.5f;
         public const float MinHeightScale = 0.01f;
         public const float MaxHeightScale = 10f;
+        public const float MinPhaseScale = 0.01f;
+        public const float MaxPhaseScale = 5f;
+        public const float MinRingSharpness = 0.25f;
+        public const float MaxRingSharpness = 4f;
+        public const float MinCrossWidth = 0.01f;
+        public const float MaxCrossWidth = 0.35f;
+        public const float MinBlackCutoff = 0f;
+        public const float MaxBlackCutoff = 0.25f;
+        public const float MinDisplayGamma = 0.2f;
+        public const float MaxDisplayGamma = 3f;
         public const float DefaultUniaxialEpsilon = 0.0005f;
+        public const float PaperKtp1WavelengthNm = 589.3f;
+        public const float PaperKtp1ThicknessMm = 0.915f;
+        public const float PaperKtp1AlphaDeg = 45f;
+        public const float PaperKtp1ThetaDeg = 0f;
+        public const float PaperKtp1PhiDeg = 0f;
 
         public int resolution = 256;
         public float wavelengthNm = 632.8f;
@@ -48,12 +70,21 @@ namespace ElectroOptics.ConoscopicAnalysis
         public float crystalAxisAngleDeg = 45f;
         public float opticAxisTiltDeg = 0f;
         public float opticAxisAzimuthDeg = 0f;
+        public float paperThetaDeg = PaperKtp1ThetaDeg;
+        public float paperPhiDeg = PaperKtp1PhiDeg;
         public float electricFieldStrength = 0f;
         public float electroOpticCoefficientR22 = 0f;
         public float apertureRadius = 1f;
         public float heightScale = 1f;
+        public float phaseScale = 0.1f;
+        public float ringSharpness = 1f;
+        public float crossWidth = 0.16f;
+        public float blackCutoff = 0.012f;
+        public float displayGamma = 1.25f;
+        public Vector2 initialMelatopeOffset = new Vector2(0.035f, -0.025f);
         public float uniaxialEpsilon = DefaultUniaxialEpsilon;
         public bool forceUniaxial = false;
+        public ConoscopicBiaxialDisplayMode biaxialDisplayMode = ConoscopicBiaxialDisplayMode.ConoscopicTeaching;
         public Matrix4x4 worldToPrincipalMatrix = Matrix4x4.identity;
 
         public ConoscopicJonesParameters()
@@ -85,12 +116,21 @@ namespace ElectroOptics.ConoscopicAnalysis
             crystalAxisAngleDeg = other.crystalAxisAngleDeg;
             opticAxisTiltDeg = other.opticAxisTiltDeg;
             opticAxisAzimuthDeg = other.opticAxisAzimuthDeg;
+            paperThetaDeg = other.paperThetaDeg;
+            paperPhiDeg = other.paperPhiDeg;
             electricFieldStrength = other.electricFieldStrength;
             electroOpticCoefficientR22 = other.electroOpticCoefficientR22;
             apertureRadius = other.apertureRadius;
             heightScale = other.heightScale;
+            phaseScale = other.phaseScale;
+            ringSharpness = other.ringSharpness;
+            crossWidth = other.crossWidth;
+            blackCutoff = other.blackCutoff;
+            displayGamma = other.displayGamma;
+            initialMelatopeOffset = other.initialMelatopeOffset;
             uniaxialEpsilon = other.uniaxialEpsilon;
             forceUniaxial = other.forceUniaxial;
+            biaxialDisplayMode = other.biaxialDisplayMode;
             worldToPrincipalMatrix = other.worldToPrincipalMatrix;
             Clamp();
         }
@@ -116,6 +156,47 @@ namespace ElectroOptics.ConoscopicAnalysis
             ordinaryIndexNo = ResolveOrdinaryIndex(profile, ordinaryIndexNo);
             extraordinaryIndexNe = ResolveExtraordinaryIndex(profile, extraordinaryIndexNe);
             electroOpticCoefficientR22 = (float)profile.r22;
+            if (IsKtpProfile(profile))
+            {
+                ApplyPaperKtp1Preset(false);
+            }
+            else if (biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1)
+            {
+                biaxialDisplayMode = ConoscopicBiaxialDisplayMode.ConoscopicTeaching;
+            }
+
+            Clamp();
+        }
+
+        public void ApplyPaperKtp1Preset(bool resetIndices = false)
+        {
+            wavelengthNm = PaperKtp1WavelengthNm;
+            thicknessMm = PaperKtp1ThicknessMm;
+            crystalAxisAngleDeg = PaperKtp1AlphaDeg;
+            opticAxisTiltDeg = 0f;
+            opticAxisAzimuthDeg = 0f;
+            paperThetaDeg = PaperKtp1ThetaDeg;
+            paperPhiDeg = PaperKtp1PhiDeg;
+            screenDistanceM = 0.7f;
+            screenHalfSizeM = 0.08f;
+            phaseScale = 1f;
+            ringSharpness = 1.6f;
+            crossWidth = 0.08f;
+            blackCutoff = 0.01f;
+            displayGamma = 1.15f;
+            initialMelatopeOffset = Vector2.zero;
+            biaxialDisplayMode = ConoscopicBiaxialDisplayMode.PaperKtp1;
+
+            if (resetIndices)
+            {
+                principalIndexNx = 1.763569f;
+                principalIndexNy = 1.773327f;
+                principalIndexNz = 1.863399f;
+                ordinaryIndexNo = ResolveOrdinaryIndex(new Vector3(principalIndexNx, principalIndexNy, principalIndexNz), ordinaryIndexNo);
+                extraordinaryIndexNe = ResolveExtraordinaryIndex(new Vector3(principalIndexNx, principalIndexNy, principalIndexNz), extraordinaryIndexNe);
+            }
+
+            worldToPrincipalMatrix = CreatePaperKtp1WorldToPrincipalMatrix(crystalAxisAngleDeg, paperThetaDeg, paperPhiDeg);
             Clamp();
         }
 
@@ -149,8 +230,15 @@ namespace ElectroOptics.ConoscopicAnalysis
             initialIntensity = Mathf.Clamp(initialIntensity, MinInitialIntensity, MaxInitialIntensity);
             phaseAntiAliasStrength = Mathf.Clamp(phaseAntiAliasStrength, MinPhaseAntiAliasStrength, MaxPhaseAntiAliasStrength);
             opticAxisTiltDeg = Mathf.Clamp(opticAxisTiltDeg, MinOpticAxisTiltDeg, MaxOpticAxisTiltDeg);
+            paperThetaDeg = Mathf.Clamp(paperThetaDeg, 0f, 90f);
+            paperPhiDeg = Mathf.Repeat(paperPhiDeg, 360f);
             apertureRadius = Mathf.Clamp(apertureRadius, MinApertureRadius, MaxApertureRadius);
             heightScale = Mathf.Clamp(heightScale, MinHeightScale, MaxHeightScale);
+            phaseScale = Mathf.Clamp(phaseScale, MinPhaseScale, MaxPhaseScale);
+            ringSharpness = Mathf.Clamp(ringSharpness, MinRingSharpness, MaxRingSharpness);
+            crossWidth = Mathf.Clamp(crossWidth, MinCrossWidth, MaxCrossWidth);
+            blackCutoff = Mathf.Clamp(blackCutoff, MinBlackCutoff, MaxBlackCutoff);
+            displayGamma = Mathf.Clamp(displayGamma, MinDisplayGamma, MaxDisplayGamma);
             uniaxialEpsilon = Mathf.Max(0.000001f, uniaxialEpsilon);
             if (!IsMatrixFinite(worldToPrincipalMatrix))
             {
@@ -246,6 +334,20 @@ namespace ElectroOptics.ConoscopicAnalysis
             }
 
             return true;
+        }
+
+        public static bool IsKtpProfile(CrystalProfile profile)
+        {
+            return profile != null
+                   && !string.IsNullOrEmpty(profile.crystalName)
+                   && profile.crystalName.Trim().Equals("KTP", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static Matrix4x4 CreatePaperKtp1WorldToPrincipalMatrix(float alphaDeg, float thetaDeg, float phiDeg)
+        {
+            Quaternion inPlane = Quaternion.AngleAxis(-alphaDeg, Vector3.forward);
+            Quaternion tilt = Quaternion.AngleAxis(-thetaDeg, new Vector3(Mathf.Cos(phiDeg * Mathf.Deg2Rad), Mathf.Sin(phiDeg * Mathf.Deg2Rad), 0f));
+            return Matrix4x4.Rotate(inPlane * tilt);
         }
     }
 }

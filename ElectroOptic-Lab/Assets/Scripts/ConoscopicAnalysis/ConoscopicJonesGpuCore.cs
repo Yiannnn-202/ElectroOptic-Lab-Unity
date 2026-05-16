@@ -21,6 +21,18 @@ namespace ElectroOptics.ConoscopicAnalysis
         private bool _isDirty = true;
         private bool _warnedBiaxialFallback;
 
+        private struct AxisIndex
+        {
+            public float Index;
+            public Vector3 PrincipalAxis;
+
+            public AxisIndex(float index, Vector3 principalAxis)
+            {
+                Index = index;
+                PrincipalAxis = principalAxis;
+            }
+        }
+
         public ConoscopicJonesParameters Parameters => _parameters;
         public ConoscopicJonesResult Result => _result;
         public RenderTexture IntensityHeightMap => _intensityHeightMap;
@@ -194,6 +206,23 @@ namespace ElectroOptics.ConoscopicAnalysis
                 0f));
             _material.SetMatrix("_WorldToPrincipalMatrix", _parameters.worldToPrincipalMatrix);
             _material.SetFloat("_UseBiaxial", _parameters.IsBiaxial() ? 1f : 0f);
+            _material.SetFloat("_BiaxialDisplayMode", (float)_parameters.biaxialDisplayMode);
+            _material.SetVector("_BiaxialAxesView", DeriveBiaxialAxesView(
+                new Vector3(
+                    _parameters.principalIndexNx,
+                    _parameters.principalIndexNy,
+                    _parameters.principalIndexNz),
+                _parameters.worldToPrincipalMatrix));
+            _material.SetVector("_InitialMelatopeOffset", new Vector4(
+                _parameters.initialMelatopeOffset.x,
+                _parameters.initialMelatopeOffset.y,
+                0f,
+                0f));
+            _material.SetFloat("_PhaseScale", _parameters.phaseScale);
+            _material.SetFloat("_RingSharpness", _parameters.ringSharpness);
+            _material.SetFloat("_CrossWidth", _parameters.crossWidth);
+            _material.SetFloat("_BlackCutoff", _parameters.blackCutoff);
+            _material.SetFloat("_DisplayGamma", _parameters.displayGamma);
             _material.SetFloat("_UniaxialEpsilon", _parameters.uniaxialEpsilon);
             _material.SetFloat("_ScreenDistanceM", _parameters.screenDistanceM);
             _material.SetFloat("_ScreenHalfSizeM", _parameters.screenHalfSizeM);
@@ -213,6 +242,17 @@ namespace ElectroOptics.ConoscopicAnalysis
         {
             if (_profile == null)
             {
+                return;
+            }
+
+            if (_parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1
+                && ConoscopicJonesParameters.IsKtpProfile(_profile))
+            {
+                _parameters.ApplyPrincipalIndices(new Vector3((float)_profile.n_x, (float)_profile.n_y, (float)_profile.n_z));
+                _parameters.worldToPrincipalMatrix = ConoscopicJonesParameters.CreatePaperKtp1WorldToPrincipalMatrix(
+                    _parameters.crystalAxisAngleDeg,
+                    _parameters.paperThetaDeg,
+                    _parameters.paperPhiDeg);
                 return;
             }
 
@@ -294,6 +334,48 @@ namespace ElectroOptics.ConoscopicAnalysis
             return Mathf.Abs(nx - ny) >= epsilon
                    && Mathf.Abs(ny - nz) >= epsilon
                    && Mathf.Abs(nx - nz) >= epsilon;
+        }
+
+        private static Vector4 DeriveBiaxialAxesView(Vector3 indices, Matrix4x4 viewToPrincipalMatrix)
+        {
+            float nx = indices.x;
+            float ny = indices.y;
+            float nz = indices.z;
+            const float epsilon = ConoscopicJonesParameters.DefaultUniaxialEpsilon;
+            if (Mathf.Abs(nx - ny) < epsilon
+                || Mathf.Abs(ny - nz) < epsilon
+                || Mathf.Abs(nx - nz) < epsilon)
+            {
+                return Vector4.zero;
+            }
+
+            AxisIndex[] sorted =
+            {
+                new AxisIndex(nx, Vector3.right),
+                new AxisIndex(ny, Vector3.up),
+                new AxisIndex(nz, Vector3.forward)
+            };
+            Array.Sort(sorted, (a, b) => a.Index.CompareTo(b.Index));
+
+            float min2 = sorted[0].Index * sorted[0].Index;
+            float mid2 = sorted[1].Index * sorted[1].Index;
+            float max2 = sorted[2].Index * sorted[2].Index;
+            float span = Mathf.Max(max2 - min2, 0.000001f);
+            float cosFromMax = Mathf.Sqrt(Mathf.Clamp01((mid2 - min2) / span));
+            float sinFromMax = Mathf.Sqrt(Mathf.Clamp01(1f - cosFromMax * cosFromMax));
+
+            Vector3 minAxis = sorted[0].PrincipalAxis;
+            Vector3 maxAxis = sorted[2].PrincipalAxis;
+            Vector3 axisA = (minAxis * sinFromMax + maxAxis * cosFromMax).normalized;
+            Vector3 axisB = (-minAxis * sinFromMax + maxAxis * cosFromMax).normalized;
+
+            Matrix4x4 principalToView = viewToPrincipalMatrix.transpose;
+            axisA = principalToView.MultiplyVector(axisA).normalized;
+            axisB = principalToView.MultiplyVector(axisB).normalized;
+
+            if (axisA.z < 0f) axisA = -axisA;
+            if (axisB.z < 0f) axisB = -axisB;
+            return new Vector4(axisA.x, axisA.y, axisB.x, axisB.y);
         }
 
         private Vector2 EstimateMinMaxFromReadback()

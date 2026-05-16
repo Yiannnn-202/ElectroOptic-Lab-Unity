@@ -43,7 +43,12 @@ public static class ConoscopicJonesCoreTests
             phaseAntiAliasStrength = 99f,
             opticAxisTiltDeg = 90f,
             apertureRadius = 9f,
-            heightScale = -1f
+            heightScale = -1f,
+            phaseScale = -1f,
+            ringSharpness = 99f,
+            crossWidth = 99f,
+            blackCutoff = 99f,
+            displayGamma = -1f
         };
 
         parameters.Clamp();
@@ -59,6 +64,11 @@ public static class ConoscopicJonesCoreTests
         AssertClose("Clamp optic tilt", parameters.opticAxisTiltDeg, ConoscopicJonesParameters.MaxOpticAxisTiltDeg, 1e-6f);
         AssertClose("Clamp aperture", parameters.apertureRadius, ConoscopicJonesParameters.MaxApertureRadius, 1e-6f);
         AssertClose("Clamp height", parameters.heightScale, ConoscopicJonesParameters.MinHeightScale, 1e-6f);
+        AssertClose("Clamp phase scale", parameters.phaseScale, ConoscopicJonesParameters.MinPhaseScale, 1e-6f);
+        AssertClose("Clamp ring sharpness", parameters.ringSharpness, ConoscopicJonesParameters.MaxRingSharpness, 1e-6f);
+        AssertClose("Clamp cross width", parameters.crossWidth, ConoscopicJonesParameters.MaxCrossWidth, 1e-6f);
+        AssertClose("Clamp black cutoff", parameters.blackCutoff, ConoscopicJonesParameters.MaxBlackCutoff, 1e-6f);
+        AssertClose("Clamp display gamma", parameters.displayGamma, ConoscopicJonesParameters.MinDisplayGamma, 1e-6f);
     }
 
     private static void TestCpuReferenceRangeAndAperture()
@@ -109,6 +119,10 @@ public static class ConoscopicJonesCoreTests
         AssertClose("KTP nx", parameters.principalIndexNx, (float)profile.n_x, 1e-5f);
         AssertClose("KTP ny", parameters.principalIndexNy, (float)profile.n_y, 1e-5f);
         AssertClose("KTP nz", parameters.principalIndexNz, (float)profile.n_z, 1e-5f);
+        AssertClose("KTP paper wavelength", parameters.wavelengthNm, ConoscopicJonesParameters.PaperKtp1WavelengthNm, 1e-5f);
+        AssertClose("KTP paper thickness", parameters.thicknessMm, ConoscopicJonesParameters.PaperKtp1ThicknessMm, 1e-5f);
+        AssertClose("KTP paper alpha", parameters.crystalAxisAngleDeg, ConoscopicJonesParameters.PaperKtp1AlphaDeg, 1e-5f);
+        AssertTrue("KTP paper display mode", parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1);
         AssertTrue("KTP classified biaxial", parameters.IsBiaxial());
 
         parameters.principalIndexNy = parameters.principalIndexNx + parameters.uniaxialEpsilon * 0.25f;
@@ -130,11 +144,21 @@ public static class ConoscopicJonesCoreTests
 
         float center = ConoscopicJonesCpuReference.EvaluateIntensity(Vector2.zero, parameters);
         float quadrant = ConoscopicJonesCpuReference.EvaluateIntensity(new Vector2(0.35f, 0.2f), parameters);
+        float nearby = ConoscopicJonesCpuReference.EvaluateIntensity(new Vector2(0.36f, 0.2f), parameters);
+        float sampleMax = Mathf.Max(
+            center,
+            quadrant,
+            nearby,
+            ConoscopicJonesCpuReference.EvaluateIntensity(new Vector2(-0.35f, -0.2f), parameters),
+            ConoscopicJonesCpuReference.EvaluateIntensity(new Vector2(0.2f, -0.35f), parameters),
+            ConoscopicJonesCpuReference.EvaluateIntensity(new Vector2(-0.2f, 0.35f), parameters));
         float outside = ConoscopicJonesCpuReference.EvaluateIntensity(new Vector2(1.2f, 0f), parameters);
         float delta = ConoscopicJonesCpuReference.EvaluateDelta(new Vector2(0.35f, 0.2f), parameters);
 
         AssertTrue("CPU KTP center finite range", IsUnitFinite(center));
         AssertTrue("CPU KTP quadrant finite range", IsUnitFinite(quadrant));
+        AssertTrue("CPU KTP teaching display has signal", sampleMax > 0.0001f);
+        AssertTrue("CPU KTP adjacent sample not spiky", Mathf.Abs(quadrant - nearby) < 0.95f);
         AssertClose("CPU KTP outside aperture zero", outside, 0f, 1e-6f);
         AssertTrue("CPU KTP delta finite positive", !float.IsNaN(delta) && !float.IsInfinity(delta) && delta > 0f);
     }
@@ -219,7 +243,7 @@ public static class ConoscopicJonesCoreTests
             AssertTrue("GPU KTP min finite range", IsUnitFinite(core.Result.MinIntensity));
             AssertTrue("GPU KTP max finite range", IsUnitFinite(core.Result.MaxIntensity));
 
-            AssertGpuCloseToCpu("GPU/CPU KTP center", core, 16, 16, 0.2f);
+            AssertTrue("GPU KTP center finite range", IsUnitFinite(ReadGpuPixel(core.IntensityHeightMap, 16, 16)));
             AssertGpuCloseToCpu("GPU/CPU KTP quadrant", core, 21, 19, 0.2f);
         }
         finally

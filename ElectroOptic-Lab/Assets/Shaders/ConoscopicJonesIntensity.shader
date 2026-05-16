@@ -19,6 +19,13 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
         _ElectricFieldStrength ("Electric Field Strength", Float) = 0.0
         _ElectroOpticCoefficientR22 ("Electro Optic r22", Float) = 0.0
         _ApertureRadius ("Aperture Radius", Float) = 1.0
+        [HideInInspector] _BiaxialAxesView ("Biaxial Axes View", Vector) = (0, 0, 0, 0)
+        _InitialMelatopeOffset ("Initial Melatope Offset", Vector) = (0.035, -0.025, 0, 0)
+        _PhaseScale ("Biaxial Phase Scale", Range(0.01, 5)) = 0.1
+        _RingSharpness ("Ring Sharpness", Range(0.25, 4)) = 1.0
+        _CrossWidth ("Cross Width", Range(0.01, 0.35)) = 0.16
+        _BlackCutoff ("Black Cutoff", Range(0, 0.25)) = 0.012
+        _DisplayGamma ("Display Gamma", Range(0.2, 3)) = 1.25
     }
     SubShader
     {
@@ -40,6 +47,14 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
             float3 _PrincipalIndices;
             float4x4 _WorldToPrincipalMatrix;
             float _UseBiaxial;
+            float _BiaxialDisplayMode;
+            float4 _BiaxialAxesView;
+            float4 _InitialMelatopeOffset;
+            float _PhaseScale;
+            float _RingSharpness;
+            float _CrossWidth;
+            float _BlackCutoff;
+            float _DisplayGamma;
             float _UniaxialEpsilon;
             float _ScreenDistanceM;
             float _ScreenHalfSizeM;
@@ -176,6 +191,113 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                 return n1 > 0.0 && n2 > 0.0 && abs(n1) < 10000.0 && abs(n2) < 10000.0;
             }
 
+            float2 GetMelatopeOffset(float3 opticAxisView, float halfSize)
+            {
+                float axisZ = max(opticAxisView.z, 0.05);
+                float projectionScale = axisZ * max(halfSize, 0.0001);
+                return opticAxisView.xy / projectionScale;
+            }
+
+            float3 GetAxisFromMelatopeOffset(float2 melatopeOffset, float halfSize)
+            {
+                return normalize(float3(melatopeOffset.x * halfSize, melatopeOffset.y * halfSize, 1.0));
+            }
+
+            float GetExtinctionPattern(float3 rayView, float3 opticAxisView, float2 localP)
+            {
+                float3 projectedAxis = opticAxisView - rayView * dot(opticAxisView, rayView);
+                float2 polarizationDirection = projectedAxis.xy;
+                float directionLengthSqr = dot(polarizationDirection, polarizationDirection);
+
+                if (directionLengthSqr < 1e-8)
+                {
+                    polarizationDirection = localP;
+                    directionLengthSqr = dot(polarizationDirection, polarizationDirection);
+                }
+
+                float2 direction = polarizationDirection * rsqrt(max(directionLengthSqr, 1e-8));
+                float crossSignal = 2.0 * direction.x * direction.y;
+                float crossPower = lerp(0.8, 2.4, saturate(_CrossWidth / 0.35));
+                float crossPattern = pow(saturate(crossSignal * crossSignal), crossPower);
+                float melatope = smoothstep(0.025, 0.14, length(localP));
+                return crossPattern * melatope;
+            }
+
+            float3 GetBiaxialAxisView(float2 axisXY)
+            {
+                float zSqr = max(1.0 - dot(axisXY, axisXY), 0.0025);
+                return normalize(float3(axisXY.x, axisXY.y, sqrt(zSqr)));
+            }
+
+            float2 ClampBiaxialMelatopeOffset(float2 offset)
+            {
+                float maxRadius = 0.42;
+                float offsetRadius = length(offset);
+                if (offsetRadius > maxRadius)
+                {
+                    return offset * (maxRadius / max(offsetRadius, 0.0001));
+                }
+
+                return offset;
+            }
+
+            float GetBiaxialExtinctionPattern(float3 rayView, float halfSize, float2 p)
+            {
+                float hasAxes = step(0.000001, dot(_BiaxialAxesView, _BiaxialAxesView));
+                if (hasAxes <= 0.0)
+                {
+                    float3 opticAxisView = OpticAxis();
+                    float2 melatopeOffset = GetMelatopeOffset(opticAxisView, halfSize) + _InitialMelatopeOffset.xy;
+                    float2 localP = p - melatopeOffset;
+                    float3 extinctionAxisView = GetAxisFromMelatopeOffset(melatopeOffset, halfSize);
+                    return GetExtinctionPattern(rayView, extinctionAxisView, localP);
+                }
+
+                float3 axisA = GetBiaxialAxisView(_BiaxialAxesView.xy);
+                float3 axisB = GetBiaxialAxisView(_BiaxialAxesView.zw);
+                float2 offsetA = ClampBiaxialMelatopeOffset(GetMelatopeOffset(axisA, halfSize)) + _InitialMelatopeOffset.xy;
+                float2 offsetB = ClampBiaxialMelatopeOffset(GetMelatopeOffset(axisB, halfSize)) + _InitialMelatopeOffset.xy;
+                float3 displayAxisA = GetAxisFromMelatopeOffset(offsetA - _InitialMelatopeOffset.xy, halfSize);
+                float3 displayAxisB = GetAxisFromMelatopeOffset(offsetB - _InitialMelatopeOffset.xy, halfSize);
+                float patternA = GetExtinctionPattern(rayView, displayAxisA, p - offsetA);
+                float patternB = GetExtinctionPattern(rayView, displayAxisB, p - offsetB);
+
+                return min(patternA, patternB);
+            }
+
+            bool TryEvaluateBiaxialTeaching(float2 p, float3 rayDir, out float intensity)
+            {
+                intensity = 0.0;
+                float3 indices = _PrincipalIndices;
+                float minDiff = min(abs(indices.x - indices.y), min(abs(indices.y - indices.z), abs(indices.x - indices.z)));
+                if (_UseBiaxial < 0.5 || minDiff < max(_UniaxialEpsilon, 1e-6))
+                {
+                    return false;
+                }
+
+                float halfSize = _ScreenHalfSizeM / max(_ScreenDistanceM, 1e-6);
+                float3 rayView = normalize(float3(p.x * halfSize, p.y * halfSize, 1.0));
+                float3 rayPrincipal = normalize(mul(rayDir, (float3x3)_WorldToPrincipalMatrix));
+                float n1;
+                float n2;
+                if (!SolveBiaxialFresnel(rayPrincipal, indices, n1, n2))
+                {
+                    return false;
+                }
+
+                float wavelength = max(_WavelengthM, 1e-12);
+                float pathLength = _ThicknessM / max(rayView.z, 0.05);
+                float gamma = 6.28318530718 * pathLength * abs(n1 - n2) / wavelength * _PhaseScale;
+                float gammaWidth = max(fwidth(gamma), 0.0001);
+                float visibility = exp2((-0.75 * gammaWidth * gammaWidth) / max(_RingSharpness, 0.0001));
+                float ringPattern = 0.5 - 0.5 * cos(gamma) * saturate(visibility);
+                float crossPattern = GetBiaxialExtinctionPattern(rayView, halfSize, p);
+                intensity = saturate(crossPattern * ringPattern);
+                intensity = smoothstep(_BlackCutoff, 1.0, intensity);
+                intensity = pow(intensity, 1.0 / max(_DisplayGamma, 0.0001));
+                return true;
+            }
+
             bool TryGetBiaxialEigenSystem(float3 rayDir, out float3 eigenA, out float3 eigenB, out float delta)
             {
                 eigenA = float3(1.0, 0.0, 0.0);
@@ -244,6 +366,15 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                 float3 eDirection;
                 float3 oDirection;
                 float delta;
+                if (_BiaxialDisplayMode < 0.5 || _BiaxialDisplayMode > 1.5)
+                {
+                    float biaxialIntensity;
+                    if (TryEvaluateBiaxialTeaching(p, rayDir, biaxialIntensity))
+                    {
+                        return float4(biaxialIntensity, biaxialIntensity, biaxialIntensity, 1.0);
+                    }
+                }
+
                 bool hasBiaxial = TryGetBiaxialEigenSystem(rayDir, eDirection, oDirection, delta);
                 if (!hasBiaxial)
                 {

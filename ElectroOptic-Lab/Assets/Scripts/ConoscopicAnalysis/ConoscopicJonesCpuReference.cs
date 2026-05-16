@@ -7,6 +7,18 @@ namespace ElectroOptics.ConoscopicAnalysis
         private const float TwoPi = 6.28318530718f;
         private const float Epsilon = 0.000001f;
 
+        private struct AxisIndex
+        {
+            public float Index;
+            public Vector3 PrincipalAxis;
+
+            public AxisIndex(float index, Vector3 principalAxis)
+            {
+                Index = index;
+                PrincipalAxis = principalAxis;
+            }
+        }
+
         public static float EvaluateIntensity(Vector2 normalizedPoint, ConoscopicJonesParameters parameters)
         {
             return EvaluateIntensity(normalizedPoint, parameters, 0f);
@@ -31,7 +43,7 @@ namespace ElectroOptics.ConoscopicAnalysis
                 Mathf.Max(parameters.screenDistanceM, Epsilon)).normalized;
 
             if (parameters.IsBiaxial()
-                && TryEvaluateBiaxialIntensity(rayDir, parameters, deltaWidth, out float biaxialIntensity))
+                && TryEvaluateBiaxialIntensity(normalizedPoint, rayDir, parameters, deltaWidth, out float biaxialIntensity))
             {
                 return Mathf.Clamp01(biaxialIntensity);
             }
@@ -86,10 +98,10 @@ namespace ElectroOptics.ConoscopicAnalysis
             float delta = EvaluateDelta(center, parameters);
             float deltaDx = Mathf.Abs(
                 EvaluateDelta(GetPixelCenterCoordinate(Mathf.Min(x + 1, resolution - 1), y, resolution), parameters)
-                - EvaluateDelta(GetPixelCenterCoordinate(Mathf.Max(x - 1, 0), y, resolution), parameters)) * 0.5f;
+                - delta);
             float deltaDy = Mathf.Abs(
                 EvaluateDelta(GetPixelCenterCoordinate(x, Mathf.Min(y + 1, resolution - 1), resolution), parameters)
-                - EvaluateDelta(GetPixelCenterCoordinate(x, Mathf.Max(y - 1, 0), resolution), parameters)) * 0.5f;
+                - delta);
 
             return EvaluateIntensity(center, parameters, deltaDx + deltaDy);
         }
@@ -154,12 +166,20 @@ namespace ElectroOptics.ConoscopicAnalysis
         }
 
         private static bool TryEvaluateBiaxialIntensity(
+            Vector2 normalizedPoint,
             Vector3 rayDir,
             ConoscopicJonesParameters parameters,
             float deltaWidth,
             out float intensity)
         {
             intensity = 0f;
+            if ((parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.ConoscopicTeaching
+                 || parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1)
+                && TryEvaluateBiaxialTeaching(normalizedPoint, rayDir, parameters, deltaWidth, out intensity))
+            {
+                return true;
+            }
+
             if (!TryGetBiaxialEigenSystem(rayDir, parameters, out Vector3 eigenA, out Vector3 eigenB, out float delta))
             {
                 return false;
@@ -183,6 +203,45 @@ namespace ElectroOptics.ConoscopicAnalysis
             return true;
         }
 
+        private static bool TryEvaluateBiaxialTeaching(
+            Vector2 normalizedPoint,
+            Vector3 rayDir,
+            ConoscopicJonesParameters parameters,
+            float gammaWidth,
+            out float intensity)
+        {
+            intensity = 0f;
+            Vector3 unusedEigen;
+            Vector3 rayPrincipal;
+            if (!TrySolveBiaxialFresnel(rayDir, parameters, out float n1, out float n2, out unusedEigen, out rayPrincipal))
+            {
+                return false;
+            }
+
+            float halfSize = parameters.screenHalfSizeM / Mathf.Max(parameters.screenDistanceM, Epsilon);
+            Vector3 rayView = new Vector3(normalizedPoint.x * halfSize, normalizedPoint.y * halfSize, 1f).normalized;
+            float thicknessM = parameters.thicknessMm * 1e-3f;
+            float wavelengthM = Mathf.Max(parameters.wavelengthNm * 1e-9f, 1e-12f);
+            float pathLength = thicknessM / Mathf.Max(rayView.z, 0.05f);
+            float gamma = TwoPi * pathLength * Mathf.Abs(n1 - n2) / wavelengthM * parameters.phaseScale;
+            float visibility = 1f;
+            if (gammaWidth > 0f)
+            {
+                float width = Mathf.Max(gammaWidth, 0.0001f);
+                visibility = Mathf.Pow(2f, (-0.75f * width * width) / Mathf.Max(parameters.ringSharpness, 0.0001f));
+            }
+
+            float ringPattern = 0.5f - 0.5f * Mathf.Cos(gamma) * Mathf.Clamp01(visibility);
+            Vector4 axesView = DeriveBiaxialAxesView(
+                new Vector3(parameters.principalIndexNx, parameters.principalIndexNy, parameters.principalIndexNz),
+                parameters.worldToPrincipalMatrix);
+            float crossPattern = GetBiaxialExtinctionPattern(rayView, halfSize, normalizedPoint, axesView, parameters);
+            intensity = Mathf.Clamp01(crossPattern * ringPattern);
+            intensity = SmoothStep(parameters.blackCutoff, 1f, intensity);
+            intensity = Mathf.Pow(intensity, 1f / Mathf.Max(parameters.displayGamma, 0.0001f));
+            return !float.IsNaN(intensity) && !float.IsInfinity(intensity);
+        }
+
         private static bool TryEvaluateBiaxialDelta(
             Vector3 rayDir,
             ConoscopicJonesParameters parameters,
@@ -200,6 +259,12 @@ namespace ElectroOptics.ConoscopicAnalysis
             float wavelengthM = Mathf.Max(parameters.wavelengthNm * 1e-9f, 1e-12f);
             float pathFactor = 1f / Mathf.Max(Mathf.Abs(rayDir.z), 0.05f);
             delta = TwoPi * thicknessM * Mathf.Abs(n1 - n2) * pathFactor / wavelengthM;
+            if (parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.ConoscopicTeaching
+                || parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1)
+            {
+                delta *= parameters.phaseScale;
+            }
+
             return !float.IsNaN(delta) && !float.IsInfinity(delta);
         }
 
@@ -370,6 +435,126 @@ namespace ElectroOptics.ConoscopicAnalysis
                 vector.x * matrix.m00 + vector.y * matrix.m10 + vector.z * matrix.m20,
                 vector.x * matrix.m01 + vector.y * matrix.m11 + vector.z * matrix.m21,
                 vector.x * matrix.m02 + vector.y * matrix.m12 + vector.z * matrix.m22);
+        }
+
+        private static Vector4 DeriveBiaxialAxesView(Vector3 indices, Matrix4x4 viewToPrincipalMatrix)
+        {
+            float nx = indices.x;
+            float ny = indices.y;
+            float nz = indices.z;
+            const float epsilon = ConoscopicJonesParameters.DefaultUniaxialEpsilon;
+            if (Mathf.Abs(nx - ny) < epsilon
+                || Mathf.Abs(ny - nz) < epsilon
+                || Mathf.Abs(nx - nz) < epsilon)
+            {
+                return Vector4.zero;
+            }
+
+            AxisIndex[] sorted =
+            {
+                new AxisIndex(nx, Vector3.right),
+                new AxisIndex(ny, Vector3.up),
+                new AxisIndex(nz, Vector3.forward)
+            };
+            System.Array.Sort(sorted, (a, b) => a.Index.CompareTo(b.Index));
+
+            float min2 = sorted[0].Index * sorted[0].Index;
+            float mid2 = sorted[1].Index * sorted[1].Index;
+            float max2 = sorted[2].Index * sorted[2].Index;
+            float span = Mathf.Max(max2 - min2, Epsilon);
+            float cosFromMax = Mathf.Sqrt(Mathf.Clamp01((mid2 - min2) / span));
+            float sinFromMax = Mathf.Sqrt(Mathf.Clamp01(1f - cosFromMax * cosFromMax));
+
+            Vector3 minAxis = sorted[0].PrincipalAxis;
+            Vector3 maxAxis = sorted[2].PrincipalAxis;
+            Vector3 axisA = (minAxis * sinFromMax + maxAxis * cosFromMax).normalized;
+            Vector3 axisB = (-minAxis * sinFromMax + maxAxis * cosFromMax).normalized;
+
+            Matrix4x4 principalToView = viewToPrincipalMatrix.transpose;
+            axisA = principalToView.MultiplyVector(axisA).normalized;
+            axisB = principalToView.MultiplyVector(axisB).normalized;
+
+            if (axisA.z < 0f) axisA = -axisA;
+            if (axisB.z < 0f) axisB = -axisB;
+            return new Vector4(axisA.x, axisA.y, axisB.x, axisB.y);
+        }
+
+        private static float GetBiaxialExtinctionPattern(
+            Vector3 rayView,
+            float halfSize,
+            Vector2 normalizedPoint,
+            Vector4 biaxialAxesView,
+            ConoscopicJonesParameters parameters)
+        {
+            bool hasAxes = Vector4.Dot(biaxialAxesView, biaxialAxesView) > Epsilon;
+            if (!hasAxes)
+            {
+                Vector3 opticAxisView = GetOpticAxis(parameters);
+                Vector2 melatopeOffset = GetMelatopeOffset(opticAxisView, halfSize) + parameters.initialMelatopeOffset;
+                Vector2 localP = normalizedPoint - melatopeOffset;
+                Vector3 extinctionAxisView = GetAxisFromMelatopeOffset(melatopeOffset, halfSize);
+                return GetExtinctionPattern(rayView, extinctionAxisView, localP, parameters.crossWidth);
+            }
+
+            Vector3 axisA = GetBiaxialAxisView(new Vector2(biaxialAxesView.x, biaxialAxesView.y));
+            Vector3 axisB = GetBiaxialAxisView(new Vector2(biaxialAxesView.z, biaxialAxesView.w));
+            Vector2 offsetA = ClampBiaxialMelatopeOffset(GetMelatopeOffset(axisA, halfSize)) + parameters.initialMelatopeOffset;
+            Vector2 offsetB = ClampBiaxialMelatopeOffset(GetMelatopeOffset(axisB, halfSize)) + parameters.initialMelatopeOffset;
+            Vector3 displayAxisA = GetAxisFromMelatopeOffset(offsetA - parameters.initialMelatopeOffset, halfSize);
+            Vector3 displayAxisB = GetAxisFromMelatopeOffset(offsetB - parameters.initialMelatopeOffset, halfSize);
+            float patternA = GetExtinctionPattern(rayView, displayAxisA, normalizedPoint - offsetA, parameters.crossWidth);
+            float patternB = GetExtinctionPattern(rayView, displayAxisB, normalizedPoint - offsetB, parameters.crossWidth);
+            return Mathf.Min(patternA, patternB);
+        }
+
+        private static float GetExtinctionPattern(Vector3 rayView, Vector3 opticAxisView, Vector2 localP, float crossWidth)
+        {
+            Vector3 projectedAxis = opticAxisView - rayView * Vector3.Dot(opticAxisView, rayView);
+            Vector2 polarizationDirection = new Vector2(projectedAxis.x, projectedAxis.y);
+            float directionLengthSqr = polarizationDirection.sqrMagnitude;
+            if (directionLengthSqr < Epsilon)
+            {
+                polarizationDirection = localP;
+                directionLengthSqr = polarizationDirection.sqrMagnitude;
+            }
+
+            Vector2 direction = polarizationDirection / Mathf.Sqrt(Mathf.Max(directionLengthSqr, Epsilon));
+            float crossSignal = 2f * direction.x * direction.y;
+            float crossPower = Mathf.Lerp(0.8f, 2.4f, Mathf.Clamp01(crossWidth / 0.35f));
+            float crossPattern = Mathf.Pow(Mathf.Clamp01(crossSignal * crossSignal), crossPower);
+            float melatope = SmoothStep(0.025f, 0.14f, localP.magnitude);
+            return crossPattern * melatope;
+        }
+
+        private static Vector2 GetMelatopeOffset(Vector3 opticAxisView, float halfSize)
+        {
+            float axisZ = Mathf.Max(opticAxisView.z, 0.05f);
+            float projectionScale = axisZ * Mathf.Max(halfSize, 0.0001f);
+            return new Vector2(opticAxisView.x / projectionScale, opticAxisView.y / projectionScale);
+        }
+
+        private static Vector3 GetAxisFromMelatopeOffset(Vector2 melatopeOffset, float halfSize)
+        {
+            return new Vector3(melatopeOffset.x * halfSize, melatopeOffset.y * halfSize, 1f).normalized;
+        }
+
+        private static Vector3 GetBiaxialAxisView(Vector2 axisXY)
+        {
+            float zSqr = Mathf.Max(1f - Vector2.Dot(axisXY, axisXY), 0.0025f);
+            return new Vector3(axisXY.x, axisXY.y, Mathf.Sqrt(zSqr)).normalized;
+        }
+
+        private static Vector2 ClampBiaxialMelatopeOffset(Vector2 offset)
+        {
+            const float maxRadius = 0.42f;
+            float offsetRadius = offset.magnitude;
+            return offsetRadius > maxRadius ? offset * (maxRadius / Mathf.Max(offsetRadius, 0.0001f)) : offset;
+        }
+
+        private static float SmoothStep(float edge0, float edge1, float value)
+        {
+            float t = Mathf.Clamp01((value - edge0) / Mathf.Max(edge1 - edge0, Epsilon));
+            return t * t * (3f - 2f * t);
         }
 
         private static float EvaluateJonesIntensity(

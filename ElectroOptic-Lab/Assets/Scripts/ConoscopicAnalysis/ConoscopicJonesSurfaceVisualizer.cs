@@ -14,8 +14,9 @@ namespace ElectroOptics.ConoscopicAnalysis
         [SerializeField] [Range(16, 256)] private int _resolution = 128;
         [SerializeField] private float _surfaceSize = 5f;
         [SerializeField] private float _heightScale = 1.6f;
-        [SerializeField] private bool _normalizeDisplayIntensity = true;
+        [SerializeField] private bool _normalizeDisplayIntensity = false;
         [SerializeField] private bool _recalculateOnStart = true;
+        [SerializeField] private bool _startWithPaperKtpPreset = true;
 
         [Header("Runtime Demo Panel")]
         public CrystalProfile liNbO3Profile;
@@ -23,7 +24,7 @@ namespace ElectroOptics.ConoscopicAnalysis
         public TextMesh statusText;
         public Transform surfaceRoot;
         [SerializeField] private bool _showPanel = true;
-        [SerializeField] private Rect _panelRect = new Rect(16f, 16f, 390f, 760f);
+        [SerializeField] private Rect _panelRect = new Rect(16f, 16f, 410f, 860f);
 
         private MeshFilter _meshFilter;
         private MeshRenderer _meshRenderer;
@@ -31,6 +32,7 @@ namespace ElectroOptics.ConoscopicAnalysis
         private Texture2D _readbackTexture;
         private int _profileIndex;
         private float _surfaceYaw;
+        private Vector2 _panelScroll;
 
         private void Awake()
         {
@@ -48,7 +50,11 @@ namespace ElectroOptics.ConoscopicAnalysis
         private void Start()
         {
             EnsureCore();
-            if (_profile != null)
+            if (_startWithPaperKtpPreset && ktpProfile != null)
+            {
+                ApplyPaperKtpPreset(ConoscopicJonesParameters.PaperKtp1AlphaDeg);
+            }
+            else if (_profile != null)
             {
                 _core.SetProfile(_profile);
             }
@@ -174,6 +180,11 @@ namespace ElectroOptics.ConoscopicAnalysis
                 return;
             }
 
+            float maxHeight = Mathf.Max(260f, Screen.height - 32f);
+            _panelRect.width = Mathf.Clamp(_panelRect.width, 390f, Mathf.Max(390f, Screen.width - 32f));
+            _panelRect.height = Mathf.Clamp(_panelRect.height, 360f, maxHeight);
+            _panelRect.x = Mathf.Clamp(_panelRect.x, 0f, Mathf.Max(0f, Screen.width - _panelRect.width));
+            _panelRect.y = Mathf.Clamp(_panelRect.y, 0f, Mathf.Max(0f, Screen.height - _panelRect.height));
             _panelRect = GUI.Window(GetInstanceID(), _panelRect, DrawPanel, "Jones Conoscopic Controls");
         }
 
@@ -192,6 +203,8 @@ namespace ElectroOptics.ConoscopicAnalysis
             float yaw = _surfaceYaw;
             float height = _heightScale;
 
+            _panelScroll = GUILayout.BeginScrollView(_panelScroll, GUILayout.Width(_panelRect.width - 12f), GUILayout.Height(_panelRect.height - 48f));
+
             GUILayout.Label($"Profile: {(_core.Profile != null ? _core.Profile.crystalName : "manual")}");
             GUILayout.Label($"Class: {p.CrystalOpticClass}  n=({p.principalIndexNx:F4}, {p.principalIndexNy:F4}, {p.principalIndexNz:F4})");
             GUILayout.Label($"Valid: {_core.Result.IsValid}  Min: {_core.Result.MinIntensity:F3}  Max: {_core.Result.MaxIntensity:F3}");
@@ -205,7 +218,13 @@ namespace ElectroOptics.ConoscopicAnalysis
             }
             if (GUILayout.Button("KTP"))
             {
-                ApplyDemoProfile(1);
+                ApplyPaperKtpPreset(ConoscopicJonesParameters.PaperKtp1AlphaDeg);
+                p = new ConoscopicJonesParameters(_core.Parameters);
+                changed = true;
+            }
+            if (GUILayout.Button("Paper 1#"))
+            {
+                ApplyPaperKtpPreset(ConoscopicJonesParameters.PaperKtp1AlphaDeg);
                 p = new ConoscopicJonesParameters(_core.Parameters);
                 changed = true;
             }
@@ -230,9 +249,16 @@ namespace ElectroOptics.ConoscopicAnalysis
             changed |= SliderRow("Screen Half m", ref p.screenHalfSizeM, ConoscopicJonesParameters.MinScreenHalfSizeM, ConoscopicJonesParameters.MaxScreenHalfSizeM, "F3");
             changed |= SliderRow("I0", ref p.initialIntensity, 0f, 2f, "F2");
             changed |= SliderRow("AA Strength", ref p.phaseAntiAliasStrength, ConoscopicJonesParameters.MinPhaseAntiAliasStrength, ConoscopicJonesParameters.MaxPhaseAntiAliasStrength, "F2");
+            changed |= SliderRow("Phase Scale", ref p.phaseScale, ConoscopicJonesParameters.MinPhaseScale, ConoscopicJonesParameters.MaxPhaseScale, "F2");
+            changed |= SliderRow("Ring Sharp", ref p.ringSharpness, ConoscopicJonesParameters.MinRingSharpness, ConoscopicJonesParameters.MaxRingSharpness, "F2");
+            changed |= SliderRow("Cross Width", ref p.crossWidth, ConoscopicJonesParameters.MinCrossWidth, ConoscopicJonesParameters.MaxCrossWidth, "F2");
+            changed |= SliderRow("Black Cutoff", ref p.blackCutoff, ConoscopicJonesParameters.MinBlackCutoff, ConoscopicJonesParameters.MaxBlackCutoff, "F3");
+            changed |= SliderRow("Display Gamma", ref p.displayGamma, ConoscopicJonesParameters.MinDisplayGamma, ConoscopicJonesParameters.MaxDisplayGamma, "F2");
             changed |= SliderRow("Polarizer", ref p.polarizerAngleDeg, 0f, 180f, "F0");
             changed |= SliderRow("Analyzer", ref p.analyzerAngleDeg, 0f, 180f, "F0");
-            changed |= SliderRow("Crystal Axis", ref p.crystalAxisAngleDeg, 0f, 180f, "F0");
+            changed |= SliderRow("Alpha", ref p.crystalAxisAngleDeg, 0f, 180f, "F0");
+            changed |= SliderRow("Theta", ref p.paperThetaDeg, 0f, 90f, "F0");
+            changed |= SliderRow("Phi", ref p.paperPhiDeg, 0f, 360f, "F0");
             changed |= SliderRow("Optic Tilt", ref p.opticAxisTiltDeg, ConoscopicJonesParameters.MinOpticAxisTiltDeg, ConoscopicJonesParameters.MaxOpticAxisTiltDeg, "F1");
             changed |= SliderRow("Optic Azimuth", ref p.opticAxisAzimuthDeg, 0f, 180f, "F0");
             changed |= SliderRow("E Field", ref p.electricFieldStrength, -5000f, 5000f, "F0");
@@ -248,6 +274,28 @@ namespace ElectroOptics.ConoscopicAnalysis
 
             bool heightChanged = SliderRow("Height", ref height, 0.05f, 5f, "F2");
             bool yawChanged = SliderRow("View Yaw", ref yaw, -180f, 180f, "F0");
+            bool teachingMode = GUILayout.Toggle(
+                p.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.ConoscopicTeaching,
+                "Biaxial Teaching Display");
+            if (teachingMode != (p.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.ConoscopicTeaching))
+            {
+                p.biaxialDisplayMode = teachingMode
+                    ? ConoscopicBiaxialDisplayMode.ConoscopicTeaching
+                    : ConoscopicBiaxialDisplayMode.RawJones;
+                changed = true;
+            }
+
+            bool paperMode = GUILayout.Toggle(
+                p.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1,
+                "Paper KTP 1# Display");
+            if (paperMode != (p.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1))
+            {
+                p.biaxialDisplayMode = paperMode
+                    ? ConoscopicBiaxialDisplayMode.PaperKtp1
+                    : ConoscopicBiaxialDisplayMode.ConoscopicTeaching;
+                changed = true;
+            }
+
             bool normalizeDisplay = GUILayout.Toggle(_normalizeDisplayIntensity, "Normalize Display");
 
             GUILayout.Space(6f);
@@ -270,6 +318,14 @@ namespace ElectroOptics.ConoscopicAnalysis
 
             if (changed)
             {
+                if (p.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1)
+                {
+                    p.worldToPrincipalMatrix = ConoscopicJonesParameters.CreatePaperKtp1WorldToPrincipalMatrix(
+                        p.crystalAxisAngleDeg,
+                        p.paperThetaDeg,
+                        p.paperPhiDeg);
+                }
+
                 p.Clamp();
                 _resolution = Mathf.Clamp(p.resolution, 16, 256);
                 _core.SetParameters(p);
@@ -296,7 +352,8 @@ namespace ElectroOptics.ConoscopicAnalysis
             }
 
             UpdateStatus();
-            GUI.DragWindow();
+            GUILayout.EndScrollView();
+            GUI.DragWindow(new Rect(0f, 0f, _panelRect.width, 22f));
         }
 
         private void ApplyDemoProfile(int index)
@@ -311,6 +368,32 @@ namespace ElectroOptics.ConoscopicAnalysis
             SetProfile(profile);
         }
 
+        private void ApplyPaperKtpPreset(float alphaDeg)
+        {
+            _profileIndex = 1;
+            CrystalProfile profile = ktpProfile != null ? ktpProfile : _profile;
+            if (profile != null)
+            {
+                SetProfile(profile);
+            }
+
+            var p = _core != null ? new ConoscopicJonesParameters(_core.Parameters) : new ConoscopicJonesParameters();
+            if (profile != null)
+            {
+                p.ApplyProfileDefaults(profile);
+            }
+
+            p.ApplyPaperKtp1Preset(profile == null);
+            p.crystalAxisAngleDeg = alphaDeg;
+            p.worldToPrincipalMatrix = ConoscopicJonesParameters.CreatePaperKtp1WorldToPrincipalMatrix(
+                p.crystalAxisAngleDeg,
+                p.paperThetaDeg,
+                p.paperPhiDeg);
+            _profile = profile;
+            _core.SetParameters(p);
+            _core.ForceRecalculate();
+        }
+
         private void UpdateStatus()
         {
             if (statusText == null || _core == null)
@@ -322,7 +405,7 @@ namespace ElectroOptics.ConoscopicAnalysis
             statusText.text =
                 $"Jones GPU  Profile: {(_core.Profile != null ? _core.Profile.crystalName : "manual")}  Class: {p.CrystalOpticClass}  Valid: {_core.Result.IsValid}  Max: {_core.Result.MaxIntensity:F3}\n" +
                 $"lambda {p.wavelengthNm:F1}nm  h {p.thicknessMm:F2}mm  n({p.principalIndexNx:F4}, {p.principalIndexNy:F4}, {p.principalIndexNz:F4})\n" +
-                $"P {p.polarizerAngleDeg:F0}  A {p.analyzerAngleDeg:F0}  Crystal {p.crystalAxisAngleDeg:F0}  Tilt {p.opticAxisTiltDeg:F1}  Half {p.screenHalfSizeM:F3}m  AA {p.phaseAntiAliasStrength:F2}";
+                $"P {p.polarizerAngleDeg:F0}  A {p.analyzerAngleDeg:F0}  Alpha {p.crystalAxisAngleDeg:F0}  Theta {p.paperThetaDeg:F0}  Phi {p.paperPhiDeg:F0}  Phase {p.phaseScale:F2}  Cross {p.crossWidth:F2}";
         }
 
         private static bool SliderRow(string label, ref float value, float min, float max, string format)
@@ -361,6 +444,22 @@ namespace ElectroOptics.ConoscopicAnalysis
             float displayMax = result.MaxIntensity;
             float displayRange = displayMax - displayMin;
             bool normalizeDisplay = _normalizeDisplayIntensity && displayRange > 0.00001f;
+            bool smoothPaperDisplay = result.ParametersSnapshot != null
+                                      && result.ParametersSnapshot.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1;
+            float[] displayValues = new float[pixels.Length];
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                float intensity = Mathf.Clamp01(pixels[i].r);
+                displayValues[i] = normalizeDisplay
+                    ? Mathf.Clamp01((intensity - displayMin) / displayRange)
+                    : intensity;
+            }
+
+            if (smoothPaperDisplay)
+            {
+                displayValues = SmoothDisplayValues(displayValues, resolution);
+            }
+
             int vertexCount = resolution * resolution;
             var vertices = new Vector3[vertexCount];
             var colors = new Color[vertexCount];
@@ -374,10 +473,7 @@ namespace ElectroOptics.ConoscopicAnalysis
                 {
                     int index = y * resolution + x;
                     Vector2 coordinate = ConoscopicJonesCpuReference.GetCoordinate(x, y, resolution);
-                    float intensity = Mathf.Clamp01(pixels[index].r);
-                    float displayIntensity = normalizeDisplay
-                        ? Mathf.Clamp01((intensity - displayMin) / displayRange)
-                        : intensity;
+                    float displayIntensity = displayValues[index];
                     vertices[index] = new Vector3(
                         coordinate.x * _surfaceSize * 0.5f,
                         displayIntensity * _heightScale,
@@ -451,6 +547,34 @@ namespace ElectroOptics.ConoscopicAnalysis
             if (value < 0.5f) return Color.Lerp(c1, c2, (value - 0.25f) / 0.25f);
             if (value < 0.75f) return Color.Lerp(c2, c3, (value - 0.5f) / 0.25f);
             return Color.Lerp(c3, c4, (value - 0.75f) / 0.25f);
+        }
+
+        private static float[] SmoothDisplayValues(float[] values, int resolution)
+        {
+            var smoothed = new float[values.Length];
+            for (int y = 0; y < resolution; y++)
+            {
+                for (int x = 0; x < resolution; x++)
+                {
+                    float weightedSum = 0f;
+                    float weightSum = 0f;
+                    for (int oy = -1; oy <= 1; oy++)
+                    {
+                        int sy = Mathf.Clamp(y + oy, 0, resolution - 1);
+                        for (int ox = -1; ox <= 1; ox++)
+                        {
+                            int sx = Mathf.Clamp(x + ox, 0, resolution - 1);
+                            float weight = ox == 0 && oy == 0 ? 4f : (ox == 0 || oy == 0 ? 2f : 1f);
+                            weightedSum += values[sy * resolution + sx] * weight;
+                            weightSum += weight;
+                        }
+                    }
+
+                    smoothed[y * resolution + x] = Mathf.Clamp01(weightedSum / Mathf.Max(weightSum, 0.0001f));
+                }
+            }
+
+            return smoothed;
         }
 
         private static void DestroyImmediateSafe(UnityEngine.Object target)
