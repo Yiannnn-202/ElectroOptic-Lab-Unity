@@ -12,17 +12,20 @@ namespace ElectroOptics.ConoscopicAnalysis
 
         [SerializeField] private ConoscopicJonesParameters _parameters = new ConoscopicJonesParameters();
         [SerializeField] private CrystalProfile _profile;
+        [SerializeField] private CrystalPhysicalCore _physicalCore;
         [SerializeField] private Shader _shader;
 
         private Material _material;
         private RenderTexture _intensityHeightMap;
         private readonly ConoscopicJonesResult _result = new ConoscopicJonesResult();
         private bool _isDirty = true;
+        private bool _warnedBiaxialFallback;
 
         public ConoscopicJonesParameters Parameters => _parameters;
         public ConoscopicJonesResult Result => _result;
         public RenderTexture IntensityHeightMap => _intensityHeightMap;
         public CrystalProfile Profile => _profile;
+        public CrystalPhysicalCore PhysicalCore => _physicalCore;
         public bool IsDirty => _isDirty;
 
         public event Action<ConoscopicJonesResult> OnJonesIntensityUpdated;
@@ -46,6 +49,7 @@ namespace ElectroOptics.ConoscopicAnalysis
         public void SetProfile(CrystalProfile profile)
         {
             _profile = profile;
+            _warnedBiaxialFallback = false;
             if (_parameters == null)
             {
                 _parameters = new ConoscopicJonesParameters();
@@ -88,6 +92,7 @@ namespace ElectroOptics.ConoscopicAnalysis
         public void ForceRecalculate()
         {
             EnsureDefaults();
+            ApplyPhysicalConfig();
             if (!EnsureMaterial())
             {
                 _result.MarkInvalid(_profile, _parameters, _intensityHeightMap);
@@ -182,6 +187,14 @@ namespace ElectroOptics.ConoscopicAnalysis
             _material.SetFloat("_ThicknessM", _parameters.thicknessMm * 1e-3f);
             _material.SetFloat("_OrdinaryIndexNo", _parameters.ordinaryIndexNo);
             _material.SetFloat("_ExtraordinaryIndexNe", _parameters.extraordinaryIndexNe);
+            _material.SetVector("_PrincipalIndices", new Vector4(
+                _parameters.principalIndexNx,
+                _parameters.principalIndexNy,
+                _parameters.principalIndexNz,
+                0f));
+            _material.SetMatrix("_WorldToPrincipalMatrix", _parameters.worldToPrincipalMatrix);
+            _material.SetFloat("_UseBiaxial", _parameters.IsBiaxial() ? 1f : 0f);
+            _material.SetFloat("_UniaxialEpsilon", _parameters.uniaxialEpsilon);
             _material.SetFloat("_ScreenDistanceM", _parameters.screenDistanceM);
             _material.SetFloat("_ScreenHalfSizeM", _parameters.screenHalfSizeM);
             _material.SetFloat("_InitialIntensity", _parameters.initialIntensity);
@@ -194,6 +207,93 @@ namespace ElectroOptics.ConoscopicAnalysis
             _material.SetFloat("_ElectricFieldStrength", _parameters.electricFieldStrength);
             _material.SetFloat("_ElectroOpticCoefficientR22", _parameters.electroOpticCoefficientR22);
             _material.SetFloat("_ApertureRadius", _parameters.apertureRadius);
+        }
+
+        private void ApplyPhysicalConfig()
+        {
+            if (_profile == null)
+            {
+                return;
+            }
+
+            EnsurePhysicalCore();
+            if (_physicalCore == null)
+            {
+                Debug.LogWarning("[ConoscopicJonesGpuCore] PhysicalCore is unavailable; profile defaults remain active.");
+                return;
+            }
+
+            Vector3 requestedWorldLightDirection = Vector3.forward;
+            CrystalWorkingGeometry geometry = CrystalWorkingGeometry.ResolveConoscopic(_profile, requestedWorldLightDirection);
+            var config = new CrystalConfig
+            {
+                profile = _profile,
+                crystalRotation = ResolveCrystalRotation(),
+                localEField = geometry.LocalEFieldDirection * _parameters.electricFieldStrength,
+                probeFieldDirection = geometry.ProbeFieldDirection,
+                worldLightDirection = geometry.WorldLightDirection
+            };
+
+            _physicalCore.ApplyConfig(config);
+            _parameters.ApplyPrincipalIndices(_physicalCore.NewPrincipalIndices);
+            _parameters.worldToPrincipalMatrix = ResolveMatrix(_physicalCore.ShaderWorldToPrincipalMatrix);
+
+            if (HasBiaxialProfile(_profile) && !_parameters.IsBiaxial() && !_warnedBiaxialFallback)
+            {
+                Debug.LogWarning("[ConoscopicJonesGpuCore] Biaxial profile fell back to uniaxial mode because principal indices are near-degenerate or invalid.");
+                _warnedBiaxialFallback = true;
+            }
+        }
+
+        private Quaternion ResolveCrystalRotation()
+        {
+            Quaternion inPlaneRotation = Quaternion.AngleAxis(_parameters.crystalAxisAngleDeg, Vector3.forward);
+            if (_parameters.opticAxisTiltDeg <= 0.0001f)
+            {
+                return inPlaneRotation;
+            }
+
+            Quaternion tilt = Quaternion.Euler(_parameters.opticAxisTiltDeg, _parameters.opticAxisAzimuthDeg, 0f);
+            return tilt * inPlaneRotation;
+        }
+
+        private void EnsurePhysicalCore()
+        {
+            if (_physicalCore != null)
+            {
+                return;
+            }
+
+            _physicalCore = GetComponent<CrystalPhysicalCore>();
+            if (_physicalCore == null)
+            {
+                _physicalCore = gameObject.AddComponent<CrystalPhysicalCore>();
+            }
+        }
+
+        private static Matrix4x4 ResolveMatrix(Matrix4x4 matrix)
+        {
+            Vector3 basisX = new Vector3(matrix.m00, matrix.m01, matrix.m02);
+            Vector3 basisY = new Vector3(matrix.m10, matrix.m11, matrix.m12);
+            Vector3 basisZ = new Vector3(matrix.m20, matrix.m21, matrix.m22);
+            float magnitude = basisX.sqrMagnitude + basisY.sqrMagnitude + basisZ.sqrMagnitude;
+            return magnitude > 0.000001f ? matrix : Matrix4x4.identity;
+        }
+
+        private static bool HasBiaxialProfile(CrystalProfile profile)
+        {
+            if (profile == null)
+            {
+                return false;
+            }
+
+            float nx = (float)profile.n_x;
+            float ny = (float)profile.n_y;
+            float nz = (float)profile.n_z;
+            const float epsilon = ConoscopicJonesParameters.DefaultUniaxialEpsilon;
+            return Mathf.Abs(nx - ny) >= epsilon
+                   && Mathf.Abs(ny - nz) >= epsilon
+                   && Mathf.Abs(nx - nz) >= epsilon;
         }
 
         private Vector2 EstimateMinMaxFromReadback()

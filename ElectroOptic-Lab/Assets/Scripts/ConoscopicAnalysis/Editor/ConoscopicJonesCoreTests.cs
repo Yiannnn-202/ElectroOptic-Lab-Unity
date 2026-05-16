@@ -7,6 +7,7 @@ using ElectroOptics.ConoscopicAnalysis;
 public static class ConoscopicJonesCoreTests
 {
     private const string LiNbO3ProfilePath = "Assets/LiNbO3_Profile.asset";
+    private const string KtpProfilePath = "Assets/KTP_Profile.asset";
     private static int _passed;
     private static int _failed;
 
@@ -20,7 +21,10 @@ public static class ConoscopicJonesCoreTests
         TestParametersClamp();
         TestCpuReferenceRangeAndAperture();
         TestProfileDefaults();
+        TestBiaxialProfileDefaults();
+        TestCpuBiaxialRangeAndDelta();
         TestGpuCoreLifecycle();
+        TestGpuKtpBiaxialLifecycle();
         Debug.Log($"========== Conoscopic Jones Core Tests Done: {_passed} passed, {_failed} failed ==========");
     }
 
@@ -91,6 +95,50 @@ public static class ConoscopicJonesCoreTests
         AssertTrue("Profile ne finite", parameters.extraordinaryIndexNe > 1f);
     }
 
+    private static void TestBiaxialProfileDefaults()
+    {
+        CrystalProfile profile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(KtpProfilePath);
+        if (profile == null)
+        {
+            Debug.LogWarning($"[SKIP] KTP profile not found at {KtpProfilePath}");
+            return;
+        }
+
+        var parameters = new ConoscopicJonesParameters();
+        parameters.ApplyProfileDefaults(profile);
+        AssertClose("KTP nx", parameters.principalIndexNx, (float)profile.n_x, 1e-5f);
+        AssertClose("KTP ny", parameters.principalIndexNy, (float)profile.n_y, 1e-5f);
+        AssertClose("KTP nz", parameters.principalIndexNz, (float)profile.n_z, 1e-5f);
+        AssertTrue("KTP classified biaxial", parameters.IsBiaxial());
+
+        parameters.principalIndexNy = parameters.principalIndexNx + parameters.uniaxialEpsilon * 0.25f;
+        AssertTrue("Near-degenerate falls back uniaxial", !parameters.IsBiaxial());
+    }
+
+    private static void TestCpuBiaxialRangeAndDelta()
+    {
+        CrystalProfile profile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(KtpProfilePath);
+        if (profile == null)
+        {
+            Debug.LogWarning($"[SKIP] KTP profile not found at {KtpProfilePath}");
+            return;
+        }
+
+        var parameters = new ConoscopicJonesParameters();
+        parameters.ApplyProfileDefaults(profile);
+        parameters.worldToPrincipalMatrix = Matrix4x4.identity;
+
+        float center = ConoscopicJonesCpuReference.EvaluateIntensity(Vector2.zero, parameters);
+        float quadrant = ConoscopicJonesCpuReference.EvaluateIntensity(new Vector2(0.35f, 0.2f), parameters);
+        float outside = ConoscopicJonesCpuReference.EvaluateIntensity(new Vector2(1.2f, 0f), parameters);
+        float delta = ConoscopicJonesCpuReference.EvaluateDelta(new Vector2(0.35f, 0.2f), parameters);
+
+        AssertTrue("CPU KTP center finite range", IsUnitFinite(center));
+        AssertTrue("CPU KTP quadrant finite range", IsUnitFinite(quadrant));
+        AssertClose("CPU KTP outside aperture zero", outside, 0f, 1e-6f);
+        AssertTrue("CPU KTP delta finite positive", !float.IsNaN(delta) && !float.IsInfinity(delta) && delta > 0f);
+    }
+
     private static void TestGpuCoreLifecycle()
     {
         if (Shader.Find("ElectroOptics/ConoscopicJonesIntensity") == null)
@@ -135,6 +183,44 @@ public static class ConoscopicJonesCoreTests
             core.SetParameters(parameters);
             core.ForceRecalculate();
             AssertTrue("GPU smoothed AA finite", IsUnitFinite(core.Result.MaxIntensity));
+        }
+        finally
+        {
+            Object.DestroyImmediate(go);
+        }
+    }
+
+    private static void TestGpuKtpBiaxialLifecycle()
+    {
+        CrystalProfile profile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(KtpProfilePath);
+        if (profile == null)
+        {
+            Debug.LogWarning($"[SKIP] KTP profile not found at {KtpProfilePath}");
+            return;
+        }
+
+        if (Shader.Find("ElectroOptics/ConoscopicJonesIntensity") == null)
+        {
+            Debug.LogWarning("[SKIP] Conoscopic Jones shader not imported yet.");
+            return;
+        }
+
+        var go = new GameObject("ConoscopicJonesGpuCore_KTP_Test");
+        try
+        {
+            var core = go.AddComponent<ConoscopicJonesGpuCore>();
+            core.SetProfile(profile);
+            core.SetResolution(32);
+            core.ForceRecalculate();
+
+            AssertTrue("GPU KTP result valid", core.Result.IsValid);
+            AssertTrue("GPU KTP classified biaxial", core.Parameters.IsBiaxial());
+            AssertTrue("GPU KTP texture size", core.IntensityHeightMap != null && core.IntensityHeightMap.width == 32 && core.IntensityHeightMap.height == 32);
+            AssertTrue("GPU KTP min finite range", IsUnitFinite(core.Result.MinIntensity));
+            AssertTrue("GPU KTP max finite range", IsUnitFinite(core.Result.MaxIntensity));
+
+            AssertGpuCloseToCpu("GPU/CPU KTP center", core, 16, 16, 0.2f);
+            AssertGpuCloseToCpu("GPU/CPU KTP quadrant", core, 21, 19, 0.2f);
         }
         finally
         {

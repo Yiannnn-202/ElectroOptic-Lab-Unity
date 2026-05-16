@@ -30,6 +30,12 @@ namespace ElectroOptics.ConoscopicAnalysis
                 normalizedPoint.y * parameters.screenHalfSizeM,
                 Mathf.Max(parameters.screenDistanceM, Epsilon)).normalized;
 
+            if (parameters.IsBiaxial()
+                && TryEvaluateBiaxialIntensity(rayDir, parameters, deltaWidth, out float biaxialIntensity))
+            {
+                return Mathf.Clamp01(biaxialIntensity);
+            }
+
             Vector3 opticAxis = GetOpticAxis(parameters);
             Vector3 eDirection = ProjectOntoWavefront(opticAxis, rayDir);
             if (eDirection.sqrMagnitude < Epsilon)
@@ -101,6 +107,12 @@ namespace ElectroOptics.ConoscopicAnalysis
                 normalizedPoint.y * parameters.screenHalfSizeM,
                 Mathf.Max(parameters.screenDistanceM, Epsilon)).normalized;
 
+            if (parameters.IsBiaxial()
+                && TryEvaluateBiaxialDelta(rayDir, parameters, out float biaxialDelta))
+            {
+                return biaxialDelta;
+            }
+
             Vector3 opticAxis = GetOpticAxis(parameters);
             float cosTheta = Mathf.Clamp(Mathf.Abs(Vector3.Dot(rayDir, opticAxis)), 0f, 1f);
             float nEffective = EffectiveExtraordinaryIndex(parameters.ordinaryIndexNo, parameters.extraordinaryIndexNe, cosTheta);
@@ -139,6 +151,225 @@ namespace ElectroOptics.ConoscopicAnalysis
             float sinThetaSqr = Mathf.Max(1f - cosTheta * cosTheta, 0f);
             float denominator = Mathf.Sqrt(ne * ne * cosTheta * cosTheta + no * no * sinThetaSqr);
             return no * ne / Mathf.Max(denominator, Epsilon);
+        }
+
+        private static bool TryEvaluateBiaxialIntensity(
+            Vector3 rayDir,
+            ConoscopicJonesParameters parameters,
+            float deltaWidth,
+            out float intensity)
+        {
+            intensity = 0f;
+            if (!TryGetBiaxialEigenSystem(rayDir, parameters, out Vector3 eigenA, out Vector3 eigenB, out float delta))
+            {
+                return false;
+            }
+
+            Vector3 polarizer = GetProjectedAngleVector(parameters.polarizerAngleDeg, rayDir);
+            Vector3 analyzer = GetProjectedAngleVector(parameters.analyzerAngleDeg, rayDir);
+            float aAmplitude = Vector3.Dot(polarizer, eigenA);
+            float bAmplitude = Vector3.Dot(polarizer, eigenB);
+            float analyzerA = Vector3.Dot(analyzer, eigenA);
+            float analyzerB = Vector3.Dot(analyzer, eigenB);
+
+            intensity = EvaluateJonesIntensity(
+                aAmplitude,
+                bAmplitude,
+                analyzerA,
+                analyzerB,
+                delta,
+                deltaWidth,
+                parameters);
+            return true;
+        }
+
+        private static bool TryEvaluateBiaxialDelta(
+            Vector3 rayDir,
+            ConoscopicJonesParameters parameters,
+            out float delta)
+        {
+            delta = 0f;
+            Vector3 unusedEigen;
+            Vector3 unusedRay;
+            if (!TrySolveBiaxialFresnel(rayDir, parameters, out float n1, out float n2, out unusedEigen, out unusedRay))
+            {
+                return false;
+            }
+
+            float thicknessM = parameters.thicknessMm * 1e-3f;
+            float wavelengthM = Mathf.Max(parameters.wavelengthNm * 1e-9f, 1e-12f);
+            float pathFactor = 1f / Mathf.Max(Mathf.Abs(rayDir.z), 0.05f);
+            delta = TwoPi * thicknessM * Mathf.Abs(n1 - n2) * pathFactor / wavelengthM;
+            return !float.IsNaN(delta) && !float.IsInfinity(delta);
+        }
+
+        private static bool TryGetBiaxialEigenSystem(
+            Vector3 rayDir,
+            ConoscopicJonesParameters parameters,
+            out Vector3 eigenAView,
+            out Vector3 eigenBView,
+            out float delta)
+        {
+            eigenAView = Vector3.right;
+            eigenBView = Vector3.up;
+            delta = 0f;
+
+            Vector3 unusedRay;
+            if (!TrySolveBiaxialFresnel(rayDir, parameters, out float n1, out float n2, out Vector3 eigenPrincipal, out unusedRay))
+            {
+                return false;
+            }
+
+            Matrix4x4 principalToView = parameters.worldToPrincipalMatrix.transpose;
+            eigenAView = principalToView.MultiplyVector(eigenPrincipal);
+            eigenAView = ProjectOntoWavefront(eigenAView, rayDir);
+            if (eigenAView.sqrMagnitude < Epsilon)
+            {
+                eigenAView = ProjectOntoWavefront(GetCrystalReferenceAxis(parameters), rayDir);
+            }
+
+            if (eigenAView.sqrMagnitude < Epsilon)
+            {
+                return false;
+            }
+
+            eigenAView.Normalize();
+            Vector3 reference = ProjectOntoWavefront(GetCrystalReferenceAxis(parameters), rayDir);
+            if (reference.sqrMagnitude > Epsilon && Vector3.Dot(eigenAView, reference.normalized) < 0f)
+            {
+                eigenAView = -eigenAView;
+            }
+
+            eigenBView = Vector3.Cross(rayDir, eigenAView);
+            if (eigenBView.sqrMagnitude < Epsilon)
+            {
+                return false;
+            }
+
+            eigenBView.Normalize();
+            float thicknessM = parameters.thicknessMm * 1e-3f;
+            float wavelengthM = Mathf.Max(parameters.wavelengthNm * 1e-9f, 1e-12f);
+            float pathFactor = 1f / Mathf.Max(Mathf.Abs(rayDir.z), 0.05f);
+            delta = TwoPi * thicknessM * Mathf.Abs(n1 - n2) * pathFactor / wavelengthM;
+            return !float.IsNaN(delta) && !float.IsInfinity(delta);
+        }
+
+        private static bool TrySolveBiaxialFresnel(
+            Vector3 rayDir,
+            ConoscopicJonesParameters parameters,
+            out float n1,
+            out float n2,
+            out Vector3 eigenDirectionPrincipal,
+            out Vector3 rayPrincipal)
+        {
+            n1 = parameters.principalIndexNx;
+            n2 = parameters.principalIndexNy;
+            eigenDirectionPrincipal = Vector3.right;
+            rayPrincipal = RowMultiply(rayDir, parameters.worldToPrincipalMatrix);
+            if (rayPrincipal.sqrMagnitude < Epsilon)
+            {
+                return false;
+            }
+
+            rayPrincipal.Normalize();
+            Vector3 indices = new Vector3(
+                parameters.principalIndexNx,
+                parameters.principalIndexNy,
+                parameters.principalIndexNz);
+            if (!SolveFresnel(rayPrincipal, indices, out n1, out n2))
+            {
+                return false;
+            }
+
+            Vector3 tangentU = Mathf.Abs(rayPrincipal.z) < 0.9f
+                ? Vector3.Cross(Vector3.forward, rayPrincipal).normalized
+                : Vector3.Cross(Vector3.up, rayPrincipal).normalized;
+            Vector3 tangentV = Vector3.Cross(rayPrincipal, tangentU).normalized;
+            Vector3 aTerms = new Vector3(
+                1f / Mathf.Max(indices.x * indices.x, Epsilon),
+                1f / Mathf.Max(indices.y * indices.y, Epsilon),
+                1f / Mathf.Max(indices.z * indices.z, Epsilon));
+
+            float m00 = WeightedDot(tangentU, tangentU, aTerms);
+            float m01 = WeightedDot(tangentU, tangentV, aTerms);
+            float m11 = WeightedDot(tangentV, tangentV, aTerms);
+            Vector2 eigen2 = SmallestEigenVector2(m00, m01, m11);
+            eigenDirectionPrincipal = (tangentU * eigen2.x + tangentV * eigen2.y).normalized;
+            return eigenDirectionPrincipal.sqrMagnitude >= Epsilon;
+        }
+
+        private static bool SolveFresnel(Vector3 s, Vector3 indices, out float n1, out float n2)
+        {
+            n1 = indices.x;
+            n2 = indices.y;
+            Vector3 nSqr = new Vector3(indices.x * indices.x, indices.y * indices.y, indices.z * indices.z);
+            Vector3 aTerms = new Vector3(
+                1f / Mathf.Max(nSqr.x, Epsilon),
+                1f / Mathf.Max(nSqr.y, Epsilon),
+                1f / Mathf.Max(nSqr.z, Epsilon));
+
+            float sx2 = s.x * s.x;
+            float sy2 = s.y * s.y;
+            float sz2 = s.z * s.z;
+            float b = -(sx2 * (aTerms.y + aTerms.z)
+                        + sy2 * (aTerms.x + aTerms.z)
+                        + sz2 * (aTerms.x + aTerms.y));
+            float c = sx2 * aTerms.y * aTerms.z
+                      + sy2 * aTerms.x * aTerms.z
+                      + sz2 * aTerms.x * aTerms.y;
+            float discriminant = b * b - 4f * c;
+            if (discriminant < 0f)
+            {
+                return false;
+            }
+
+            float sqrtDiscriminant = Mathf.Sqrt(discriminant);
+            float x1 = (-b + sqrtDiscriminant) * 0.5f;
+            float x2 = (-b - sqrtDiscriminant) * 0.5f;
+            if (x1 <= Epsilon || x2 <= Epsilon)
+            {
+                return false;
+            }
+
+            n1 = 1f / Mathf.Sqrt(x1);
+            n2 = 1f / Mathf.Sqrt(x2);
+            return !float.IsNaN(n1) && !float.IsInfinity(n1) && !float.IsNaN(n2) && !float.IsInfinity(n2);
+        }
+
+        private static float WeightedDot(Vector3 a, Vector3 b, Vector3 weights)
+        {
+            return a.x * b.x * weights.x + a.y * b.y * weights.y + a.z * b.z * weights.z;
+        }
+
+        private static Vector2 SmallestEigenVector2(float a, float b, float d)
+        {
+            float trace = a + d;
+            float root = Mathf.Sqrt(Mathf.Max((a - d) * (a - d) + 4f * b * b, 0f));
+            float lambda = (trace - root) * 0.5f;
+            Vector2 vector = Mathf.Abs(b) > Epsilon
+                ? new Vector2(b, lambda - a)
+                : (a <= d ? Vector2.right : Vector2.up);
+
+            if (vector.sqrMagnitude < Epsilon)
+            {
+                vector = Vector2.right;
+            }
+
+            vector.Normalize();
+            if (vector.x < -Epsilon || (Mathf.Abs(vector.x) <= Epsilon && vector.y < 0f))
+            {
+                vector = -vector;
+            }
+
+            return vector;
+        }
+
+        private static Vector3 RowMultiply(Vector3 vector, Matrix4x4 matrix)
+        {
+            return new Vector3(
+                vector.x * matrix.m00 + vector.y * matrix.m10 + vector.z * matrix.m20,
+                vector.x * matrix.m01 + vector.y * matrix.m11 + vector.z * matrix.m21,
+                vector.x * matrix.m02 + vector.y * matrix.m12 + vector.z * matrix.m22);
         }
 
         private static float EvaluateJonesIntensity(

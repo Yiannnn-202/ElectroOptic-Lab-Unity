@@ -14,6 +14,7 @@ namespace ElectroOptics.ConoscopicAnalysis
         [SerializeField] [Range(16, 256)] private int _resolution = 128;
         [SerializeField] private float _surfaceSize = 5f;
         [SerializeField] private float _heightScale = 1.6f;
+        [SerializeField] private bool _normalizeDisplayIntensity = true;
         [SerializeField] private bool _recalculateOnStart = true;
 
         [Header("Runtime Demo Panel")]
@@ -22,7 +23,7 @@ namespace ElectroOptics.ConoscopicAnalysis
         public TextMesh statusText;
         public Transform surfaceRoot;
         [SerializeField] private bool _showPanel = true;
-        [SerializeField] private Rect _panelRect = new Rect(16f, 16f, 390f, 680f);
+        [SerializeField] private Rect _panelRect = new Rect(16f, 16f, 390f, 760f);
 
         private MeshFilter _meshFilter;
         private MeshRenderer _meshRenderer;
@@ -192,6 +193,7 @@ namespace ElectroOptics.ConoscopicAnalysis
             float height = _heightScale;
 
             GUILayout.Label($"Profile: {(_core.Profile != null ? _core.Profile.crystalName : "manual")}");
+            GUILayout.Label($"Class: {p.CrystalOpticClass}  n=({p.principalIndexNx:F4}, {p.principalIndexNy:F4}, {p.principalIndexNz:F4})");
             GUILayout.Label($"Valid: {_core.Result.IsValid}  Min: {_core.Result.MinIntensity:F3}  Max: {_core.Result.MaxIntensity:F3}");
 
             GUILayout.BeginHorizontal();
@@ -221,6 +223,9 @@ namespace ElectroOptics.ConoscopicAnalysis
             changed |= SliderRow("Thickness mm", ref p.thicknessMm, 0.1f, 60f, "F2");
             changed |= SliderRow("no", ref p.ordinaryIndexNo, 1.2f, 3.5f, "F4");
             changed |= SliderRow("ne", ref p.extraordinaryIndexNe, 1.2f, 3.5f, "F4");
+            changed |= SliderRow("nx", ref p.principalIndexNx, 1.2f, 3.5f, "F4");
+            changed |= SliderRow("ny", ref p.principalIndexNy, 1.2f, 3.5f, "F4");
+            changed |= SliderRow("nz", ref p.principalIndexNz, 1.2f, 3.5f, "F4");
             changed |= SliderRow("Screen m", ref p.screenDistanceM, 0.05f, 2.0f, "F2");
             changed |= SliderRow("Screen Half m", ref p.screenHalfSizeM, ConoscopicJonesParameters.MinScreenHalfSizeM, ConoscopicJonesParameters.MaxScreenHalfSizeM, "F3");
             changed |= SliderRow("I0", ref p.initialIntensity, 0f, 2f, "F2");
@@ -243,6 +248,7 @@ namespace ElectroOptics.ConoscopicAnalysis
 
             bool heightChanged = SliderRow("Height", ref height, 0.05f, 5f, "F2");
             bool yawChanged = SliderRow("View Yaw", ref yaw, -180f, 180f, "F0");
+            bool normalizeDisplay = GUILayout.Toggle(_normalizeDisplayIntensity, "Normalize Display");
 
             GUILayout.Space(6f);
             GUILayout.BeginHorizontal();
@@ -283,6 +289,12 @@ namespace ElectroOptics.ConoscopicAnalysis
                 root.rotation = Quaternion.Euler(0f, _surfaceYaw, 0f);
             }
 
+            if (normalizeDisplay != _normalizeDisplayIntensity)
+            {
+                _normalizeDisplayIntensity = normalizeDisplay;
+                RebuildMesh(_core.Result);
+            }
+
             UpdateStatus();
             GUI.DragWindow();
         }
@@ -308,8 +320,8 @@ namespace ElectroOptics.ConoscopicAnalysis
 
             ConoscopicJonesParameters p = _core.Parameters;
             statusText.text =
-                $"Jones GPU  Profile: {(_core.Profile != null ? _core.Profile.crystalName : "manual")}  Valid: {_core.Result.IsValid}  Max: {_core.Result.MaxIntensity:F3}\n" +
-                $"lambda {p.wavelengthNm:F1}nm  h {p.thicknessMm:F2}mm  no {p.ordinaryIndexNo:F4}  ne {p.extraordinaryIndexNe:F4}\n" +
+                $"Jones GPU  Profile: {(_core.Profile != null ? _core.Profile.crystalName : "manual")}  Class: {p.CrystalOpticClass}  Valid: {_core.Result.IsValid}  Max: {_core.Result.MaxIntensity:F3}\n" +
+                $"lambda {p.wavelengthNm:F1}nm  h {p.thicknessMm:F2}mm  n({p.principalIndexNx:F4}, {p.principalIndexNy:F4}, {p.principalIndexNz:F4})\n" +
                 $"P {p.polarizerAngleDeg:F0}  A {p.analyzerAngleDeg:F0}  Crystal {p.crystalAxisAngleDeg:F0}  Tilt {p.opticAxisTiltDeg:F1}  Half {p.screenHalfSizeM:F3}m  AA {p.phaseAntiAliasStrength:F2}";
         }
 
@@ -345,6 +357,10 @@ namespace ElectroOptics.ConoscopicAnalysis
             }
 
             int resolution = result.IntensityHeightMap.width;
+            float displayMin = result.MinIntensity;
+            float displayMax = result.MaxIntensity;
+            float displayRange = displayMax - displayMin;
+            bool normalizeDisplay = _normalizeDisplayIntensity && displayRange > 0.00001f;
             int vertexCount = resolution * resolution;
             var vertices = new Vector3[vertexCount];
             var colors = new Color[vertexCount];
@@ -359,12 +375,15 @@ namespace ElectroOptics.ConoscopicAnalysis
                     int index = y * resolution + x;
                     Vector2 coordinate = ConoscopicJonesCpuReference.GetCoordinate(x, y, resolution);
                     float intensity = Mathf.Clamp01(pixels[index].r);
+                    float displayIntensity = normalizeDisplay
+                        ? Mathf.Clamp01((intensity - displayMin) / displayRange)
+                        : intensity;
                     vertices[index] = new Vector3(
                         coordinate.x * _surfaceSize * 0.5f,
-                        intensity * _heightScale,
+                        displayIntensity * _heightScale,
                         coordinate.y * _surfaceSize * 0.5f);
                     uvs[index] = new Vector2(x / (float)(resolution - 1), y / (float)(resolution - 1));
-                    colors[index] = EvaluateHeatColor(intensity);
+                    colors[index] = EvaluateHeatColor(displayIntensity);
                 }
             }
 

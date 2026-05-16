@@ -6,6 +6,7 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
         _ThicknessM ("Thickness (m)", Float) = 0.02
         _OrdinaryIndexNo ("Ordinary Index no", Float) = 2.286
         _ExtraordinaryIndexNe ("Extraordinary Index ne", Float) = 2.200
+        _PrincipalIndices ("Principal Indices", Vector) = (2.286, 2.286, 2.200, 0)
         _ScreenDistanceM ("Screen Distance (m)", Float) = 0.7
         _ScreenHalfSizeM ("Screen Half Size (m)", Float) = 0.08
         _InitialIntensity ("Initial Intensity", Float) = 1.0
@@ -36,6 +37,10 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
             float _ThicknessM;
             float _OrdinaryIndexNo;
             float _ExtraordinaryIndexNe;
+            float3 _PrincipalIndices;
+            float4x4 _WorldToPrincipalMatrix;
+            float _UseBiaxial;
+            float _UniaxialEpsilon;
             float _ScreenDistanceM;
             float _ScreenHalfSizeM;
             float _InitialIntensity;
@@ -94,6 +99,136 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                 return normalize(float3(cos(_CrystalAxisAngleRad), sin(_CrystalAxisAngleRad), 0.0));
             }
 
+            float WeightedDot(float3 a, float3 b, float3 weights)
+            {
+                return a.x * b.x * weights.x + a.y * b.y * weights.y + a.z * b.z * weights.z;
+            }
+
+            float2 SmallestEigenVector2(float a, float b, float d)
+            {
+                float root = sqrt(max((a - d) * (a - d) + 4.0 * b * b, 0.0));
+                float lambda = (a + d - root) * 0.5;
+                float2 eigenVec;
+                if (abs(b) > 1e-6)
+                {
+                    eigenVec = float2(b, lambda - a);
+                }
+                else if (a <= d)
+                {
+                    eigenVec = float2(1.0, 0.0);
+                }
+                else
+                {
+                    eigenVec = float2(0.0, 1.0);
+                }
+
+                float lenSqr = dot(eigenVec, eigenVec);
+                if (lenSqr > 1e-8)
+                {
+                    eigenVec *= rsqrt(lenSqr);
+                }
+                else
+                {
+                    eigenVec = float2(1.0, 0.0);
+                }
+
+                if (eigenVec.x < -1e-6 || (abs(eigenVec.x) <= 1e-6 && eigenVec.y < 0.0))
+                {
+                    eigenVec = -eigenVec;
+                }
+
+                return eigenVec;
+            }
+
+            bool SolveBiaxialFresnel(float3 rayPrincipal, float3 indices, out float n1, out float n2)
+            {
+                float3 n2Terms = max(indices * indices, 1e-6);
+                float3 aTerms = 1.0 / n2Terms;
+                float sx2 = rayPrincipal.x * rayPrincipal.x;
+                float sy2 = rayPrincipal.y * rayPrincipal.y;
+                float sz2 = rayPrincipal.z * rayPrincipal.z;
+                float b = -(sx2 * (aTerms.y + aTerms.z)
+                            + sy2 * (aTerms.x + aTerms.z)
+                            + sz2 * (aTerms.x + aTerms.y));
+                float c = sx2 * aTerms.y * aTerms.z
+                          + sy2 * aTerms.x * aTerms.z
+                          + sz2 * aTerms.x * aTerms.y;
+                float discriminant = b * b - 4.0 * c;
+                if (discriminant < 0.0)
+                {
+                    n1 = indices.x;
+                    n2 = indices.y;
+                    return false;
+                }
+
+                float root = sqrt(discriminant);
+                float x1 = (-b + root) * 0.5;
+                float x2 = (-b - root) * 0.5;
+                if (x1 <= 1e-6 || x2 <= 1e-6)
+                {
+                    n1 = indices.x;
+                    n2 = indices.y;
+                    return false;
+                }
+
+                n1 = rsqrt(x1);
+                n2 = rsqrt(x2);
+                return n1 > 0.0 && n2 > 0.0 && abs(n1) < 10000.0 && abs(n2) < 10000.0;
+            }
+
+            bool TryGetBiaxialEigenSystem(float3 rayDir, out float3 eigenA, out float3 eigenB, out float delta)
+            {
+                eigenA = float3(1.0, 0.0, 0.0);
+                eigenB = float3(0.0, 1.0, 0.0);
+                delta = 0.0;
+
+                float3 indices = _PrincipalIndices;
+                float minDiff = min(abs(indices.x - indices.y), min(abs(indices.y - indices.z), abs(indices.x - indices.z)));
+                if (_UseBiaxial < 0.5 || minDiff < max(_UniaxialEpsilon, 1e-6))
+                {
+                    return false;
+                }
+
+                float3 rayPrincipal = normalize(mul(rayDir, (float3x3)_WorldToPrincipalMatrix));
+                float n1;
+                float n2;
+                if (!SolveBiaxialFresnel(rayPrincipal, indices, n1, n2))
+                {
+                    return false;
+                }
+
+                float3 tangentU;
+                if (abs(rayPrincipal.z) < 0.9)
+                {
+                    tangentU = normalize(cross(float3(0.0, 0.0, 1.0), rayPrincipal));
+                }
+                else
+                {
+                    tangentU = normalize(cross(float3(0.0, 1.0, 0.0), rayPrincipal));
+                }
+                float3 tangentV = normalize(cross(rayPrincipal, tangentU));
+                float3 weights = 1.0 / max(indices * indices, 1e-6);
+                float m00 = WeightedDot(tangentU, tangentU, weights);
+                float m01 = WeightedDot(tangentU, tangentV, weights);
+                float m11 = WeightedDot(tangentV, tangentV, weights);
+                float2 eigen2 = SmallestEigenVector2(m00, m01, m11);
+                float3 eigenPrincipal = normalize(tangentU * eigen2.x + tangentV * eigen2.y);
+                float3x3 principalToView = transpose((float3x3)_WorldToPrincipalMatrix);
+                eigenA = SafeNormalizeOnWavefront(mul(eigenPrincipal, principalToView), rayDir, CrystalReferenceAxis());
+
+                float3 reference = ProjectOntoWavefront(CrystalReferenceAxis(), rayDir);
+                if (dot(reference, reference) > 1e-8 && dot(eigenA, normalize(reference)) < 0.0)
+                {
+                    eigenA = -eigenA;
+                }
+
+                eigenB = normalize(cross(rayDir, eigenA));
+                float wavelength = max(_WavelengthM, 1e-12);
+                float pathFactor = 1.0 / max(abs(rayDir.z), 0.05);
+                delta = 6.28318530718 * _ThicknessM * abs(n1 - n2) * pathFactor / wavelength;
+                return abs(delta) < 1e12;
+            }
+
             fixed4 frag(v2f_img i) : SV_Target
             {
                 float2 p = i.uv * 2.0 - 1.0;
@@ -106,22 +241,27 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                 float2 screenPoint = p * _ScreenHalfSizeM;
                 float3 rayDir = normalize(float3(screenPoint.x, screenPoint.y, max(_ScreenDistanceM, 1e-6)));
                 float3 opticAxis = OpticAxis();
-                float3 eDirection = SafeNormalizeOnWavefront(opticAxis, rayDir, CrystalReferenceAxis());
-                float3 oDirection = normalize(cross(rayDir, eDirection));
+                float3 eDirection;
+                float3 oDirection;
+                float delta;
+                bool hasBiaxial = TryGetBiaxialEigenSystem(rayDir, eDirection, oDirection, delta);
+                if (!hasBiaxial)
+                {
+                    eDirection = SafeNormalizeOnWavefront(opticAxis, rayDir, CrystalReferenceAxis());
+                    oDirection = normalize(cross(rayDir, eDirection));
+                    float cosTheta = saturate(abs(dot(rayDir, opticAxis)));
+                    float nEffective = EffectiveExtraordinaryIndex(_OrdinaryIndexNo, _ExtraordinaryIndexNe, cosTheta);
+
+                    // r22/E are uploaded in v1 so the interface is stable; the physical EO perturbation is deferred.
+                    float wavelength = max(_WavelengthM, 1e-12);
+                    float pathFactor = 1.0 / max(abs(rayDir.z), 0.05);
+                    delta = 6.28318530718 * _ThicknessM * (nEffective - _OrdinaryIndexNo) * pathFactor / wavelength;
+                }
 
                 float3 polarizer = AngleVector(_PolarizerAngleRad, rayDir);
                 float3 analyzer = AngleVector(_AnalyzerAngleRad, rayDir);
-
                 float oAmplitude = dot(polarizer, oDirection);
                 float eAmplitude = dot(polarizer, eDirection);
-                float cosTheta = saturate(abs(dot(rayDir, opticAxis)));
-                float nEffective = EffectiveExtraordinaryIndex(_OrdinaryIndexNo, _ExtraordinaryIndexNe, cosTheta);
-
-                // r22/E are uploaded in v1 so the interface is stable; the physical EO perturbation is deferred.
-                float wavelength = max(_WavelengthM, 1e-12);
-                float pathFactor = 1.0 / max(abs(rayDir.z), 0.05);
-                float delta = 6.28318530718 * _ThicknessM * (nEffective - _OrdinaryIndexNo) * pathFactor / wavelength;
-
                 float analyzerO = dot(analyzer, oDirection);
                 float analyzerE = dot(analyzer, eDirection);
                 float oTerm = analyzerO * oAmplitude;

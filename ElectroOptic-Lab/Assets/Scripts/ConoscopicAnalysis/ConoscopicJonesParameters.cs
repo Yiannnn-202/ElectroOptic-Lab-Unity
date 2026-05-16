@@ -29,12 +29,16 @@ namespace ElectroOptics.ConoscopicAnalysis
         public const float MaxApertureRadius = 1.5f;
         public const float MinHeightScale = 0.01f;
         public const float MaxHeightScale = 10f;
+        public const float DefaultUniaxialEpsilon = 0.0005f;
 
         public int resolution = 256;
         public float wavelengthNm = 632.8f;
         public float thicknessMm = 20f;
         public float ordinaryIndexNo = 2.286f;
         public float extraordinaryIndexNe = 2.200f;
+        public float principalIndexNx = 2.286f;
+        public float principalIndexNy = 2.286f;
+        public float principalIndexNz = 2.200f;
         public float screenDistanceM = 0.7f;
         public float screenHalfSizeM = 0.08f;
         public float initialIntensity = 1f;
@@ -48,6 +52,9 @@ namespace ElectroOptics.ConoscopicAnalysis
         public float electroOpticCoefficientR22 = 0f;
         public float apertureRadius = 1f;
         public float heightScale = 1f;
+        public float uniaxialEpsilon = DefaultUniaxialEpsilon;
+        public bool forceUniaxial = false;
+        public Matrix4x4 worldToPrincipalMatrix = Matrix4x4.identity;
 
         public ConoscopicJonesParameters()
         {
@@ -66,6 +73,9 @@ namespace ElectroOptics.ConoscopicAnalysis
             thicknessMm = other.thicknessMm;
             ordinaryIndexNo = other.ordinaryIndexNo;
             extraordinaryIndexNe = other.extraordinaryIndexNe;
+            principalIndexNx = other.principalIndexNx;
+            principalIndexNy = other.principalIndexNy;
+            principalIndexNz = other.principalIndexNz;
             screenDistanceM = other.screenDistanceM;
             screenHalfSizeM = other.screenHalfSizeM;
             initialIntensity = other.initialIntensity;
@@ -79,6 +89,9 @@ namespace ElectroOptics.ConoscopicAnalysis
             electroOpticCoefficientR22 = other.electroOpticCoefficientR22;
             apertureRadius = other.apertureRadius;
             heightScale = other.heightScale;
+            uniaxialEpsilon = other.uniaxialEpsilon;
+            forceUniaxial = other.forceUniaxial;
+            worldToPrincipalMatrix = other.worldToPrincipalMatrix;
             Clamp();
         }
 
@@ -97,9 +110,27 @@ namespace ElectroOptics.ConoscopicAnalysis
 
             wavelengthNm = SafePositive((float)profile.defaultWavelength_nm, wavelengthNm);
             thicknessMm = SafePositive((float)profile.defaultLength_mm, thicknessMm);
+            principalIndexNx = SafePositive((float)profile.n_x, principalIndexNx);
+            principalIndexNy = SafePositive((float)profile.n_y, principalIndexNy);
+            principalIndexNz = SafePositive((float)profile.n_z, principalIndexNz);
             ordinaryIndexNo = ResolveOrdinaryIndex(profile, ordinaryIndexNo);
             extraordinaryIndexNe = ResolveExtraordinaryIndex(profile, extraordinaryIndexNe);
             electroOpticCoefficientR22 = (float)profile.r22;
+            Clamp();
+        }
+
+        public void ApplyPrincipalIndices(Vector3 indices)
+        {
+            if (!IsFinitePositive(indices.x) || !IsFinitePositive(indices.y) || !IsFinitePositive(indices.z))
+            {
+                return;
+            }
+
+            principalIndexNx = indices.x;
+            principalIndexNy = indices.y;
+            principalIndexNz = indices.z;
+            ordinaryIndexNo = ResolveOrdinaryIndex(indices, ordinaryIndexNo);
+            extraordinaryIndexNe = ResolveExtraordinaryIndex(indices, extraordinaryIndexNe);
             Clamp();
         }
 
@@ -110,6 +141,9 @@ namespace ElectroOptics.ConoscopicAnalysis
             thicknessMm = Mathf.Clamp(thicknessMm, MinThicknessMm, MaxThicknessMm);
             ordinaryIndexNo = Mathf.Clamp(ordinaryIndexNo, MinIndex, MaxIndex);
             extraordinaryIndexNe = Mathf.Clamp(extraordinaryIndexNe, MinIndex, MaxIndex);
+            principalIndexNx = Mathf.Clamp(principalIndexNx, MinIndex, MaxIndex);
+            principalIndexNy = Mathf.Clamp(principalIndexNy, MinIndex, MaxIndex);
+            principalIndexNz = Mathf.Clamp(principalIndexNz, MinIndex, MaxIndex);
             screenDistanceM = Mathf.Clamp(screenDistanceM, MinScreenDistanceM, MaxScreenDistanceM);
             screenHalfSizeM = Mathf.Clamp(screenHalfSizeM, MinScreenHalfSizeM, MaxScreenHalfSizeM);
             initialIntensity = Mathf.Clamp(initialIntensity, MinInitialIntensity, MaxInitialIntensity);
@@ -117,13 +151,37 @@ namespace ElectroOptics.ConoscopicAnalysis
             opticAxisTiltDeg = Mathf.Clamp(opticAxisTiltDeg, MinOpticAxisTiltDeg, MaxOpticAxisTiltDeg);
             apertureRadius = Mathf.Clamp(apertureRadius, MinApertureRadius, MaxApertureRadius);
             heightScale = Mathf.Clamp(heightScale, MinHeightScale, MaxHeightScale);
+            uniaxialEpsilon = Mathf.Max(0.000001f, uniaxialEpsilon);
+            if (!IsMatrixFinite(worldToPrincipalMatrix))
+            {
+                worldToPrincipalMatrix = Matrix4x4.identity;
+            }
         }
+
+        public bool IsBiaxial()
+        {
+            if (forceUniaxial)
+            {
+                return false;
+            }
+
+            return Mathf.Abs(principalIndexNx - principalIndexNy) >= uniaxialEpsilon
+                   && Mathf.Abs(principalIndexNy - principalIndexNz) >= uniaxialEpsilon
+                   && Mathf.Abs(principalIndexNx - principalIndexNz) >= uniaxialEpsilon;
+        }
+
+        public string CrystalOpticClass => IsBiaxial() ? "Biaxial" : "Uniaxial";
 
         private static float ResolveOrdinaryIndex(CrystalProfile profile, float fallback)
         {
-            float nx = (float)profile.n_x;
-            float ny = (float)profile.n_y;
-            float nz = (float)profile.n_z;
+            return ResolveOrdinaryIndex(new Vector3((float)profile.n_x, (float)profile.n_y, (float)profile.n_z), fallback);
+        }
+
+        private static float ResolveOrdinaryIndex(Vector3 indices, float fallback)
+        {
+            float nx = indices.x;
+            float ny = indices.y;
+            float nz = indices.z;
 
             if (Mathf.Abs(nx - ny) <= Mathf.Abs(ny - nz) && Mathf.Abs(nx - ny) <= Mathf.Abs(nx - nz))
             {
@@ -140,10 +198,15 @@ namespace ElectroOptics.ConoscopicAnalysis
 
         private static float ResolveExtraordinaryIndex(CrystalProfile profile, float fallback)
         {
-            float nx = (float)profile.n_x;
-            float ny = (float)profile.n_y;
-            float nz = (float)profile.n_z;
-            float no = ResolveOrdinaryIndex(profile, fallback);
+            return ResolveExtraordinaryIndex(new Vector3((float)profile.n_x, (float)profile.n_y, (float)profile.n_z), fallback);
+        }
+
+        private static float ResolveExtraordinaryIndex(Vector3 indices, float fallback)
+        {
+            float nx = indices.x;
+            float ny = indices.y;
+            float nz = indices.z;
+            float no = ResolveOrdinaryIndex(indices, fallback);
 
             if (Mathf.Abs(nx - no) > Mathf.Abs(ny - no) && Mathf.Abs(nx - no) > Mathf.Abs(nz - no))
             {
@@ -161,6 +224,28 @@ namespace ElectroOptics.ConoscopicAnalysis
         private static float SafePositive(float value, float fallback)
         {
             return float.IsNaN(value) || float.IsInfinity(value) || value <= 0f ? fallback : value;
+        }
+
+        private static bool IsFinitePositive(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value) && value > 0f;
+        }
+
+        private static bool IsMatrixFinite(Matrix4x4 matrix)
+        {
+            for (int row = 0; row < 4; row++)
+            {
+                for (int col = 0; col < 4; col++)
+                {
+                    float value = matrix[row, col];
+                    if (float.IsNaN(value) || float.IsInfinity(value))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
         }
     }
 }
