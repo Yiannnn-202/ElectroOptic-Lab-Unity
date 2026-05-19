@@ -19,10 +19,13 @@ namespace ElectroOptics.Oscilloscope
         [SerializeField] private CrystalProfile fallbackProfile;
 
         [Header("Oscilloscope Defaults")]
-        [SerializeField] private float initialVdc = 120f;
-        [SerializeField] private float voltageStep = 0.5f;
+        [SerializeField] private float initialVdc = 0f;
         [SerializeField] private float modulationAmplitude = 5f;
         [SerializeField] private float frequency = 1000f;
+
+        [Header("Voltage Hold-Repeat")]
+        [SerializeField] private float holdStartDelay = 0.35f;
+        [SerializeField] private float voltageChangeRate = 30f;
         [SerializeField] private int sampleCount = 1024;
         [SerializeField] private float displayPeriods = 2f;
         [SerializeField] private ModulationMode modulationMode = ModulationMode.Transverse;
@@ -51,6 +54,9 @@ namespace ElectroOptics.Oscilloscope
         private int _recordIndex;
         private bool _loggedFirstRefresh;
 
+        private float _holdTimer;
+        private int _holdDirection; // 0=none, -1=A, +1=D
+
         private void Awake()
         {
             DisableLegacyRecordManager();
@@ -68,6 +74,8 @@ namespace ElectroOptics.Oscilloscope
 
         private void Start()
         {
+            if (statusText != null)
+                _statusNormalColor = statusText.color;
             Canvas.ForceUpdateCanvases();
             EnsureWaveformGraphics();
             InitializeCore();
@@ -80,10 +88,34 @@ namespace ElectroOptics.Oscilloscope
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.A))
-                ApplyVoltage(_currentVdc - voltageStep);
-            else if (Input.GetKeyDown(KeyCode.D))
-                ApplyVoltage(_currentVdc + voltageStep);
+            float wanted = 0f;
+            if (Input.GetKey(KeyCode.A)) wanted = -1f;
+            else if (Input.GetKey(KeyCode.D)) wanted = 1f;
+
+            if (wanted != 0f)
+            {
+                if (_holdDirection != (int)wanted)
+                {
+                    // First frame: single step, then start accumulating
+                    ApplyVoltage(_currentVdc + wanted);
+                    _holdDirection = (int)wanted;
+                    _holdTimer = 0f;
+                }
+                else
+                {
+                    _holdTimer += Time.deltaTime;
+                    if (_holdTimer >= holdStartDelay)
+                    {
+                        float delta = wanted * voltageChangeRate * Time.deltaTime;
+                        ApplyVoltage(_currentVdc + delta);
+                    }
+                }
+            }
+            else
+            {
+                _holdDirection = 0;
+                _holdTimer = 0f;
+            }
         }
 
         private void OnDestroy()
@@ -266,7 +298,7 @@ namespace ElectroOptics.Oscilloscope
         private void UpdateVoltageText()
         {
             if (voltageText != null)
-                voltageText.text = $"{_currentVdc:F1}V";
+                voltageText.text = $"{_currentVdc:F0}V";
         }
 
         private void UpdateStaticUi()
@@ -274,6 +306,8 @@ namespace ElectroOptics.Oscilloscope
             if (modulationStatusText != null)
                 modulationStatusText.text = "已接入";
         }
+
+        private Color _statusNormalColor;
 
         private void UpdateStatusText(WaveformResult result)
         {
@@ -283,12 +317,15 @@ namespace ElectroOptics.Oscilloscope
             if (double.IsInfinity(result.vPi) || double.IsNaN(result.vPi) || result.vPi <= 0)
             {
                 statusText.text = "Vπ 无效";
+                statusText.color = _statusNormalColor;
                 return;
             }
 
             double piMultiple = result.gamma0 / Mathf.PI;
             double distanceToExtreme = System.Math.Abs(piMultiple - System.Math.Round(piMultiple));
-            statusText.text = distanceToExtreme < 0.08 ? "疑似倍频失真点" : $"Vπ≈{result.vPi:F1}V";
+            bool isDistortion = distanceToExtreme < 0.08;
+            statusText.text = isDistortion ? "疑似倍频失真点" : "--";
+            statusText.color = isDistortion ? _statusNormalColor : Color.black;
         }
 
         private void RecordCurrentPoint()
@@ -300,7 +337,7 @@ namespace ElectroOptics.Oscilloscope
             }
 
             if (keyPointVoltageTexts[_recordIndex] != null)
-                keyPointVoltageTexts[_recordIndex].text = $"电压：{_currentVdc:F1}V";
+                keyPointVoltageTexts[_recordIndex].text = $"电压：{_currentVdc:F0}V";
 
             if (keyPointLabelTexts[_recordIndex] != null)
                 keyPointLabelTexts[_recordIndex].text = GetKeyPointLabel(_recordIndex);

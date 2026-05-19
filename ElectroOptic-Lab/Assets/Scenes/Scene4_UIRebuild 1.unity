@@ -4568,8 +4568,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 140}
-  m_SizeDelta: {x: 0, y: -280}
+  m_AnchoredPosition: {x: 0, y: 146}
+  m_SizeDelta: {x: 0, y: -268}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1027236347
 MonoBehaviour:
@@ -6412,10 +6412,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   physicalCore: {fileID: 0}
   fallbackProfile: {fileID: 11400000, guid: 27b41b6fc4ec0b14d8283d826138ad3e, type: 2}
-  initialVdc: 120
-  voltageStep: 5
+  initialVdc: 0
   modulationAmplitude: 5
   frequency: 1000
+  holdStartDelay: 0.35
+  voltageChangeRate: 30
   sampleCount: 1024
   displayPeriods: 2
   modulationMode: 0

@@ -4,17 +4,50 @@ using UnityEngine.UI;
 namespace ElectroOptics.Oscilloscope
 {
     /// <summary>
-    /// Minimal uGUI waveform renderer for oscilloscope channel panels.
+    /// GPU waveform renderer using RawImage + custom antialiased glow shader.
+    /// Waveform float[] data is packed into a 1D Texture2D and sampled in the shader.
     /// </summary>
-    public class OscilloscopeWaveformGraphic : Graphic
+    public class OscilloscopeWaveformGraphic : RawImage
     {
-        [SerializeField] private float lineWidth = 4f;
-        [SerializeField] private Vector2 padding = new Vector2(10f, 8f);
+        private static Shader _cachedShader;
+        private static Shader WaveformShader
+        {
+            get
+            {
+                if (_cachedShader == null)
+                    _cachedShader = Shader.Find("UI/WaveformLine");
+                return _cachedShader;
+            }
+        }
 
+        [SerializeField] private float lineWidth = 2.5f;
+        [SerializeField] private float glowWidth = 6f;
+        [SerializeField] private float intensity = 1.2f;
+        [SerializeField] [Range(0f, 0.45f)] private float verticalPadding = 0.06f;
+
+        private Texture2D _waveTexture;
+        private Material _runtimeMaterial;
+        private Color _pendingColor = Color.white;
         private float[] _samples;
         private float _minY = -1f;
         private float _maxY = 1f;
         private bool _hasSamples;
+
+        protected override void Awake()
+        {
+            base.Awake();
+            raycastTarget = false;
+            color = new Color(1f, 1f, 1f, 0f); // hidden until first SetSamples
+        }
+
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+            if (_runtimeMaterial != null)
+                DestroyImmediate(_runtimeMaterial);
+            if (_waveTexture != null)
+                DestroyImmediate(_waveTexture);
+        }
 
         public void SetSamples(float[] samples, float minY, float maxY)
         {
@@ -22,79 +55,83 @@ namespace ElectroOptics.Oscilloscope
             _minY = minY;
             _maxY = maxY;
             _hasSamples = samples != null && samples.Length > 1 && !Mathf.Approximately(minY, maxY);
-            SetLayoutDirty();
+
+            if (!_hasSamples)
+            {
+                color = new Color(color.r, color.g, color.b, 0f);
+                return;
+            }
+
+            EnsureMaterial();
+            EnsureTexture(samples.Length);
+            WriteSamplesToTexture(samples, minY, maxY);
+
+            _runtimeMaterial.SetTexture("_MainTex", _waveTexture);
+            color = new Color(color.r, color.g, color.b, 1f);
             SetMaterialDirty();
-            SetVerticesDirty();
         }
 
         public void SetColor(Color newColor)
         {
-            color = newColor;
-            SetVerticesDirty();
+            _pendingColor = newColor;
+            color = new Color(newColor.r, newColor.g, newColor.b, _hasSamples ? 1f : 0f);
+            if (_runtimeMaterial != null)
+                _runtimeMaterial.SetColor("_LineColor", newColor);
         }
 
-        protected override void OnRectTransformDimensionsChange()
-        {
-            base.OnRectTransformDimensionsChange();
-            SetVerticesDirty();
-        }
-
-        public void Clear()
+        public new void Clear()
         {
             _samples = null;
             _hasSamples = false;
-            SetVerticesDirty();
+            color = new Color(color.r, color.g, color.b, 0f);
         }
 
-        protected override void OnPopulateMesh(VertexHelper vh)
+        private void EnsureMaterial()
         {
-            vh.Clear();
-
-            if (!_hasSamples)
+            if (_runtimeMaterial != null)
                 return;
 
-            Rect r = GetPixelAdjustedRect();
-            float left = r.xMin + padding.x;
-            float right = r.xMax - padding.x;
-            float bottom = r.yMin + padding.y;
-            float top = r.yMax - padding.y;
-
-            if (right <= left || top <= bottom)
-                return;
-
-            Vector2 previous = SampleToPoint(0, left, right, bottom, top);
-            for (int i = 1; i < _samples.Length; i++)
+            var shader = WaveformShader;
+            if (shader == null)
             {
-                Vector2 current = SampleToPoint(i, left, right, bottom, top);
-                AddLine(vh, previous, current, lineWidth, color);
-                previous = current;
+                Debug.LogError("[OscilloscopeWaveformGraphic] Shader 'UI/WaveformLine' not found.");
+                return;
             }
+
+            _runtimeMaterial = new Material(shader);
+            _runtimeMaterial.SetFloat("_LineWidth", lineWidth);
+            _runtimeMaterial.SetFloat("_GlowWidth", glowWidth);
+            _runtimeMaterial.SetFloat("_Intensity", intensity);
+            _runtimeMaterial.SetColor("_LineColor", _pendingColor);
+            material = _runtimeMaterial;
         }
 
-        private Vector2 SampleToPoint(int index, float left, float right, float bottom, float top)
+        private void EnsureTexture(int width)
         {
-            float x = Mathf.Lerp(left, right, index / (float)(_samples.Length - 1));
-            float normalized = Mathf.InverseLerp(_minY, _maxY, _samples[index]);
-            float y = Mathf.Lerp(bottom, top, Mathf.Clamp01(normalized));
-            return new Vector2(x, y);
-        }
-
-        private static void AddLine(VertexHelper vh, Vector2 a, Vector2 b, float width, Color32 lineColor)
-        {
-            Vector2 direction = b - a;
-            if (direction.sqrMagnitude <= 0.0001f)
+            if (_waveTexture != null && _waveTexture.width == width)
                 return;
 
-            Vector2 normal = new Vector2(-direction.y, direction.x).normalized * (width * 0.5f);
-            int start = vh.currentVertCount;
+            if (_waveTexture != null)
+                DestroyImmediate(_waveTexture);
 
-            vh.AddVert(a - normal, lineColor, Vector2.zero);
-            vh.AddVert(a + normal, lineColor, Vector2.zero);
-            vh.AddVert(b + normal, lineColor, Vector2.zero);
-            vh.AddVert(b - normal, lineColor, Vector2.zero);
+            _waveTexture = new Texture2D(width, 1, TextureFormat.RGBA32, false, true);
+            _waveTexture.filterMode = FilterMode.Bilinear;
+            _waveTexture.wrapMode = TextureWrapMode.Clamp;
+        }
 
-            vh.AddTriangle(start, start + 1, start + 2);
-            vh.AddTriangle(start, start + 2, start + 3);
+        private void WriteSamplesToTexture(float[] samples, float minY, float maxY)
+        {
+            float pad = Mathf.Clamp(verticalPadding, 0f, 0.45f);
+            var colors = new Color[samples.Length];
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float normalized = Mathf.InverseLerp(minY, maxY, samples[i]);
+                float padded = pad + normalized * (1f - pad * 2f);
+                colors[i] = new Color(padded, 0f, 0f, 1f);
+            }
+
+            _waveTexture.SetPixels(colors);
+            _waveTexture.Apply();
         }
     }
 }
