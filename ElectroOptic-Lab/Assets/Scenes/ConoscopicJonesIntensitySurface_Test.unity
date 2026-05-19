@@ -135,6 +135,7 @@ GameObject:
   - component: {fileID: 205474866}
   - component: {fileID: 205474865}
   - component: {fileID: 205474864}
+  - component: {fileID: 205474869}
   m_Layer: 0
   m_Name: Conoscopic Jones Intensity Surface
   m_TagString: Untagged
@@ -269,12 +270,12 @@ MonoBehaviour:
     forceUniaxial: 0
     biaxialDisplayMode: 0
     worldToPrincipalMatrix:
-      e00: 1
-      e01: 0
+      e00: 0.7071067
+      e01: 0.7071068
       e02: 0
       e03: 0
-      e10: 0
-      e11: 1
+      e10: -0.7071068
+      e11: 0.7071067
       e12: 0
       e13: 0
       e20: 0
@@ -286,7 +287,7 @@ MonoBehaviour:
       e32: 0
       e33: 1
   _profile: {fileID: 11400000, guid: 27b41b6fc4ec0b14d8283d826138ad3e, type: 2}
-  _physicalCore: {fileID: 0}
+  _physicalCore: {fileID: 205474869}
   _shader: {fileID: 4800000, guid: fdec1c36aa86450dacf74306f5940cd6, type: 3}
 --- !u!4 &205474868
 Transform:
@@ -303,6 +304,54 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &205474869
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 205474863}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64b1d30dda08d3a448d5f1a2fa44a1b9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _sensitivity: 0
+  _newIndices: {x: 2.286, y: 2.286, z: 2.2}
+  _localPerturbationMatrix:
+    e00: 1
+    e01: 0
+    e02: -0
+    e03: 0
+    e10: 0
+    e11: 1
+    e12: 0
+    e13: 0
+    e20: -0
+    e21: -0
+    e22: 1
+    e23: 0
+    e30: 0
+    e31: 0
+    e32: 0
+    e33: 1
+  _shaderCompositeMatrix:
+    e00: 0.7071067
+    e01: 0.7071068
+    e02: 0
+    e03: 0
+    e10: -0.7071068
+    e11: 0.7071067
+    e12: 0
+    e13: 0
+    e20: 0
+    e21: 0
+    e22: 1
+    e23: 0
+    e30: 0
+    e31: 0
+    e32: 0
+    e33: 1
 --- !u!1 &1253097074
 GameObject:
   m_ObjectHideFlags: 0
