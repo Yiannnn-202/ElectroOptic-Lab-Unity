@@ -94,6 +94,22 @@ namespace ElectroOptics.Experiment.Initializer
 
             // 7. 加载选择的 Profile
             LoadSelectedProfile();
+
+            // 8. 强制复位 PostProcessLayer，修复跨场景跳转后 Bloom 失效的问题
+            ResetPostProcessLayer();
+        }
+
+        private static void ResetPostProcessLayer()
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+            var ppLayer = cam.GetComponent<UnityEngine.Rendering.PostProcessing.PostProcessLayer>();
+            if (ppLayer != null)
+            {
+                ppLayer.enabled = false;
+                ppLayer.enabled = true;
+                Debug.Log("[CrystalComponentInitializer] PostProcessLayer 已强制复位");
+            }
         }
 
         #endregion
