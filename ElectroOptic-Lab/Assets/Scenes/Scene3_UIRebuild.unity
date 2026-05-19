@@ -8940,9 +8940,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 2147484000}
         m_TargetAssemblyTypeName: SceneLoad, Assembly-CSharp
-        m_MethodName: Onclick_Btn_Return
+        m_MethodName: Onclick_Btn_LoadScene_02
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -16508,6 +16508,7 @@ GameObject:
   - component: {fileID: 1657891529}
   - component: {fileID: 1657891531}
   - component: {fileID: 1657891530}
+  - component: {fileID: 2147484000}
   m_Layer: 5
   m_Name: TopBar
   m_TagString: Untagged
@@ -16574,6 +16575,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1657891528}
   m_CullTransparentMesh: 1
+--- !u!114 &2147484000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1657891528}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 257b91ef1b51ceb4aba2c9b32e6408b3, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!1 &1658687352
 GameObject:
   m_ObjectHideFlags: 0
