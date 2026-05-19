@@ -2188,15 +2188,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
-  m_RaycastTarget: 1
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
+  m_Maskable: 0
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 1
+  m_Sprite: {fileID: 21300000, guid: 489420331180d784eafeb2288ba2b9d4, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -2503,8 +2503,7 @@ RectTransform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1892505853}
+  m_Children: []
   m_Father: {fileID: 1691884459}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -5869,7 +5868,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u5173\u952E\u70B9\u8BB0\u5F55\u2014\u2014\u8BF7\u4F9D\u6B21\u8BB0\u5F55\u4E09\u4E2A\u8FDE\u7EED\u4FE1\u53F7\u5931\u771F\u70B9"
+  m_text: "\u5173\u952E\u70B9\u8BB0\u5F55\u2014\u2014\u8BF7\u4F9D\u6B21\u8BB0\u5F55\u4E09\u4E2A\u8FDE\u7EED\u500D\u9891\u5931\u771F\u70B9"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: e51917171fc617848a446063bf200535, type: 2}
   m_sharedMaterial: {fileID: -2422241761601968369, guid: e51917171fc617848a446063bf200535, type: 2}
@@ -6365,10 +6364,23 @@ MonoBehaviour:
   recordButton: {fileID: 750528274}
   clearButton: {fileID: 453424529}
   tableArea: {fileID: 0}
+  arrowIncButton: {fileID: 0}
+  arrowDecButton: {fileID: 0}
+  arrowIncOutline: {fileID: 0}
+  arrowDecOutline: {fileID: 0}
   currentVoltage: 0
-  voltageStep: 0.5
+  voltageChangeSpeed: 20
   halfWaveVoltage: 150
   maxIntensity: 100
+  suggestedVoltages:
+  - 0
+  - 100
+  - 260
+  - 400
+  - 540
+  - 600
+  placeholderColor: {r: 0.6, g: 0.6, b: 0.6, a: 0.8}
+  normalTextColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
   clearTableOnStart: 1
 --- !u!4 &1475552759
 Transform:
@@ -6690,15 +6702,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 1
+  m_Sprite: {fileID: 21300000, guid: 489420331180d784eafeb2288ba2b9d4, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -7288,6 +7300,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1908822146}
+  - {fileID: 1892505853}
   - {fileID: 522051379}
   m_Father: {fileID: 723074701}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -7814,7 +7827,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "CH2 \u8F93\u5165\u4FE1\u53F7"
+  m_text: "CH2 \u8F93\u51FA\u4FE1\u53F7"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: e51917171fc617848a446063bf200535, type: 2}
   m_sharedMaterial: {fileID: -2422241761601968369, guid: e51917171fc617848a446063bf200535, type: 2}
@@ -8090,12 +8103,12 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1892505852}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 522051379}
+  m_Father: {fileID: 1691884459}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
