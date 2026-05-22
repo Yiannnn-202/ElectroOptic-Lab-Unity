@@ -4,11 +4,13 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 
-public class RecordManager : MonoBehaviour
+public class RecordManager : MonoBehaviour, IVoltageSource
 {
     [Header("UI 引用（左侧仪器）")]
     public TextMeshProUGUI voltageText;
     public TextMeshProUGUI receiverText;
+    [Tooltip("可选：实现 IPowerReadoutSource 的组件。为空时会自动查找光功率计读数源。")]
+    public MonoBehaviour powerReadoutSourceBehaviour;
 
     [Header("UI 引用（按钮）")]
     public Button recordButton;
@@ -30,7 +32,16 @@ public class RecordManager : MonoBehaviour
     [Tooltip("每秒改变的电压值 (V/s)，控制连转速度")]
     public float voltageChangeSpeed = 20.0f;
     public float halfWaveVoltage = 150.0f;
+    [Tooltip("旧字段保留以兼容既有场景；新光功率读数使用 powerScale。")]
     public float maxIntensity = 100.0f;
+
+    [Header("光功率读数参数")]
+    public float darkPower = 0.2f;
+    public float powerScale = 198.5f;
+    public float leakage = 0.01f;
+    public float visibility = 0.99f;
+    public float phaseOffset = 0f;
+    public float beamFocus = 20.0f;
 
     // ================= 修改点：改成可随意编辑的数组 =================
     [Header("教学引导（幽灵提示）设置")]
@@ -53,10 +64,16 @@ public class RecordManager : MonoBehaviour
     private bool isIncSelected = false;
     private bool isDecSelected = false;
     private bool isMouseHolding = false;
+    private IPowerReadoutSource powerReadoutSource;
+
+    public float CurrentVoltage => currentVoltage;
+    public float HalfWaveVoltage => halfWaveVoltage;
 
     void Start()
     {
+        ApplyParameterFallbacks();
         BuildCellLists();
+        powerReadoutSource = ResolvePowerReadoutSource();
 
         if (recordButton != null)
         {
@@ -141,9 +158,21 @@ public class RecordManager : MonoBehaviour
 
     float CalculateReceiverValue(float voltage)
     {
-        float phase = (Mathf.PI * voltage) / (2f * halfWaveVoltage);
-        float result = maxIntensity * Mathf.Pow(Mathf.Sin(phase), 2);
-        return result;
+        if (powerReadoutSource == null)
+        {
+            powerReadoutSource = ResolvePowerReadoutSource();
+        }
+
+        if (powerReadoutSource != null)
+        {
+            return powerReadoutSource.CurrentStablePower;
+        }
+
+        return PowerReadoutCalculator.CalculateStablePower(
+            voltage,
+            0f,
+            0f,
+            BuildReadoutParameters());
     }
 
     void UpdateInstrumentUI()
@@ -154,7 +183,7 @@ public class RecordManager : MonoBehaviour
             voltageText.text = currentVoltage.ToString("F1");
 
         if (receiverText != null)
-            receiverText.text = receiverValue.ToString("F2");
+            receiverText.text = $"{receiverValue:F2} μW";
     }
 
     void BuildCellLists()
@@ -258,5 +287,50 @@ public class RecordManager : MonoBehaviour
             if (index < voltageCells.Count && voltageCells[index] != null) voltageCells[index].text = "";
             if (index < powerCells.Count && powerCells[index] != null) powerCells[index].text = "";
         }
+    }
+
+    private PowerReadoutParameters BuildReadoutParameters()
+    {
+        ApplyParameterFallbacks();
+        return new PowerReadoutParameters
+        {
+            darkPower = darkPower,
+            powerScale = powerScale,
+            leakage = leakage,
+            visibility = visibility,
+            phaseOffset = phaseOffset,
+            halfWaveVoltage = halfWaveVoltage,
+            beamFocus = beamFocus
+        };
+    }
+
+    private IPowerReadoutSource ResolvePowerReadoutSource()
+    {
+        if (powerReadoutSourceBehaviour is IPowerReadoutSource configuredSource)
+        {
+            return configuredSource;
+        }
+
+        MonoBehaviour[] behaviours = FindObjectsOfType<MonoBehaviour>();
+        foreach (MonoBehaviour behaviour in behaviours)
+        {
+            if (behaviour == this) continue;
+            if (behaviour is IPowerReadoutSource source)
+            {
+                powerReadoutSourceBehaviour = behaviour;
+                return source;
+            }
+        }
+
+        return null;
+    }
+
+    private void ApplyParameterFallbacks()
+    {
+        if (halfWaveVoltage <= 0f) halfWaveVoltage = 150f;
+        if (powerScale <= 0f) powerScale = 198.5f;
+        if (beamFocus < 0f) beamFocus = 0f;
+        if (visibility < 0f) visibility = 0f;
+        if (leakage < 0f) leakage = 0f;
     }
 }
