@@ -2,6 +2,8 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
 {
     Properties
     {
+        _MainTex ("Intensity Texture", 2D) = "black" {}
+        _BaseColor ("Base Color", Color) = (1, 0, 0, 1)
         _WavelengthM ("Wavelength (m)", Float) = 0.0000006328
         _ThicknessM ("Thickness (m)", Float) = 0.02
         _OrdinaryIndexNo ("Ordinary Index no", Float) = 2.286
@@ -26,6 +28,12 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
         _CrossWidth ("Cross Width", Range(0.01, 0.35)) = 0.16
         _BlackCutoff ("Black Cutoff", Range(0, 0.25)) = 0.012
         _DisplayGamma ("Display Gamma", Range(0.2, 3)) = 1.25
+        _IntensityGain ("Intensity Gain", Float) = 1
+        _OutputGamma ("Output Gamma", Float) = 1
+        _OutputBlackCutoff ("Output Black Cutoff", Float) = 0
+        _OutputWhitePoint ("Output White Point", Float) = 1
+        _EnableReliefShading ("Enable Relief Shading", Float) = 0
+        _ReliefStrength ("Relief Strength", Float) = 0
     }
     SubShader
     {
@@ -347,7 +355,7 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                 eigenB = normalize(cross(rayDir, eigenA));
                 float wavelength = max(_WavelengthM, 1e-12);
                 float pathFactor = 1.0 / max(abs(rayDir.z), 0.05);
-                delta = 6.28318530718 * _ThicknessM * abs(n1 - n2) * pathFactor / wavelength;
+                delta = 6.28318530718 * _ThicknessM * abs(n1 - n2) * pathFactor / wavelength * _PhaseScale;
                 return abs(delta) < 1e12;
             }
 
@@ -386,7 +394,7 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                     // r22/E are uploaded in v1 so the interface is stable; the physical EO perturbation is deferred.
                     float wavelength = max(_WavelengthM, 1e-12);
                     float pathFactor = 1.0 / max(abs(rayDir.z), 0.05);
-                    delta = 6.28318530718 * _ThicknessM * (nEffective - _OrdinaryIndexNo) * pathFactor / wavelength;
+                    delta = 6.28318530718 * _ThicknessM * (nEffective - _OrdinaryIndexNo) * pathFactor / wavelength * _PhaseScale;
                 }
 
                 float3 polarizer = AngleVector(_PolarizerAngleRad, rayDir);
@@ -399,10 +407,53 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                 float eTerm = analyzerE * eAmplitude;
                 float deltaWidth = fwidth(delta);
                 float visibility = _PhaseAntiAliasStrength > 0.0
-                    ? exp(-0.5 * pow(deltaWidth * _PhaseAntiAliasStrength, 2.0))
+                    ? exp(-0.08 * pow(deltaWidth * _PhaseAntiAliasStrength, 2.0))
                     : 1.0;
                 float intensity = saturate(_InitialIntensity * (oTerm * oTerm + eTerm * eTerm + 2.0 * oTerm * eTerm * cos(delta) * visibility));
                 return float4(intensity, intensity, intensity, 1.0);
+            }
+            ENDCG
+        }
+
+        Pass
+        {
+            CGPROGRAM
+            #pragma vertex vert_img
+            #pragma fragment frag
+            #pragma target 3.0
+            #include "UnityCG.cginc"
+
+            sampler2D _MainTex;
+            float4 _MainTex_TexelSize;
+            float4 _BaseColor;
+            float _IntensityGain;
+            float _OutputGamma;
+            float _OutputBlackCutoff;
+            float _OutputWhitePoint;
+            float _EnableReliefShading;
+            float _ReliefStrength;
+
+            fixed4 frag(v2f_img i) : SV_Target
+            {
+                float intensity = saturate(tex2D(_MainTex, i.uv).r);
+                float whitePoint = max(_OutputWhitePoint, _OutputBlackCutoff + 0.0001);
+                intensity = saturate((intensity - _OutputBlackCutoff) / (whitePoint - _OutputBlackCutoff));
+                intensity = saturate(intensity * max(_IntensityGain, 0.0));
+                intensity = pow(intensity, 1.0 / max(_OutputGamma, 0.0001));
+                float shade = 1.0;
+
+                if (_EnableReliefShading > 0.5 && _ReliefStrength > 0.0)
+                {
+                    float left = tex2D(_MainTex, i.uv - float2(_MainTex_TexelSize.x, 0.0)).r;
+                    float right = tex2D(_MainTex, i.uv + float2(_MainTex_TexelSize.x, 0.0)).r;
+                    float down = tex2D(_MainTex, i.uv - float2(0.0, _MainTex_TexelSize.y)).r;
+                    float up = tex2D(_MainTex, i.uv + float2(0.0, _MainTex_TexelSize.y)).r;
+                    float3 normal = normalize(float3((left - right) * _ReliefStrength, (down - up) * _ReliefStrength, 1.0));
+                    shade = saturate(dot(normal, normalize(float3(-0.35, 0.45, 1.0))) * 0.35 + 0.75);
+                }
+
+                float3 color = _BaseColor.rgb * intensity * shade;
+                return float4(color, 1.0);
             }
             ENDCG
         }

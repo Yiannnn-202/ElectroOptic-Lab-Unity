@@ -636,10 +636,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   receiverController: {fileID: 0}
+  voltageSourceBehaviour: {fileID: 0}
   maxPowerReceiver: 198.5
   adjustSpeed: 0.5
   beamFocus: 20
   initialDeviationRange: 0.15
+  darkPower: 0.2
+  leakage: 0.01
+  visibility: 0.99
+  phaseOffset: 0
+  fallbackHalfWaveVoltage: 150
+  noiseEnabled: 1
+  noiseAmplitude: 0.2
+  noiseFrequency: 5
   windowSize: {x: 300, y: 180}
 --- !u!114 &209555977
 MonoBehaviour:
@@ -22343,13 +22352,28 @@ MonoBehaviour:
   crystalModel: {fileID: 1032930223}
   renderTextureSize: 1024
   conoscopicFOV: 6
-  conoscopicPhaseScale: 0.1
+  conoscopicPhaseScale: 1
   laserColor: {r: 1, g: 0, b: 0, a: 1}
-  displayGamma: 1.25
-  blackCutoff: 0
-  ringSharpness: 1
-  crossWidth: 0.16
+  displayGamma: 1.15
+  blackCutoff: 0.01
+  ringSharpness: 1.6
+  crossWidth: 0.08
   initialMelatopeOffset: {x: 0, y: 0}
+  screenDistanceM: 0.47
+  screenHalfSizeM: 0.08
+  phaseAntiAliasStrength: 1
+  overrideRawJonesPhysicalParameters: 1
+  rawJonesWavelengthNm: 589.3
+  rawJonesThicknessMm: 0.915
+  rawJonesDisplayGain: 1.6
+  rawJonesDisplayGamma: 1.2
+  rawJonesOutputBlackCutoff: 0
+  rawJonesOutputWhitePoint: 1
+  rawJonesCrystalAxisAngleDeg: 45
+  enableReliefShading: 0
+  reliefStrength: 0
+  biaxialDisplayMode: 1
+  usePaperKtpPresetForKtp: 0
   lightDirectionSource: {fileID: 1789540427}
 --- !u!4 &1975395316
 Transform:
