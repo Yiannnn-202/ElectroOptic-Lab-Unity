@@ -22364,7 +22364,7 @@ MonoBehaviour:
   phaseAntiAliasStrength: 1
   overrideRawJonesPhysicalParameters: 1
   rawJonesWavelengthNm: 589.3
-  rawJonesThicknessMm: 0.915
+  rawJonesThicknessMm: 20
   rawJonesDisplayGain: 1.6
   rawJonesDisplayGamma: 1.2
   rawJonesOutputBlackCutoff: 0
