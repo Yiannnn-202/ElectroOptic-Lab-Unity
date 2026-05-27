@@ -269,8 +269,8 @@ namespace ElectroOptics.ConoscopicAnalysis
             {
                 profile = _profile,
                 crystalRotation = ResolveCrystalRotation(),
-                localEField = geometry.LocalEFieldDirection * _parameters.electricFieldStrength,
-                probeFieldDirection = geometry.ProbeFieldDirection,
+                localEField = Vector3.forward * _parameters.electricFieldStrength,
+                probeFieldDirection = Vector3.forward,
                 worldLightDirection = geometry.WorldLightDirection
             };
 

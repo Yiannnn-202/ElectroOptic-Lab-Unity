@@ -24,6 +24,7 @@ public static class ConoscopicJonesCoreTests
         TestBiaxialProfileDefaults();
         TestCpuBiaxialRangeAndDelta();
         TestGpuCoreLifecycle();
+        TestGpuElectricFieldPerturbsRawJonesParameters();
         TestGpuKtpBiaxialLifecycle();
         Debug.Log($"========== Conoscopic Jones Core Tests Done: {_passed} passed, {_failed} failed ==========");
     }
@@ -252,6 +253,64 @@ public static class ConoscopicJonesCoreTests
         }
     }
 
+    private static void TestGpuElectricFieldPerturbsRawJonesParameters()
+    {
+        CrystalProfile profile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(LiNbO3ProfilePath);
+        if (profile == null)
+        {
+            Debug.LogWarning($"[SKIP] LiNbO3 profile not found at {LiNbO3ProfilePath}");
+            return;
+        }
+
+        if (Shader.Find("ElectroOptics/ConoscopicJonesIntensity") == null)
+        {
+            Debug.LogWarning("[SKIP] Conoscopic Jones shader not imported yet.");
+            return;
+        }
+
+        var go = new GameObject("ConoscopicJonesGpuCore_EField_Test");
+        try
+        {
+            var core = go.AddComponent<ConoscopicJonesGpuCore>();
+            core.SetProfile(profile);
+
+            var parameters = new ConoscopicJonesParameters(core.Parameters)
+            {
+                resolution = 32,
+                biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones,
+                electricFieldStrength = 0f
+            };
+            core.SetParameters(parameters);
+            core.ForceRecalculate();
+
+            Vector3 zeroFieldIndices = GetPrincipalIndices(core.Parameters);
+            Matrix4x4 zeroFieldMatrix = core.Parameters.worldToPrincipalMatrix;
+            AssertTrue("GPU zero-field EO result valid", core.Result.IsValid);
+            AssertTrue("GPU zero-field EO max finite", IsUnitFinite(core.Result.MaxIntensity));
+
+            parameters = new ConoscopicJonesParameters(core.Parameters)
+            {
+                biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones,
+                electricFieldStrength = 5000000f
+            };
+            core.SetParameters(parameters);
+            core.ForceRecalculate();
+
+            Vector3 fieldIndices = GetPrincipalIndices(core.Parameters);
+            Matrix4x4 fieldMatrix = core.Parameters.worldToPrincipalMatrix;
+            bool indicesChanged = (fieldIndices - zeroFieldIndices).sqrMagnitude > 1e-14f;
+            bool matrixChanged = MatrixChanged(fieldMatrix, zeroFieldMatrix, 1e-7f);
+
+            AssertTrue("GPU nonzero-field EO result valid", core.Result.IsValid);
+            AssertTrue("GPU nonzero-field EO max finite", IsUnitFinite(core.Result.MaxIntensity));
+            AssertTrue("GPU electric field perturbs RawJones parameters", indicesChanged || matrixChanged);
+        }
+        finally
+        {
+            Object.DestroyImmediate(go);
+        }
+    }
+
     private static void AssertGpuCloseToCpu(string name, ConoscopicJonesGpuCore core, int x, int y, float tolerance)
     {
         float gpu = ReadGpuPixel(core.IntensityHeightMap, x, y);
@@ -281,6 +340,30 @@ public static class ConoscopicJonesCoreTests
     private static bool IsUnitFinite(float value)
     {
         return !float.IsNaN(value) && !float.IsInfinity(value) && value >= -1e-6f && value <= 1f + 1e-6f;
+    }
+
+    private static Vector3 GetPrincipalIndices(ConoscopicJonesParameters parameters)
+    {
+        return new Vector3(
+            parameters.principalIndexNx,
+            parameters.principalIndexNy,
+            parameters.principalIndexNz);
+    }
+
+    private static bool MatrixChanged(Matrix4x4 a, Matrix4x4 b, float tolerance)
+    {
+        for (int row = 0; row < 4; row++)
+        {
+            for (int column = 0; column < 4; column++)
+            {
+                if (Mathf.Abs(a[row, column] - b[row, column]) > tolerance)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static void AssertClose(string name, float actual, float expected, float tolerance)

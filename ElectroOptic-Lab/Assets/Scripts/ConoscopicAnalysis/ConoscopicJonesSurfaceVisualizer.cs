@@ -8,6 +8,8 @@ namespace ElectroOptics.ConoscopicAnalysis
     public class ConoscopicJonesSurfaceVisualizer : MonoBehaviour
     {
         private const string VertexColorShaderName = "ElectroOptics/ConoscopicIntensityVertexColor";
+        private const float MinElectricFieldVm = -5000000f;
+        private const float MaxElectricFieldVm = 5000000f;
 
         [SerializeField] private ConoscopicJonesGpuCore _core;
         [SerializeField] private CrystalProfile _profile;
@@ -16,7 +18,7 @@ namespace ElectroOptics.ConoscopicAnalysis
         [SerializeField] private float _heightScale = 1.6f;
         [SerializeField] private bool _normalizeDisplayIntensity = false;
         [SerializeField] private bool _recalculateOnStart = true;
-        [SerializeField] private bool _startWithPaperKtpPreset = true;
+        [SerializeField] private bool _startWithPaperKtpPreset = false;
 
         [Header("Runtime Demo Panel")]
         public CrystalProfile liNbO3Profile;
@@ -228,6 +230,16 @@ namespace ElectroOptics.ConoscopicAnalysis
                 p = new ConoscopicJonesParameters(_core.Parameters);
                 changed = true;
             }
+            if (GUILayout.Button("EO Test"))
+            {
+                ApplyDemoProfile(0);
+                p = new ConoscopicJonesParameters(_core.Parameters)
+                {
+                    biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones,
+                    electricFieldStrength = MaxElectricFieldVm
+                };
+                changed = true;
+            }
             if (GUILayout.Button("Reset"))
             {
                 p = new ConoscopicJonesParameters();
@@ -261,7 +273,7 @@ namespace ElectroOptics.ConoscopicAnalysis
             changed |= SliderRow("Phi", ref p.paperPhiDeg, 0f, 360f, "F0");
             changed |= SliderRow("Optic Tilt", ref p.opticAxisTiltDeg, ConoscopicJonesParameters.MinOpticAxisTiltDeg, ConoscopicJonesParameters.MaxOpticAxisTiltDeg, "F1");
             changed |= SliderRow("Optic Azimuth", ref p.opticAxisAzimuthDeg, 0f, 180f, "F0");
-            changed |= SliderRow("E Field", ref p.electricFieldStrength, -5000f, 5000f, "F0");
+            changed |= SliderRow("E Field V/m", ref p.electricFieldStrength, MinElectricFieldVm, MaxElectricFieldVm, "E2");
             changed |= SliderRow("r22", ref p.electroOpticCoefficientR22, -50f, 50f, "F2");
             changed |= SliderRow("Aperture", ref p.apertureRadius, ConoscopicJonesParameters.MinApertureRadius, 1f, "F2");
 
@@ -402,10 +414,50 @@ namespace ElectroOptics.ConoscopicAnalysis
             }
 
             ConoscopicJonesParameters p = _core.Parameters;
+            float deltaN = MaxPrincipalIndexDeltaFromProfile(p, _core.Profile);
+            float phaseDelayRad = EstimatePhaseDelayRad(p, deltaN);
             statusText.text =
-                $"Jones GPU  Profile: {(_core.Profile != null ? _core.Profile.crystalName : "manual")}  Class: {p.CrystalOpticClass}  Valid: {_core.Result.IsValid}  Max: {_core.Result.MaxIntensity:F3}\n" +
-                $"lambda {p.wavelengthNm:F1}nm  h {p.thicknessMm:F2}mm  n({p.principalIndexNx:F4}, {p.principalIndexNy:F4}, {p.principalIndexNz:F4})\n" +
-                $"P {p.polarizerAngleDeg:F0}  A {p.analyzerAngleDeg:F0}  Alpha {p.crystalAxisAngleDeg:F0}  Theta {p.paperThetaDeg:F0}  Phi {p.paperPhiDeg:F0}  Phase {p.phaseScale:F2}  Cross {p.crossWidth:F2}";
+                $"Jones GPU  Profile: {(_core.Profile != null ? _core.Profile.crystalName : "manual")}  Mode: {ModeName(p.biaxialDisplayMode)}  Class: {p.CrystalOpticClass}  Valid: {_core.Result.IsValid}  Max: {_core.Result.MaxIntensity:F3}\n" +
+                $"lambda {p.wavelengthNm:F1}nm  h {p.thicknessMm:F2}mm  E {p.electricFieldStrength:E2} V/m  dNmax {deltaN:E2}  dPhi {phaseDelayRad:F3} rad\n" +
+                $"n({p.principalIndexNx:F7}, {p.principalIndexNy:F7}, {p.principalIndexNz:F7})  P {p.polarizerAngleDeg:F0}  A {p.analyzerAngleDeg:F0}  Phase {p.phaseScale:F2}";
+        }
+
+        private static string ModeName(ConoscopicBiaxialDisplayMode mode)
+        {
+            switch (mode)
+            {
+                case ConoscopicBiaxialDisplayMode.RawJones:
+                    return "RawJones";
+                case ConoscopicBiaxialDisplayMode.PaperKtp1:
+                    return "PaperKTP";
+                default:
+                    return "Teaching";
+            }
+        }
+
+        private static float MaxPrincipalIndexDeltaFromProfile(ConoscopicJonesParameters parameters, CrystalProfile profile)
+        {
+            if (parameters == null || profile == null)
+            {
+                return 0f;
+            }
+
+            float dx = Mathf.Abs(parameters.principalIndexNx - (float)profile.n_x);
+            float dy = Mathf.Abs(parameters.principalIndexNy - (float)profile.n_y);
+            float dz = Mathf.Abs(parameters.principalIndexNz - (float)profile.n_z);
+            return Mathf.Max(dx, Mathf.Max(dy, dz));
+        }
+
+        private static float EstimatePhaseDelayRad(ConoscopicJonesParameters parameters, float deltaN)
+        {
+            if (parameters == null || deltaN <= 0f)
+            {
+                return 0f;
+            }
+
+            float wavelengthM = Mathf.Max(parameters.wavelengthNm * 1e-9f, 1e-12f);
+            float thicknessM = Mathf.Max(parameters.thicknessMm * 1e-3f, 0f);
+            return 2f * Mathf.PI * thicknessM * deltaN / wavelengthM;
         }
 
         private static bool SliderRow(string label, ref float value, float min, float max, string format)
