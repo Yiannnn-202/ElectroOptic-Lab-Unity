@@ -8,8 +8,15 @@ namespace ElectroOptics.ConoscopicAnalysis
     public class ConoscopicJonesSurfaceVisualizer : MonoBehaviour
     {
         private const string VertexColorShaderName = "ElectroOptics/ConoscopicIntensityVertexColor";
-        private const float MinElectricFieldVm = -5000000f;
-        private const float MaxElectricFieldVm = 5000000f;
+        private const float MinElectricFieldVm = -50000000f;
+        private const float MaxElectricFieldVm = 50000000f;
+        private const float EoSmoothElectricFieldVm = 15000000f;
+        private const float EoSmoothPhaseScale = 0.05f;
+        private const float EoSmoothAntiAliasStrength = 3f;
+        private const float EoSmoothHeightScale = 0.12f;
+        private const int EoSmoothSupersampleFactor = 2;
+        private const float EoSmoothMinFieldVm = 5000000f;
+        private const float EoSmoothMaxFieldVm = 25000000f;
 
         [SerializeField] private ConoscopicJonesGpuCore _core;
         [SerializeField] private CrystalProfile _profile;
@@ -236,9 +243,19 @@ namespace ElectroOptics.ConoscopicAnalysis
                 p = new ConoscopicJonesParameters(_core.Parameters)
                 {
                     biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones,
+                    forceUniaxial = false,
+                    uniaxialEoView = false,
+                    uniaxialEoUsePerturbedAxis = false,
                     electricFieldStrength = MaxElectricFieldVm
                 };
                 changed = true;
+            }
+            if (GUILayout.Button("EO Smooth"))
+            {
+                ApplyEoSmoothPreset();
+                p = new ConoscopicJonesParameters(_core.Parameters);
+                height = _heightScale;
+                changed = false;
             }
             if (GUILayout.Button("Reset"))
             {
@@ -284,13 +301,47 @@ namespace ElectroOptics.ConoscopicAnalysis
                 changed = true;
             }
 
+            float supersample = p.renderSupersampleFactor;
+            if (SliderRow("Supersample", ref supersample, 1f, 4f, "F0"))
+            {
+                p.renderSupersampleFactor = Mathf.RoundToInt(supersample);
+                changed = true;
+            }
+
             bool heightChanged = SliderRow("Height", ref height, 0.05f, 5f, "F2");
             bool yawChanged = SliderRow("View Yaw", ref yaw, -180f, 180f, "F0");
+            bool uniaxialEoView = GUILayout.Toggle(p.uniaxialEoView, "Continuous EO View");
+            if (uniaxialEoView != p.uniaxialEoView)
+            {
+                p.uniaxialEoView = uniaxialEoView;
+                p.uniaxialEoUsePerturbedAxis &= uniaxialEoView;
+                p.forceUniaxial = false;
+                if (uniaxialEoView)
+                {
+                    p.biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones;
+                }
+
+                changed = true;
+            }
+
+            if (p.uniaxialEoView)
+            {
+                bool usePerturbedAxis = GUILayout.Toggle(p.uniaxialEoUsePerturbedAxis, "Use EO Axis");
+                if (usePerturbedAxis != p.uniaxialEoUsePerturbedAxis)
+                {
+                    p.uniaxialEoUsePerturbedAxis = usePerturbedAxis;
+                    changed = true;
+                }
+            }
+
             bool teachingMode = GUILayout.Toggle(
                 p.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.ConoscopicTeaching,
                 "Biaxial Teaching Display");
             if (teachingMode != (p.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.ConoscopicTeaching))
             {
+                p.uniaxialEoView = false;
+                p.uniaxialEoUsePerturbedAxis = false;
+                p.forceUniaxial = false;
                 p.biaxialDisplayMode = teachingMode
                     ? ConoscopicBiaxialDisplayMode.ConoscopicTeaching
                     : ConoscopicBiaxialDisplayMode.RawJones;
@@ -302,6 +353,9 @@ namespace ElectroOptics.ConoscopicAnalysis
                 "Paper KTP 1# Display");
             if (paperMode != (p.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1))
             {
+                p.uniaxialEoView = false;
+                p.uniaxialEoUsePerturbedAxis = false;
+                p.forceUniaxial = false;
                 p.biaxialDisplayMode = paperMode
                     ? ConoscopicBiaxialDisplayMode.PaperKtp1
                     : ConoscopicBiaxialDisplayMode.ConoscopicTeaching;
@@ -380,6 +434,38 @@ namespace ElectroOptics.ConoscopicAnalysis
             SetProfile(profile);
         }
 
+        private void ApplyEoSmoothPreset()
+        {
+            ApplyDemoProfile(0);
+            if (_core == null)
+            {
+                return;
+            }
+
+            var p = new ConoscopicJonesParameters(_core.Parameters)
+            {
+                resolution = 256,
+                renderSupersampleFactor = EoSmoothSupersampleFactor,
+                biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones,
+                forceUniaxial = false,
+                uniaxialEoView = true,
+                uniaxialEoUsePerturbedAxis = false,
+                electricFieldStrength = EoSmoothElectricFieldVm,
+                phaseScale = EoSmoothPhaseScale,
+                phaseAntiAliasStrength = EoSmoothAntiAliasStrength
+            };
+
+            p.Clamp();
+            _resolution = 256;
+            _heightScale = EoSmoothHeightScale;
+            _normalizeDisplayIntensity = false;
+            _core.SetParameters(p);
+            _core.SetResolution(_resolution);
+            _core.ForceRecalculate();
+            RebuildMesh(_core.Result);
+            UpdateStatus();
+        }
+
         private void ApplyPaperKtpPreset(float alphaDeg)
         {
             _profileIndex = 1;
@@ -396,6 +482,9 @@ namespace ElectroOptics.ConoscopicAnalysis
             }
 
             p.ApplyPaperKtp1Preset(profile == null);
+            p.forceUniaxial = false;
+            p.uniaxialEoView = false;
+            p.uniaxialEoUsePerturbedAxis = false;
             p.crystalAxisAngleDeg = alphaDeg;
             p.worldToPrincipalMatrix = ConoscopicJonesParameters.CreatePaperKtp1WorldToPrincipalMatrix(
                 p.crystalAxisAngleDeg,
@@ -415,16 +504,27 @@ namespace ElectroOptics.ConoscopicAnalysis
 
             ConoscopicJonesParameters p = _core.Parameters;
             float deltaN = MaxPrincipalIndexDeltaFromProfile(p, _core.Profile);
+            float split = MaxPrincipalIndexSplit(p);
             float phaseDelayRad = EstimatePhaseDelayRad(p, deltaN);
+            string smoothTag = IsEoSmoothRange(p) ? "  EO Smooth Range" : string.Empty;
+            string supersampleTag = p.renderSupersampleFactor > 1 ? $"  SSx{p.renderSupersampleFactor}" : string.Empty;
+            string axisTag = p.uniaxialEoView
+                ? $"  {(p.uniaxialEoUsePerturbedAxis ? "Use EO Axis" : "Use Fixed Axis")}  {(split >= 1e-7f ? "Eigen" : "Fallback")}"
+                : string.Empty;
             statusText.text =
-                $"Jones GPU  Profile: {(_core.Profile != null ? _core.Profile.crystalName : "manual")}  Mode: {ModeName(p.biaxialDisplayMode)}  Class: {p.CrystalOpticClass}  Valid: {_core.Result.IsValid}  Max: {_core.Result.MaxIntensity:F3}\n" +
-                $"lambda {p.wavelengthNm:F1}nm  h {p.thicknessMm:F2}mm  E {p.electricFieldStrength:E2} V/m  dNmax {deltaN:E2}  dPhi {phaseDelayRad:F3} rad\n" +
+                $"Jones GPU  Profile: {(_core.Profile != null ? _core.Profile.crystalName : "manual")}  Mode: {ModeName(p)}{smoothTag}{supersampleTag}{axisTag}  Class: {p.CrystalOpticClass}  Valid: {_core.Result.IsValid}  Max: {_core.Result.MaxIntensity:F3}\n" +
+                $"lambda {p.wavelengthNm:F1}nm  h {p.thicknessMm:F2}mm  E {p.electricFieldStrength:E2} V/m  split {split:E2}  dNmax {deltaN:E2}  dPhi {phaseDelayRad:F3} rad\n" +
                 $"n({p.principalIndexNx:F7}, {p.principalIndexNy:F7}, {p.principalIndexNz:F7})  P {p.polarizerAngleDeg:F0}  A {p.analyzerAngleDeg:F0}  Phase {p.phaseScale:F2}";
         }
 
-        private static string ModeName(ConoscopicBiaxialDisplayMode mode)
+        private static string ModeName(ConoscopicJonesParameters parameters)
         {
-            switch (mode)
+            if (parameters != null && parameters.uniaxialEoView)
+            {
+                return "RawJones + Continuous EO";
+            }
+
+            switch (parameters != null ? parameters.biaxialDisplayMode : ConoscopicBiaxialDisplayMode.ConoscopicTeaching)
             {
                 case ConoscopicBiaxialDisplayMode.RawJones:
                     return "RawJones";
@@ -448,6 +548,19 @@ namespace ElectroOptics.ConoscopicAnalysis
             return Mathf.Max(dx, Mathf.Max(dy, dz));
         }
 
+        private static float MaxPrincipalIndexSplit(ConoscopicJonesParameters parameters)
+        {
+            if (parameters == null)
+            {
+                return 0f;
+            }
+
+            float dxy = Mathf.Abs(parameters.principalIndexNx - parameters.principalIndexNy);
+            float dyz = Mathf.Abs(parameters.principalIndexNy - parameters.principalIndexNz);
+            float dxz = Mathf.Abs(parameters.principalIndexNx - parameters.principalIndexNz);
+            return Mathf.Max(dxy, Mathf.Max(dyz, dxz));
+        }
+
         private static float EstimatePhaseDelayRad(ConoscopicJonesParameters parameters, float deltaN)
         {
             if (parameters == null || deltaN <= 0f)
@@ -458,6 +571,20 @@ namespace ElectroOptics.ConoscopicAnalysis
             float wavelengthM = Mathf.Max(parameters.wavelengthNm * 1e-9f, 1e-12f);
             float thicknessM = Mathf.Max(parameters.thicknessMm * 1e-3f, 0f);
             return 2f * Mathf.PI * thicknessM * deltaN / wavelengthM;
+        }
+
+        private static bool IsEoSmoothRange(ConoscopicJonesParameters parameters)
+        {
+            if (parameters == null || parameters.biaxialDisplayMode != ConoscopicBiaxialDisplayMode.RawJones)
+            {
+                return false;
+            }
+
+            float fieldMagnitude = Mathf.Abs(parameters.electricFieldStrength);
+            return fieldMagnitude >= EoSmoothMinFieldVm
+                   && fieldMagnitude <= EoSmoothMaxFieldVm
+                   && parameters.phaseScale <= 0.05f
+                   && parameters.phaseAntiAliasStrength >= 2.5f;
         }
 
         private static bool SliderRow(string label, ref float value, float min, float max, string format)
@@ -498,6 +625,7 @@ namespace ElectroOptics.ConoscopicAnalysis
             bool normalizeDisplay = _normalizeDisplayIntensity && displayRange > 0.00001f;
             bool smoothPaperDisplay = result.ParametersSnapshot != null
                                       && result.ParametersSnapshot.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1;
+            bool smoothRawJonesDisplay = ShouldSmoothRawJonesDisplay(result.ParametersSnapshot);
             float[] displayValues = new float[pixels.Length];
             for (int i = 0; i < pixels.Length; i++)
             {
@@ -508,6 +636,10 @@ namespace ElectroOptics.ConoscopicAnalysis
             }
 
             if (smoothPaperDisplay)
+            {
+                displayValues = SmoothDisplayValues(displayValues, resolution);
+            }
+            else if (smoothRawJonesDisplay)
             {
                 displayValues = SmoothDisplayValues(displayValues, resolution);
             }
@@ -584,6 +716,17 @@ namespace ElectroOptics.ConoscopicAnalysis
             _readbackTexture.Apply(false, false);
             RenderTexture.active = previous;
             return _readbackTexture.GetPixels();
+        }
+
+        private static bool ShouldSmoothRawJonesDisplay(ConoscopicJonesParameters parameters)
+        {
+            if (parameters == null || parameters.biaxialDisplayMode != ConoscopicBiaxialDisplayMode.RawJones)
+            {
+                return false;
+            }
+
+            return Mathf.Abs(parameters.electricFieldStrength) >= EoSmoothMinFieldVm
+                   || parameters.phaseScale <= 0.05f;
         }
 
         private static Color EvaluateHeatColor(float value)
