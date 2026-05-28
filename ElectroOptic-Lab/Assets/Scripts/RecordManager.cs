@@ -46,7 +46,7 @@ public class RecordManager : MonoBehaviour, IVoltageSource
     // ================= 修改点：改成可随意编辑的数组 =================
     [Header("教学引导（幽灵提示）设置")]
     [Tooltip("按行自定义提示电压，专门针对极值法设计（比如填入波峰波谷附近的电压）")]
-    public float[] suggestedVoltages = new float[] { 0f, 100f, 260f, 400f, 540f, 600f };
+    public float[] suggestedVoltages = new float[] { 0f, 100f, 260f, 400f, 540f };
     [Tooltip("提示文字的颜色（灰色）")]
     public Color placeholderColor = new Color(0.6f, 0.6f, 0.6f, 0.8f); // 适中的灰色
     [Tooltip("真实记录数据的文字颜色（深色）")]
@@ -56,8 +56,8 @@ public class RecordManager : MonoBehaviour, IVoltageSource
     [Header("运行设置")]
     public bool clearTableOnStart = true;
 
-    private readonly List<TextMeshProUGUI> voltageCells = new List<TextMeshProUGUI>();
-    private readonly List<TextMeshProUGUI> powerCells = new List<TextMeshProUGUI>();
+    public List<TextMeshProUGUI> voltageCells = new List<TextMeshProUGUI>();
+    public List<TextMeshProUGUI> powerCells = new List<TextMeshProUGUI>();
 
     private int currentIndex = 0;
 
@@ -183,7 +183,7 @@ public class RecordManager : MonoBehaviour, IVoltageSource
             voltageText.text = currentVoltage.ToString("F1");
 
         if (receiverText != null)
-            receiverText.text = $"{receiverValue:F2} μW";
+            receiverText.text = $"{receiverValue:F2}μ";
     }
 
     void BuildCellLists()
