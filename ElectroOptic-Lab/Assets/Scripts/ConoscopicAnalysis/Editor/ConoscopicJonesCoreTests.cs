@@ -8,6 +8,10 @@ public static class ConoscopicJonesCoreTests
 {
     private const string LiNbO3ProfilePath = "Assets/LiNbO3_Profile.asset";
     private const string KtpProfilePath = "Assets/KTP_Profile.asset";
+    private const float EoSmoothElectricFieldVm = 15000000f;
+    private const float EoSmoothPhaseScale = 0.05f;
+    private const float EoSmoothAntiAliasStrength = 3f;
+    private const int EoSmoothSupersampleFactor = 2;
     private static int _passed;
     private static int _failed;
 
@@ -21,9 +25,13 @@ public static class ConoscopicJonesCoreTests
         TestParametersClamp();
         TestCpuReferenceRangeAndAperture();
         TestProfileDefaults();
+        TestUniaxialEoParameterCopy();
         TestBiaxialProfileDefaults();
         TestCpuBiaxialRangeAndDelta();
         TestGpuCoreLifecycle();
+        TestGpuElectricFieldPerturbsRawJonesParameters();
+        TestGpuContinuousEoViewUsesRawJonesEigenMode();
+        TestEoSmoothPresetParameters();
         TestGpuKtpBiaxialLifecycle();
         Debug.Log($"========== Conoscopic Jones Core Tests Done: {_passed} passed, {_failed} failed ==========");
     }
@@ -33,6 +41,7 @@ public static class ConoscopicJonesCoreTests
         var parameters = new ConoscopicJonesParameters
         {
             resolution = 1,
+            renderSupersampleFactor = 99,
             wavelengthNm = -10f,
             thicknessMm = -1f,
             ordinaryIndexNo = 0.5f,
@@ -53,6 +62,7 @@ public static class ConoscopicJonesCoreTests
 
         parameters.Clamp();
         AssertTrue("Clamp resolution", parameters.resolution == ConoscopicJonesParameters.MinResolution);
+        AssertTrue("Clamp supersample high", parameters.renderSupersampleFactor == ConoscopicJonesParameters.MaxRenderSupersampleFactor);
         AssertClose("Clamp wavelength", parameters.wavelengthNm, ConoscopicJonesParameters.MinWavelengthNm, 1e-6f);
         AssertClose("Clamp thickness", parameters.thicknessMm, ConoscopicJonesParameters.MinThicknessMm, 1e-6f);
         AssertClose("Clamp no", parameters.ordinaryIndexNo, ConoscopicJonesParameters.MinIndex, 1e-6f);
@@ -69,6 +79,10 @@ public static class ConoscopicJonesCoreTests
         AssertClose("Clamp cross width", parameters.crossWidth, ConoscopicJonesParameters.MaxCrossWidth, 1e-6f);
         AssertClose("Clamp black cutoff", parameters.blackCutoff, ConoscopicJonesParameters.MaxBlackCutoff, 1e-6f);
         AssertClose("Clamp display gamma", parameters.displayGamma, ConoscopicJonesParameters.MinDisplayGamma, 1e-6f);
+
+        var lowSupersample = new ConoscopicJonesParameters { renderSupersampleFactor = -1 };
+        lowSupersample.Clamp();
+        AssertTrue("Clamp supersample low", lowSupersample.renderSupersampleFactor == ConoscopicJonesParameters.MinRenderSupersampleFactor);
     }
 
     private static void TestCpuReferenceRangeAndAperture()
@@ -207,6 +221,14 @@ public static class ConoscopicJonesCoreTests
             core.SetParameters(parameters);
             core.ForceRecalculate();
             AssertTrue("GPU smoothed AA finite", IsUnitFinite(core.Result.MaxIntensity));
+
+            parameters.resolution = 64;
+            parameters.renderSupersampleFactor = 2;
+            core.SetParameters(parameters);
+            core.ForceRecalculate();
+            AssertTrue("GPU supersample result valid", core.Result.IsValid);
+            AssertTrue("GPU supersample final texture size", core.IntensityHeightMap != null && core.IntensityHeightMap.width == 64 && core.IntensityHeightMap.height == 64);
+            AssertTrue("GPU supersample max finite", IsUnitFinite(core.Result.MaxIntensity));
         }
         finally
         {
@@ -252,6 +274,172 @@ public static class ConoscopicJonesCoreTests
         }
     }
 
+    private static void TestUniaxialEoParameterCopy()
+    {
+        var parameters = new ConoscopicJonesParameters
+        {
+            uniaxialEoView = true,
+            uniaxialEoUsePerturbedAxis = true,
+            forceUniaxial = true,
+            biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones
+        };
+
+        var copy = new ConoscopicJonesParameters(parameters);
+        AssertTrue("Uniaxial EO view copied", copy.uniaxialEoView);
+        AssertTrue("Uniaxial EO axis option copied", copy.uniaxialEoUsePerturbedAxis);
+        AssertTrue("Uniaxial EO force copied", copy.forceUniaxial);
+        AssertTrue("Uniaxial EO mode copied", copy.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.RawJones);
+    }
+
+    private static void TestGpuElectricFieldPerturbsRawJonesParameters()
+    {
+        CrystalProfile profile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(LiNbO3ProfilePath);
+        if (profile == null)
+        {
+            Debug.LogWarning($"[SKIP] LiNbO3 profile not found at {LiNbO3ProfilePath}");
+            return;
+        }
+
+        if (Shader.Find("ElectroOptics/ConoscopicJonesIntensity") == null)
+        {
+            Debug.LogWarning("[SKIP] Conoscopic Jones shader not imported yet.");
+            return;
+        }
+
+        var go = new GameObject("ConoscopicJonesGpuCore_EField_Test");
+        try
+        {
+            var core = go.AddComponent<ConoscopicJonesGpuCore>();
+            core.SetProfile(profile);
+
+            var parameters = new ConoscopicJonesParameters(core.Parameters)
+            {
+                resolution = 32,
+                biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones,
+                electricFieldStrength = 0f
+            };
+            core.SetParameters(parameters);
+            core.ForceRecalculate();
+
+            Vector3 zeroFieldIndices = GetPrincipalIndices(core.Parameters);
+            Matrix4x4 zeroFieldMatrix = core.Parameters.worldToPrincipalMatrix;
+            AssertTrue("GPU zero-field EO result valid", core.Result.IsValid);
+            AssertTrue("GPU zero-field EO max finite", IsUnitFinite(core.Result.MaxIntensity));
+
+            parameters = new ConoscopicJonesParameters(core.Parameters)
+            {
+                biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones,
+                electricFieldStrength = 50000000f
+            };
+            core.SetParameters(parameters);
+            core.ForceRecalculate();
+
+            Vector3 fieldIndices = GetPrincipalIndices(core.Parameters);
+            Matrix4x4 fieldMatrix = core.Parameters.worldToPrincipalMatrix;
+            bool indicesChanged = (fieldIndices - zeroFieldIndices).sqrMagnitude > 1e-14f;
+            bool matrixChanged = MatrixChanged(fieldMatrix, zeroFieldMatrix, 1e-7f);
+
+            AssertTrue("GPU nonzero-field EO result valid", core.Result.IsValid);
+            AssertTrue("GPU nonzero-field EO max finite", IsUnitFinite(core.Result.MaxIntensity));
+            AssertTrue("GPU electric field perturbs RawJones parameters", indicesChanged || matrixChanged);
+        }
+        finally
+        {
+            Object.DestroyImmediate(go);
+        }
+    }
+
+    private static void TestGpuContinuousEoViewUsesRawJonesEigenMode()
+    {
+        CrystalProfile profile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(LiNbO3ProfilePath);
+        if (profile == null)
+        {
+            Debug.LogWarning($"[SKIP] LiNbO3 profile not found at {LiNbO3ProfilePath}");
+            return;
+        }
+
+        if (Shader.Find("ElectroOptics/ConoscopicJonesIntensity") == null)
+        {
+            Debug.LogWarning("[SKIP] Conoscopic Jones shader not imported yet.");
+            return;
+        }
+
+        var go = new GameObject("ConoscopicJonesGpuCore_ContinuousEO_Test");
+        try
+        {
+            var core = go.AddComponent<ConoscopicJonesGpuCore>();
+            core.SetProfile(profile);
+
+            var zeroField = new ConoscopicJonesParameters(core.Parameters)
+            {
+                resolution = 32,
+                biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones,
+                forceUniaxial = false,
+                uniaxialEoView = true,
+                uniaxialEoUsePerturbedAxis = false,
+                electricFieldStrength = 0f
+            };
+            core.SetParameters(zeroField);
+            core.ForceRecalculate();
+            Vector3 zeroFieldIndices = GetPrincipalIndices(core.Parameters);
+
+            var field = new ConoscopicJonesParameters(core.Parameters)
+            {
+                forceUniaxial = false,
+                uniaxialEoView = true,
+                uniaxialEoUsePerturbedAxis = false,
+                electricFieldStrength = 50000000f
+            };
+            core.SetParameters(field);
+            core.ForceRecalculate();
+            Vector3 fieldIndices = GetPrincipalIndices(core.Parameters);
+
+            AssertTrue("Continuous EO result valid", core.Result.IsValid);
+            AssertTrue("Continuous EO forced RawJones", core.Parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.RawJones);
+            AssertTrue("Continuous EO keeps eigen path enabled", !core.Parameters.forceUniaxial);
+            AssertTrue("Continuous EO view flag active", core.Parameters.uniaxialEoView);
+            AssertTrue("Continuous EO max finite", IsUnitFinite(core.Result.MaxIntensity));
+            AssertTrue("Continuous EO field perturbs indices", (fieldIndices - zeroFieldIndices).sqrMagnitude > 1e-14f);
+        }
+        finally
+        {
+            Object.DestroyImmediate(go);
+        }
+    }
+
+    private static void TestEoSmoothPresetParameters()
+    {
+        CrystalProfile profile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(LiNbO3ProfilePath);
+        if (profile == null)
+        {
+            Debug.LogWarning($"[SKIP] LiNbO3 profile not found at {LiNbO3ProfilePath}");
+            return;
+        }
+
+        var parameters = new ConoscopicJonesParameters();
+        parameters.ApplyProfileDefaults(profile);
+        parameters.resolution = 256;
+        parameters.renderSupersampleFactor = EoSmoothSupersampleFactor;
+        parameters.biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones;
+        parameters.forceUniaxial = false;
+        parameters.uniaxialEoView = true;
+        parameters.uniaxialEoUsePerturbedAxis = false;
+        parameters.electricFieldStrength = EoSmoothElectricFieldVm;
+        parameters.phaseScale = EoSmoothPhaseScale;
+        parameters.phaseAntiAliasStrength = EoSmoothAntiAliasStrength;
+        parameters.Clamp();
+
+        AssertTrue("EO smooth mode RawJones", parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.RawJones);
+        AssertTrue("EO smooth continuous view", parameters.uniaxialEoView);
+        AssertTrue("EO smooth fixed axis", !parameters.uniaxialEoUsePerturbedAxis);
+        AssertTrue("EO smooth keeps eigen path enabled", !parameters.forceUniaxial);
+        AssertTrue("EO smooth resolution", parameters.resolution == 256);
+        AssertTrue("EO smooth supersample", parameters.renderSupersampleFactor == EoSmoothSupersampleFactor);
+        AssertClose("EO smooth field", parameters.electricFieldStrength, EoSmoothElectricFieldVm, 0.5f);
+        AssertClose("EO smooth phase scale", parameters.phaseScale, EoSmoothPhaseScale, 1e-6f);
+        AssertClose("EO smooth AA", parameters.phaseAntiAliasStrength, EoSmoothAntiAliasStrength, 1e-6f);
+    }
+
     private static void AssertGpuCloseToCpu(string name, ConoscopicJonesGpuCore core, int x, int y, float tolerance)
     {
         float gpu = ReadGpuPixel(core.IntensityHeightMap, x, y);
@@ -281,6 +469,30 @@ public static class ConoscopicJonesCoreTests
     private static bool IsUnitFinite(float value)
     {
         return !float.IsNaN(value) && !float.IsInfinity(value) && value >= -1e-6f && value <= 1f + 1e-6f;
+    }
+
+    private static Vector3 GetPrincipalIndices(ConoscopicJonesParameters parameters)
+    {
+        return new Vector3(
+            parameters.principalIndexNx,
+            parameters.principalIndexNy,
+            parameters.principalIndexNz);
+    }
+
+    private static bool MatrixChanged(Matrix4x4 a, Matrix4x4 b, float tolerance)
+    {
+        for (int row = 0; row < 4; row++)
+        {
+            for (int column = 0; column < 4; column++)
+            {
+                if (Mathf.Abs(a[row, column] - b[row, column]) > tolerance)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static void AssertClose(string name, float actual, float expected, float tolerance)
