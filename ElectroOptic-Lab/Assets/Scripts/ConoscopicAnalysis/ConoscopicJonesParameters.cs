@@ -16,6 +16,8 @@ namespace ElectroOptics.ConoscopicAnalysis
     {
         public const int MinResolution = 16;
         public const int MaxResolution = 1024;
+        public const int MinRenderSupersampleFactor = 1;
+        public const int MaxRenderSupersampleFactor = 4;
         public const float MinWavelengthNm = 200f;
         public const float MaxWavelengthNm = 2000f;
         public const float MinThicknessMm = 0.001f;
@@ -54,6 +56,7 @@ namespace ElectroOptics.ConoscopicAnalysis
         public const float PaperKtp1PhiDeg = 0f;
 
         public int resolution = 256;
+        public int renderSupersampleFactor = 1;
         public float wavelengthNm = 632.8f;
         public float thicknessMm = 20f;
         public float ordinaryIndexNo = 2.286f;
@@ -84,6 +87,8 @@ namespace ElectroOptics.ConoscopicAnalysis
         public Vector2 initialMelatopeOffset = new Vector2(0.035f, -0.025f);
         public float uniaxialEpsilon = DefaultUniaxialEpsilon;
         public bool forceUniaxial = false;
+        public bool uniaxialEoView = false;
+        public bool uniaxialEoUsePerturbedAxis = false;
         public ConoscopicBiaxialDisplayMode biaxialDisplayMode = ConoscopicBiaxialDisplayMode.ConoscopicTeaching;
         public Matrix4x4 worldToPrincipalMatrix = Matrix4x4.identity;
 
@@ -100,6 +105,7 @@ namespace ElectroOptics.ConoscopicAnalysis
             }
 
             resolution = other.resolution;
+            renderSupersampleFactor = other.renderSupersampleFactor;
             wavelengthNm = other.wavelengthNm;
             thicknessMm = other.thicknessMm;
             ordinaryIndexNo = other.ordinaryIndexNo;
@@ -130,6 +136,8 @@ namespace ElectroOptics.ConoscopicAnalysis
             initialMelatopeOffset = other.initialMelatopeOffset;
             uniaxialEpsilon = other.uniaxialEpsilon;
             forceUniaxial = other.forceUniaxial;
+            uniaxialEoView = other.uniaxialEoView;
+            uniaxialEoUsePerturbedAxis = other.uniaxialEoUsePerturbedAxis;
             biaxialDisplayMode = other.biaxialDisplayMode;
             worldToPrincipalMatrix = other.worldToPrincipalMatrix;
             Clamp();
@@ -218,6 +226,7 @@ namespace ElectroOptics.ConoscopicAnalysis
         public void Clamp()
         {
             resolution = Mathf.Clamp(resolution, MinResolution, MaxResolution);
+            renderSupersampleFactor = Mathf.Clamp(renderSupersampleFactor, MinRenderSupersampleFactor, MaxRenderSupersampleFactor);
             wavelengthNm = Mathf.Clamp(wavelengthNm, MinWavelengthNm, MaxWavelengthNm);
             thicknessMm = Mathf.Clamp(thicknessMm, MinThicknessMm, MaxThicknessMm);
             ordinaryIndexNo = Mathf.Clamp(ordinaryIndexNo, MinIndex, MaxIndex);

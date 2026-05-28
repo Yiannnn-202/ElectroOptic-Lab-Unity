@@ -17,6 +17,7 @@ namespace ElectroOptics.ConoscopicAnalysis
 
         private Material _material;
         private RenderTexture _intensityHeightMap;
+        private RenderTexture _supersampledIntensityMap;
         private readonly ConoscopicJonesResult _result = new ConoscopicJonesResult();
         private bool _isDirty = true;
         private bool _warnedBiaxialFallback;
@@ -115,7 +116,12 @@ namespace ElectroOptics.ConoscopicAnalysis
 
             EnsureRenderTexture();
             UploadParameters();
-            Graphics.Blit(null, _intensityHeightMap, _material, 0);
+            RenderTexture renderTarget = GetRenderTarget();
+            Graphics.Blit(null, renderTarget, _material, 0);
+            if (renderTarget != _intensityHeightMap)
+            {
+                Graphics.Blit(renderTarget, _intensityHeightMap);
+            }
 
             Vector2 minMax = EstimateMinMaxFromReadback();
             _result.SetValid(_profile, _parameters, _intensityHeightMap, minMax.x, minMax.y);
@@ -165,10 +171,12 @@ namespace ElectroOptics.ConoscopicAnalysis
         private void EnsureRenderTexture()
         {
             int resolution = _parameters.resolution;
+            int supersampledResolution = GetSupersampledResolution();
             if (_intensityHeightMap != null
                 && _intensityHeightMap.width == resolution
                 && _intensityHeightMap.height == resolution)
             {
+                EnsureSupersampledRenderTexture(supersampledResolution);
                 return;
             }
 
@@ -191,6 +199,49 @@ namespace ElectroOptics.ConoscopicAnalysis
                 autoGenerateMips = false
             };
             _intensityHeightMap.Create();
+            EnsureSupersampledRenderTexture(supersampledResolution);
+        }
+
+        private void EnsureSupersampledRenderTexture(int resolution)
+        {
+            if (resolution <= _parameters.resolution)
+            {
+                ReleaseSupersampledRenderTexture();
+                return;
+            }
+
+            if (_supersampledIntensityMap != null
+                && _supersampledIntensityMap.width == resolution
+                && _supersampledIntensityMap.height == resolution
+                && _supersampledIntensityMap.format == _intensityHeightMap.format)
+            {
+                return;
+            }
+
+            ReleaseSupersampledRenderTexture();
+            _supersampledIntensityMap = new RenderTexture(resolution, resolution, 0, _intensityHeightMap.format)
+            {
+                name = "Conoscopic Jones Supersampled Intensity",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+                useMipMap = false,
+                autoGenerateMips = false
+            };
+            _supersampledIntensityMap.Create();
+        }
+
+        private RenderTexture GetRenderTarget()
+        {
+            return _supersampledIntensityMap != null ? _supersampledIntensityMap : _intensityHeightMap;
+        }
+
+        private int GetSupersampledResolution()
+        {
+            int factor = Mathf.Clamp(
+                _parameters.renderSupersampleFactor,
+                ConoscopicJonesParameters.MinRenderSupersampleFactor,
+                ConoscopicJonesParameters.MaxRenderSupersampleFactor);
+            return Mathf.Min(_parameters.resolution * factor, ConoscopicJonesParameters.MaxResolution);
         }
 
         private void UploadParameters()
@@ -205,7 +256,8 @@ namespace ElectroOptics.ConoscopicAnalysis
                 _parameters.principalIndexNz,
                 0f));
             _material.SetMatrix("_WorldToPrincipalMatrix", _parameters.worldToPrincipalMatrix);
-            _material.SetFloat("_UseBiaxial", _parameters.IsBiaxial() ? 1f : 0f);
+            _material.SetFloat("_UseBiaxial", _parameters.IsBiaxial() || _parameters.uniaxialEoView ? 1f : 0f);
+            _material.SetFloat("_ContinuousEigenMode", _parameters.uniaxialEoView ? 1f : 0f);
             _material.SetFloat("_BiaxialDisplayMode", (float)_parameters.biaxialDisplayMode);
             _material.SetVector("_BiaxialAxesView", DeriveBiaxialAxesView(
                 new Vector3(
@@ -242,10 +294,12 @@ namespace ElectroOptics.ConoscopicAnalysis
         {
             if (_profile == null)
             {
+                ApplyContinuousEoDisplayMode();
                 return;
             }
 
-            if (_parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1
+            if (!_parameters.uniaxialEoView
+                && _parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.PaperKtp1
                 && ConoscopicJonesParameters.IsKtpProfile(_profile))
             {
                 _parameters.ApplyPrincipalIndices(new Vector3((float)_profile.n_x, (float)_profile.n_y, (float)_profile.n_z));
@@ -260,6 +314,7 @@ namespace ElectroOptics.ConoscopicAnalysis
             if (_physicalCore == null)
             {
                 Debug.LogWarning("[ConoscopicJonesGpuCore] PhysicalCore is unavailable; profile defaults remain active.");
+                ApplyContinuousEoDisplayMode();
                 return;
             }
 
@@ -269,19 +324,38 @@ namespace ElectroOptics.ConoscopicAnalysis
             {
                 profile = _profile,
                 crystalRotation = ResolveCrystalRotation(),
-                localEField = geometry.LocalEFieldDirection * _parameters.electricFieldStrength,
-                probeFieldDirection = geometry.ProbeFieldDirection,
+                localEField = Vector3.forward * _parameters.electricFieldStrength,
+                probeFieldDirection = Vector3.forward,
                 worldLightDirection = geometry.WorldLightDirection
             };
 
             _physicalCore.ApplyConfig(config);
             _parameters.ApplyPrincipalIndices(_physicalCore.NewPrincipalIndices);
             _parameters.worldToPrincipalMatrix = ResolveMatrix(_physicalCore.ShaderWorldToPrincipalMatrix);
+            ApplyContinuousEoDisplayMode();
 
             if (HasBiaxialProfile(_profile) && !_parameters.IsBiaxial() && !_warnedBiaxialFallback)
             {
                 Debug.LogWarning("[ConoscopicJonesGpuCore] Biaxial profile fell back to uniaxial mode because principal indices are near-degenerate or invalid.");
                 _warnedBiaxialFallback = true;
+            }
+        }
+
+        private void ApplyContinuousEoDisplayMode()
+        {
+            if (!_parameters.uniaxialEoView)
+            {
+                return;
+            }
+
+            _parameters.biaxialDisplayMode = ConoscopicBiaxialDisplayMode.RawJones;
+            _parameters.forceUniaxial = false;
+            if (_parameters.uniaxialEoUsePerturbedAxis)
+            {
+                Vector3 opticAxis = DerivePerturbedOpticAxisView(_parameters.worldToPrincipalMatrix);
+                _parameters.opticAxisTiltDeg = Mathf.Acos(Mathf.Clamp(opticAxis.z, -1f, 1f)) * Mathf.Rad2Deg;
+                _parameters.opticAxisAzimuthDeg = Mathf.Repeat(Mathf.Atan2(opticAxis.y, opticAxis.x) * Mathf.Rad2Deg, 360f);
+                _parameters.Clamp();
             }
         }
 
@@ -318,6 +392,14 @@ namespace ElectroOptics.ConoscopicAnalysis
             Vector3 basisZ = new Vector3(matrix.m20, matrix.m21, matrix.m22);
             float magnitude = basisX.sqrMagnitude + basisY.sqrMagnitude + basisZ.sqrMagnitude;
             return magnitude > 0.000001f ? matrix : Matrix4x4.identity;
+        }
+
+        private static Vector3 DerivePerturbedOpticAxisView(Matrix4x4 viewToPrincipalMatrix)
+        {
+            Matrix4x4 principalToView = viewToPrincipalMatrix.transpose;
+            Vector3 axis = principalToView.MultiplyVector(Vector3.forward);
+            axis = axis.sqrMagnitude > 0.000001f ? axis.normalized : Vector3.forward;
+            return axis.z < 0f ? -axis : axis;
         }
 
         private static bool HasBiaxialProfile(CrystalProfile profile)
@@ -429,6 +511,7 @@ namespace ElectroOptics.ConoscopicAnalysis
 
         private void ReleaseRuntimeResources()
         {
+            ReleaseSupersampledRenderTexture();
             if (_material != null)
             {
                 DestroyImmediateSafe(_material);
@@ -441,6 +524,18 @@ namespace ElectroOptics.ConoscopicAnalysis
                 DestroyImmediateSafe(_intensityHeightMap);
                 _intensityHeightMap = null;
             }
+        }
+
+        private void ReleaseSupersampledRenderTexture()
+        {
+            if (_supersampledIntensityMap == null)
+            {
+                return;
+            }
+
+            _supersampledIntensityMap.Release();
+            DestroyImmediateSafe(_supersampledIntensityMap);
+            _supersampledIntensityMap = null;
         }
 
         private static void DestroyImmediateSafe(UnityEngine.Object target)

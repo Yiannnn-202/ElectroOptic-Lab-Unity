@@ -22,6 +22,7 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
         _ElectroOpticCoefficientR22 ("Electro Optic r22", Float) = 0.0
         _ApertureRadius ("Aperture Radius", Float) = 1.0
         [HideInInspector] _BiaxialAxesView ("Biaxial Axes View", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ContinuousEigenMode ("Continuous Eigen Mode", Float) = 0
         _InitialMelatopeOffset ("Initial Melatope Offset", Vector) = (0.035, -0.025, 0, 0)
         _PhaseScale ("Biaxial Phase Scale", Range(0.01, 5)) = 0.1
         _RingSharpness ("Ring Sharpness", Range(0.25, 4)) = 1.0
@@ -55,6 +56,7 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
             float3 _PrincipalIndices;
             float4x4 _WorldToPrincipalMatrix;
             float _UseBiaxial;
+            float _ContinuousEigenMode;
             float _BiaxialDisplayMode;
             float4 _BiaxialAxesView;
             float4 _InitialMelatopeOffset;
@@ -278,7 +280,11 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                 intensity = 0.0;
                 float3 indices = _PrincipalIndices;
                 float minDiff = min(abs(indices.x - indices.y), min(abs(indices.y - indices.z), abs(indices.x - indices.z)));
-                if (_UseBiaxial < 0.5 || minDiff < max(_UniaxialEpsilon, 1e-6))
+                float maxPairSplit = max(abs(indices.x - indices.y), max(abs(indices.y - indices.z), abs(indices.x - indices.z)));
+                bool continuousEigen = _ContinuousEigenMode > 0.5;
+                if (_UseBiaxial < 0.5
+                    || (!continuousEigen && minDiff < max(_UniaxialEpsilon, 1e-6))
+                    || (continuousEigen && maxPairSplit < 1e-7))
                 {
                     return false;
                 }
@@ -314,7 +320,11 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
 
                 float3 indices = _PrincipalIndices;
                 float minDiff = min(abs(indices.x - indices.y), min(abs(indices.y - indices.z), abs(indices.x - indices.z)));
-                if (_UseBiaxial < 0.5 || minDiff < max(_UniaxialEpsilon, 1e-6))
+                float maxPairSplit = max(abs(indices.x - indices.y), max(abs(indices.y - indices.z), abs(indices.x - indices.z)));
+                bool continuousEigen = _ContinuousEigenMode > 0.5;
+                if (_UseBiaxial < 0.5
+                    || (!continuousEigen && minDiff < max(_UniaxialEpsilon, 1e-6))
+                    || (continuousEigen && maxPairSplit < 1e-7))
                 {
                     return false;
                 }
@@ -344,7 +354,8 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                 float2 eigen2 = SmallestEigenVector2(m00, m01, m11);
                 float3 eigenPrincipal = normalize(tangentU * eigen2.x + tangentV * eigen2.y);
                 float3x3 principalToView = transpose((float3x3)_WorldToPrincipalMatrix);
-                eigenA = SafeNormalizeOnWavefront(mul(eigenPrincipal, principalToView), rayDir, CrystalReferenceAxis());
+                float3 fallbackAxis = continuousEigen ? OpticAxis() : CrystalReferenceAxis();
+                eigenA = SafeNormalizeOnWavefront(mul(eigenPrincipal, principalToView), rayDir, fallbackAxis);
 
                 float3 reference = ProjectOntoWavefront(CrystalReferenceAxis(), rayDir);
                 if (dot(reference, reference) > 1e-8 && dot(eigenA, normalize(reference)) < 0.0)
@@ -405,9 +416,9 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                 float analyzerE = dot(analyzer, eDirection);
                 float oTerm = analyzerO * oAmplitude;
                 float eTerm = analyzerE * eAmplitude;
-                float deltaWidth = fwidth(delta);
+                float phaseWidth = fwidth(delta) * _PhaseAntiAliasStrength;
                 float visibility = _PhaseAntiAliasStrength > 0.0
-                    ? exp(-0.08 * pow(deltaWidth * _PhaseAntiAliasStrength, 2.0))
+                    ? exp(-0.5 * phaseWidth * phaseWidth)
                     : 1.0;
                 float intensity = saturate(_InitialIntensity * (oTerm * oTerm + eTerm * eTerm + 2.0 * oTerm * eTerm * cos(delta) * visibility));
                 return float4(intensity, intensity, intensity, 1.0);

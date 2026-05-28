@@ -17,7 +17,7 @@ namespace ElectroOptics
                 return new CrystalWorkingGeometry
                 {
                     WorldLightDirection = Vector3.up,
-                    LocalEFieldDirection = Vector3.zero,
+                    LocalEFieldDirection = Vector3.forward,
                     ProbeFieldDirection = Vector3.forward,
                     ModulationMode = ModulationMode.Transverse,
                     OverridesRequestedGeometry = true
@@ -27,8 +27,8 @@ namespace ElectroOptics
             return new CrystalWorkingGeometry
             {
                 WorldLightDirection = NormalizeOrFallback(requestedWorldLightDirection, Vector3.forward),
-                LocalEFieldDirection = Vector3.zero,
-                ProbeFieldDirection = Vector3.zero,
+                LocalEFieldDirection = Vector3.forward,
+                ProbeFieldDirection = Vector3.forward,
                 ModulationMode = ModulationMode.Transverse,
                 OverridesRequestedGeometry = false
             };
