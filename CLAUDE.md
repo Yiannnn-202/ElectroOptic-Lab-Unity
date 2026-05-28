@@ -121,10 +121,36 @@ Located in `Scripts/Oscilloscope/`:
 - **OscilloscopeWaveformGraphic.cs**: Custom uGUI Graphic subclass rendering waveform lines via OnPopulateMesh (no texture/material needed)
 - **Scene4OscilloscopeDispatcher.cs**: Scene4 UI orchestrator — binds oscilloscope parameters to UI (voltage display, status, key-point recording), drives waveform refresh via OscilloscopeCore events, auto-binds UI references from DataCanvas hierarchy
 
+### Conoscopic Analysis Module
+
+Located in `Scripts/ConoscopicAnalysis/`, this module provides two independent computational pipelines for conoscopic interference, both using `ElectroOptics.ConoscopicAnalysis` namespace:
+
+**CPU-based Intensity pipeline** (dirty-flag-driven MonoBehaviour):
+- **ConoscopicIntensityCore.cs**: MonoBehaviour orchestrator — takes `ConoscopicIntensityParameters`, calls `CrystalPhysicalCore.ApplyConfig`, delegates to `ConoscopicIntensityCalculator.Compute`. Uses dirty-flag pattern like OscilloscopeCore.
+- **ConoscopicIntensityCalculator.cs**: Static computation engine — computes interference intensity across a grid using Fresnel-based analytic formulas.
+- **ConoscopicIntensityParameters.cs**: Serializable input (resolution, FOV, wavelength, phase scale, display mapping, laser color, crystal rotation).
+- **ConoscopicIntensityResult.cs**: Output container (intensity array, min/max, validity flag).
+- **ConoscopicIntensitySurfaceVisualizer.cs**: 3D mesh surface visualization of the computed intensity field.
+
+**GPU-based Jones calculus pipeline** (shader-driven via `[ExecuteAlways]`):
+- **ConoscopicJonesGpuCore.cs**: GPU orchestrator — uses `ElectroOptics/ConoscopicJonesIntensity` shader to compute intensity via Jones calculus on the GPU. Supports uniaxial and biaxial crystal modes. Reads back via `Graphics.Blit` + `ReadPixels` for min/max estimation.
+- **ConoscopicJonesCpuReference.cs**: CPU reference implementation of Jones calculus for validation/comparison.
+- **ConoscopicJonesParameters.cs**: Serializable input with dual-mode profile support (uniaxial via no/ne or biaxial via nx/ny/nz). Includes `biaxialDisplayMode` enum (ConoscopicTeaching, RawJones, PaperKtp1). Auto-resolves no/ne from principal indices. Supports polarizer/analyzer angle, crystal rotation, optic axis tilt, electric field, and KTP paper preset.
+- **ConoscopicJonesResult.cs**: Output container referencing the computed RenderTexture.
+- **ConoscopicJonesSurfaceVisualizer.cs**: 3D mesh visualization for Jones results.
+
+Both pipelines bind to `CrystalPhysicalCore` to apply crystal configs and read principal indices / world-to-principal matrices. The Jones pipeline can also operate without a `CrystalPhysicalCore` by falling back to profile defaults.
+
 ### Testing
 
-Editor tests in `Scripts/Oscilloscope/Editor/`:
-- **OscilloscopeCalcTests.cs**: Unity Editor-only tests for VpiCalculator and WaveformCalculator. Run via menu **ElectroOptics/Tests/Run Oscilloscope Calc Tests**. Tests include extinction, frequency doubling, same-frequency modulation, compensator phase, and array-reuse validation.
+Editor tests (run via Unity Test Runner or menu commands):
+- **OscilloscopeCalcTests.cs** (`Scripts/Oscilloscope/Editor/`): Tests for VpiCalculator and WaveformCalculator. Run via menu **ElectroOptics/Tests/Run Oscilloscope Calc Tests**. Covers extinction, frequency doubling, same-frequency modulation, compensator phase, and array-reuse validation.
+- **ConoscopicIntensityCoreTests.cs** (`Scripts/ConoscopicAnalysis/Editor/`): Tests for ConoscopicIntensityCalculator against known analytic results.
+- **ConoscopicJonesCoreTests.cs** (`Scripts/ConoscopicAnalysis/Editor/`): Tests for ConoscopicJonesCpuReference against ConoscopicJonesGpuCore.
+- **PowerReadoutCalculatorTests.cs** (`Scripts/Power/Editor/`): Tests for PowerReadoutCalculator transmission and alignment efficiency math.
+- **LiNbO3PowerReadoutVpiTests.cs** (`Scripts/Power/Editor/`): Tests for LiNbO3 Vπ calculation against expected values.
+
+Editor-only visualization builders also exist in `ConoscopicAnalysis/Editor/` for constructing test scenes programmatically.
 
 ### Rotate Stand System
 
@@ -145,6 +171,14 @@ Located in `Scripts/exercise/`:
 - **ReceiverStateController.cs** (Scripts/Receiver/): Receiver state machine (0=off, 1=monitoring/blue, 2=selected for adjustment/green). Double-click to power on/off, single click to toggle monitor/selected
 - **PowerReadoutController.cs**: Power meter readout window with virtual adjustment via WASD, calculates power based on beam focus model
 
+### Power Readout Math
+
+Located in `Scripts/Power/` (separate from the Power Meter UI in `Scripts/Receiver/`):
+
+- **IPowerReadoutSource.cs**: Interface exposing `CurrentStablePower`, `CurrentDisplayPower`, `CurrentAlignmentEfficiency` for any power-measuring component.
+- **IVoltageSource.cs**: Interface for components that provide a voltage value.
+- **PowerReadoutCalculator.cs**: Static calculator for electro-optic power transmission. Computes transmission via `sin²(πV/(2Vπ))` with leakage/visibility parameters, alignment efficiency from Gaussian beam focus model, and Perlin-noise display jitter. Pure math — no MonoBehaviour dependency.
+
 ### Voltage Switch / Camera Focus
 
 Located in `Scripts/UI/VoltageSwitch/`:
@@ -162,9 +196,10 @@ Located in `Scripts/UI/VoltageSwitch/`:
 
 ### Shader Visualization
 
-- **ConoscopicInterference.shader**: GPU-based visualization of interference patterns using Fresnel equations
+- **ConoscopicInterference.shader**: GPU-based visualization of interference patterns using Fresnel equations. Used by ConoscopicTextureRenderer and CrystalVisualizer.
+- **ConoscopicJonesIntensity.shader** (registered as `ElectroOptics/ConoscopicJonesIntensity`): GPU-based Jones calculus intensity computation. Used by ConoscopicJonesGpuCore for both uniaxial and biaxial crystal modes. Supports polarizer/analyzer angles, crystal rotation, optic axis tilt, electric field modulation, and KTP paper-mode display.
 - **CrystalVisualizer.cs** (Scripts/ShaderScripts/): Syncs crystal physics data to shader properties (refractive indices, rotation matrix, crystal length, wavelength, FOV, base color)
-- **Mat_Conoscopic.mat**: Material using the shader for visualization
+- **Mat_Conoscopic.mat**: Material using the ConoscopicInterference shader for visualization
 
 ### Scene Structure
 
@@ -240,6 +275,7 @@ Windowed UI is created dynamically at runtime:
 | `ElectroOptics.UI.ControlPanel` | CrystalRotationPanel, RotationKnob, AngleDisplay |
 | `ElectroOptics.UI.CrystalSelector` | CrystalCardSelector |
 | `ElectroOptics.Oscilloscope` | OscilloscopeCore, OscilloscopeCrystalBridge, OscilloscopeParameters, WaveformCalculator, WaveformResult, VpiCalculator, OscilloscopeWaveformGraphic, Scene4OscilloscopeDispatcher |
+| `ElectroOptics.ConoscopicAnalysis` | ConoscopicIntensityCore, ConoscopicIntensityCalculator, ConoscopicIntensityParameters, ConoscopicIntensityResult, ConoscopicIntensitySurfaceVisualizer, ConoscopicJonesGpuCore, ConoscopicJonesCpuReference, ConoscopicJonesParameters, ConoscopicJonesResult, ConoscopicJonesSurfaceVisualizer |
 
 ## Material Safety
 
