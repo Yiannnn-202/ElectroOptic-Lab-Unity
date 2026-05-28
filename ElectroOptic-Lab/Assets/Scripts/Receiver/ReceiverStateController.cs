@@ -29,6 +29,7 @@ public class ReceiverStateController : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
+            if (ExperimentCameraController.IsInCloseUpView) return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
