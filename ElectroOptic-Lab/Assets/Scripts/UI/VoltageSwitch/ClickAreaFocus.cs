@@ -14,8 +14,8 @@ public class ClickAreaFocus : MonoBehaviour
 
     void OnMouseDown()
     {
-        // 如果你之前加了全局特写锁，可以把下面这句加上，防止冲突
-        // if (ExperimentCameraController.IsInCloseUpView) return;
+        // 全局特写锁：防止在CloseUp视角中误触其他区域
+        if (ExperimentCameraController.IsInCloseUpView) return;
 
         float timeSinceLastClick = Time.time - lastClickTime;
 
