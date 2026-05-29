@@ -200,6 +200,12 @@
 
     document.getElementById("exportBtn").addEventListener("click", exportReport);
 
+    // ---- PDF export via browser print ----
+    document.getElementById("pdfBtn").addEventListener("click", function () {
+        if (editing) exitEditMode();
+        window.print();
+    });
+
     // ====================================================================
     //  Image Upload — click / drag-drop → FileReader → base64 preview
     // ====================================================================
@@ -542,10 +548,11 @@
     //  Init everything on DOM ready
     // ====================================================================
     function initAll() {
+        initImageUpload("conoscopicZone");
         initImageUpload("dcCurveZone");
         initImageUpload("acWaveZone");
-        initDataTable("dcDataTable", 3, true);    // expandable: 4 data cols, 3 rows
-        initDataTable("acDataTable", 5, false);   // fixed columns
+        initDataTable("dcDataTable", 3, true);      // expandable: 4 data cols, 3 rows
+        initDataTable("acDataTable", 5, false);     // fixed columns
         initSync();
     }
 

@@ -615,7 +615,8 @@ body.editing .vpi-input:focus {
     break-inside: avoid;
   }
 
-  .toolbar {
+  .toolbar,
+  .tool-btn {
     display: none !important;
   }
 

@@ -9,7 +9,8 @@
 <body>
   <div class="toolbar">
     <button id="editToggle" class="tool-btn" title="编辑报告">&#9998;</button>
-    <button id="exportBtn" class="tool-btn" title="导出保存">&#128190;</button>
+    <button id="exportBtn" class="tool-btn" title="导出 HTML">&#128190;</button>
+    <button id="pdfBtn" class="tool-btn" title="导出 PDF">&#128196;</button>
   </div>
   <main class="page">
     <header class="cover">
@@ -102,6 +103,27 @@
 
     <section>
       <h2>四、原始实验数据</h2>
+
+      <h3>4.0 观察锥光干涉图</h3>
+
+      <div class="result-input-group">
+        <label>晶体类型：</label>
+        <input type="text" class="vpi-input" id="conoscopicCrystal" placeholder="如 LiNbO₃" style="width:200px" />
+      </div>
+
+      <div class="image-upload-zone" id="conoscopicZone">
+        <input type="file" accept="image/*" class="file-input" hidden />
+        <div class="upload-drop-area">
+          <span class="upload-icon">📷</span>
+          <span class="upload-text">点击上传或拖拽锥光干涉图到此处</span>
+          <span class="upload-hint">支持 JPG、PNG 格式</span>
+        </div>
+        <div class="upload-preview-wrap" style="display:none">
+          <img class="preview-img" alt="锥光干涉图预览" />
+          <button type="button" class="remove-img-btn" title="删除图片">✕</button>
+          <span class="preview-label">锥光干涉图</span>
+        </div>
+      </div>
 
       <h3>4.1 极值法：直流偏置电压与光功率测量数据</h3>
 
