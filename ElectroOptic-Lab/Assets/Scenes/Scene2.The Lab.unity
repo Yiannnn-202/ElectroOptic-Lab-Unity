@@ -229,7 +229,7 @@ GameObject:
   - component: {fileID: 57344706}
   - component: {fileID: 57344705}
   - component: {fileID: 57344707}
-  m_Layer: 7
+  m_Layer: 9
   m_Name: Btn_LU_ClockWise1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2226,6 +2226,89 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 469333794}
   m_CullTransparentMesh: 1
+--- !u!1 &497848007
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 497848008}
+  - component: {fileID: 497848009}
+  m_Layer: 7
+  m_Name: Camera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &497848008
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 497848007}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: -0.7990004, y: 2.2710001, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 824895148}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!20 &497848009
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 497848007}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.3
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 503
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 8400000, guid: ee4533d965fffc24eb6ee15652b47883, type: 2}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
 --- !u!1001 &505246218
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3359,7 +3442,7 @@ GameObject:
   - component: {fileID: 709103913}
   - component: {fileID: 709103912}
   - component: {fileID: 709103914}
-  m_Layer: 7
+  m_Layer: 9
   m_Name: Btn_LU_CounterClockWise1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3943,7 +4026,7 @@ GameObject:
   - component: {fileID: 836963990}
   - component: {fileID: 836963989}
   - component: {fileID: 836963988}
-  m_Layer: 7
+  m_Layer: 9
   m_Name: Btn_LU_ClockWise1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4234,6 +4317,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 591b98c03bb6f63429e93d2e56221e6c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2120936868}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 591b98c03bb6f63429e93d2e56221e6c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 497848008}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 591b98c03bb6f63429e93d2e56221e6c, type: 3}
       insertIndex: -1
@@ -4428,6 +4514,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 591b98c03bb6f63429e93d2e56221e6c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1585714532}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 591b98c03bb6f63429e93d2e56221e6c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1867475242}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 591b98c03bb6f63429e93d2e56221e6c, type: 3}
       insertIndex: -1
@@ -4866,7 +4955,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 1.598, y: 196.638, z: -24.417}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.07, y: 1.86}
+  m_AnchoredPosition: {x: 0.11, y: 1.86}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &930510494
@@ -19790,7 +19879,7 @@ GameObject:
   - component: {fileID: 1220733530}
   - component: {fileID: 1220733529}
   - component: {fileID: 1220733528}
-  m_Layer: 7
+  m_Layer: 9
   m_Name: Btn_LU_CounterClockWise1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -20125,16 +20214,16 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1253970646}
-  m_LocalRotation: {x: -0.32071722, y: 0.9362552, z: 0.027239587, w: -0.14079987}
+  m_LocalRotation: {x: -0.37891528, y: 0.9142521, z: 0.03603051, w: -0.1388095}
   m_LocalPosition: {x: 0, y: 0, z: 0.75000125}
   m_LocalScale: {x: 0.0015, y: 0.008, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1555301874}
-  m_LocalEulerAnglesHint: {x: 2.253, y: 196.34, z: -37.495}
+  m_LocalEulerAnglesHint: {x: 2.253, y: 196.34, z: -44.7}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.08000043, y: 2.1100001}
+  m_AnchoredPosition: {x: -0.02, y: 2.05}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1316833641
@@ -21200,7 +21289,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!223 &1555301870
 Canvas:
   m_ObjectHideFlags: 0
@@ -21302,10 +21391,10 @@ MonoBehaviour:
   targetLaser: {fileID: 213685691}
   btn_TR_Clockwise: {fileID: 1253970647}
   btn_TR_Counter: {fileID: 911867138}
-  rotationAxisTR: {x: 0, y: -1, z: 1}
+  rotationAxisTR: {x: 0, y: -2, z: 1}
   btn_BL_Clockwise: {fileID: 316467142}
   btn_BL_Counter: {fileID: 1627398156}
-  rotationAxisBL: {x: 0, y: 1, z: -1}
+  rotationAxisBL: {x: 0, y: 2, z: -1}
   degreesPerSecond: 1
 --- !u!1 &1585714531
 GameObject:
@@ -21320,7 +21409,8 @@ GameObject:
   - component: {fileID: 1585714535}
   - component: {fileID: 1585714534}
   - component: {fileID: 1585714537}
-  m_Layer: 7
+  - component: {fileID: 1585714538}
+  m_Layer: 9
   m_Name: CloseUpUI_Polarizer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -21426,6 +21516,28 @@ MonoBehaviour:
   targetStand: {fileID: 1446510141}
   btnCounterClockwise: {fileID: 1220733526}
   btnClockwise: {fileID: 836963986}
+--- !u!114 &1585714538
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1585714531}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59fa1ae1cc0d59b4d88fa16493301d9d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dialRenderTexture: {fileID: 8400000, guid: 042dead1dcec79243885071ef23afe24, type: 2}
+  windowSize: {x: 600, y: 300}
+  windowPosition: {x: -650, y: 375}
+  windowTitle: "\u523B\u5EA6\u76D8"
+  fadeDuration: 0.3
+  dialPadding:
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
 --- !u!1 &1627398155
 GameObject:
   m_ObjectHideFlags: 0
@@ -21559,7 +21671,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 4.946, y: 205.407, z: 13.653}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.3400008, y: 1.3700001}
+  m_AnchoredPosition: {x: -0.31, y: 1.3700001}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1001 &1636275411
@@ -22345,6 +22457,89 @@ MonoBehaviour:
   targetKnob: {fileID: 991356464}
   rotationAxis: {x: 0, y: 1, z: 0}
   rotateSpeed: 50
+--- !u!1 &1867475241
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1867475242}
+  - component: {fileID: 1867475243}
+  m_Layer: 7
+  m_Name: Camera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1867475242
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1867475241}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: -0.83900034, y: 2.262, z: 0.01000011}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 588188119}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!20 &1867475243
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1867475241}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.3
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 503
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 8400000, guid: 042dead1dcec79243885071ef23afe24, type: 2}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
 --- !u!1 &1890413596
 GameObject:
   m_ObjectHideFlags: 0
@@ -22650,8 +22845,8 @@ MonoBehaviour:
   screenOpticalComponent: {fileID: 695835585}
   beamExpanderOpticalComponent: {fileID: 1187543443}
   crystalOpticalComponent: {fileID: 1032930230}
-  panelSize: {x: 450, y: 450}
-  panelPosition: {x: 1425, y: 360}
+  panelSize: {x: 400, y: 400}
+  panelPosition: {x: 1475, y: 360}
   transitionDuration: 0.3
 --- !u!4 &1931840620
 Transform:
@@ -23105,10 +23300,10 @@ GameObject:
   - component: {fileID: 2120936864}
   - component: {fileID: 2120936867}
   - component: {fileID: 2120936866}
-  - component: {fileID: 2120936865}
   - component: {fileID: 2120936869}
-  m_Layer: 7
-  m_Name: CloseUpUI_Polarizer1
+  - component: {fileID: 2120936870}
+  m_Layer: 9
+  m_Name: CloseUpUI_Polarizer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -23137,25 +23332,6 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
---- !u!114 &2120936865
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2120936863}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 08a657b0eae01bf4eafa88597b6c0859, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  btnLU_Clockwise: {fileID: 709103912}
-  btnLU_AntiClockwise: {fileID: 57344705}
-  btnRD_Clockwise: {fileID: 0}
-  btnRD_AntiClockwise: {fileID: 0}
-  luAxisIndex: 0
-  rdAxisIndex: 1
-  degreesPerSecond: 5
 --- !u!114 &2120936866
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23232,6 +23408,28 @@ MonoBehaviour:
   targetStand: {fileID: 1919265433}
   btnCounterClockwise: {fileID: 709103911}
   btnClockwise: {fileID: 57344704}
+--- !u!114 &2120936870
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2120936863}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59fa1ae1cc0d59b4d88fa16493301d9d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dialRenderTexture: {fileID: 8400000, guid: ee4533d965fffc24eb6ee15652b47883, type: 2}
+  windowSize: {x: 600, y: 300}
+  windowPosition: {x: -650, y: 375}
+  windowTitle: "\u523B\u5EA6\u76D8"
+  fadeDuration: 0.3
+  dialPadding:
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
 --- !u!1 &2121763742
 GameObject:
   m_ObjectHideFlags: 0

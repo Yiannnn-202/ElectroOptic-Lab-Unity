@@ -25,6 +25,26 @@ This is a Unity project - open in Unity Editor (2022.3.62f2c1 or compatible) and
 
 **Decoupled design**: New code should not modify original code. Use wrapper/adapter patterns to extend functionality. The experiment module (P0-P2) was built following this principle - all new code lives in separate directories under `Scripts/DataTransfer/`, `Scripts/Experiment/`, and `Scripts/UI/`.
 
+## Assembly Structure
+
+The project's own C# scripts have **no `.asmdef` files** — all game code compiles into the default `Assembly-CSharp.dll` and editor scripts into `Assembly-CSharp-Editor.dll`. The only custom assemblies are in the third-party **XCharts** plugin (`XCharts.Runtime`, `XCharts.Editor`, `XCharts.Examples`). If the project grows large, adding asmdef files would improve iteration speed.
+
+## Authoritative Experiment Workflow (Scene2.The Lab)
+
+This is the correct five-step experiment procedure. Any discussion about experiment flow should reference this order:
+
+1. **Place the light screen** — pick up the screen from the component area and snap it onto the optical rail. The `UnifiedScreenPanel` shows the red dot tracking view (laser → screen directly).
+
+2. **Align the laser to screen center** — enter close-up view, micro-adjust the laser position (`LaserEmitterMover`, WASD ±0.035m range) until the red dot is centered on the screen crosshair, ensuring beam collimation.
+
+3. **Extinction verification (polarizer + analyzer)** — place the polarizer and analyzer on the rail in sequence (laser → polarizer → analyzer → screen). Rotate the analyzer so its transmission axis is orthogonal to the polarizer's. Observe the spot on screen gradually darkening to extinction — this verifies Malus's law. The optical path is: laser → polarizer(∥vertical) → analyzer(∥horizontal) → screen (dark).
+
+4. **Place crystal + beam expander → observe conoscopic interference** — insert the crystal box between polarizer and analyzer; insert the beam expander in front of the crystal box (converts converging light to conical light incident on the crystal). When the expander, crystal box, and screen are all on the rail, `UnifiedScreenPanel` auto-switches to conoscopic interference mode. Double-click the crystal box for close-up view and operate the knobs to adjust crystal pitch/yaw while observing real-time interference pattern changes.
+
+5. **Remove screen and expander → place photodetector → enter experiment** — remove the screen and beam expander (restoring parallel-beam path). Place the photodetector behind the crystal box. Power on → micro-align → proceed to electro-optic modulation experiments: extremum method for Vπ measurement (`RecordManager` records voltage-power data), and Scene4 oscilloscope for frequency-doubling distortion observation.
+
+**Source**: `memory/project_experiment_workflow.md`
+
 ## Core Architecture
 
 ### Native Physics Engine Integration
@@ -256,7 +276,9 @@ The native DLL uses right-handed coordinates; Unity uses left-handed. Conversion
 - **Postprocessing** (via Package Manager): Post-processing stack for visual effects
 - **TextMesh Pro** (via Package Manager): Advanced text rendering for UI elements
 - **XCharts** (Assets/): Unity charting library used by UIStateManager for scatter plots, line charts, and residual charts in data analysis
-- **MathNet.Numerics** (Assets/): .NET numerical library used by UIStateManager for nonlinear least-squares curve fitting (`Fit.Curve`)
+- **MathNet.Numerics** (`Assets/Plugins/MathNet.Numerics.dll`): .NET numerical library used by UIStateManager for nonlinear least-squares curve fitting (`Fit.Curve`)
+
+Package registry is `https://packages.unity.cn` (Unity China CDN). Contributors outside China may need to switch to `https://packages.unity.com`.
 
 ### Code Language
 
@@ -302,6 +324,7 @@ Windowed UI is created dynamically at runtime:
 | `ElectroOptics.UI.CrystalSelector` | CrystalCardSelector |
 | `ElectroOptics.Oscilloscope` | OscilloscopeCore, OscilloscopeCrystalBridge, OscilloscopeParameters, WaveformCalculator, WaveformResult, VpiCalculator, OscilloscopeWaveformGraphic, Scene4OscilloscopeDispatcher |
 | `ElectroOptics.ConoscopicAnalysis` | ConoscopicIntensityCore, ConoscopicIntensityCalculator, ConoscopicIntensityParameters, ConoscopicIntensityResult, ConoscopicIntensitySurfaceVisualizer, ConoscopicJonesGpuCore, ConoscopicJonesCpuReference, ConoscopicJonesParameters, ConoscopicJonesResult, ConoscopicJonesSurfaceVisualizer |
+| `ElectroOptics.Power` | IPowerReadoutSource, IVoltageSource, PowerReadoutCalculator |
 
 ## Material Safety
 
@@ -321,3 +344,42 @@ Structured design docs live in `Docs/` at the repo root:
 | `Plan/` | Phased development plans and task breakdowns |
 
 Key docs: [Codebase Audit](Docs/Architecture/Architecture_Codebase_Audit.md) (enabled vs deprecated logic), [ScreenDisplay API](Docs/API/ScreenDisplay_API.md), [Biaxial Conoscopic Display](Docs/Architecture/Architecture_Biaxial_Conoscopic_Display.md).
+
+## Standalone Validation Tools
+
+The `Experiment/` directory at the repo root contains a standalone Python tool for validating `CrystalPhysicsCore.dll` without Unity:
+
+- **`generate_kdp_eo_data.py`**: Calls `CrystalPhysicsCore.dll` via Python `ctypes`, duplicating the C# struct layouts (`SimInputData`, `CrystalOutputData`) in Python. Computes KDP electro-optic response (refractive indices under E-field along Z axis) and compares DLL output against first-order analytic theory. Outputs `kdp_eo_response.csv` and `kdp_eo_response.md`.
+
+Usage: `python Experiment/generate_kdp_eo_data.py --fields 0 2e5 5e5 1e6 2e6 5e6 1e7`
+
+This tool is useful for DLL regression testing when modifying the native code without opening Unity.
+
+## StreamingAssets
+
+Runtime web content loaded by Unity scenes:
+
+| Directory | File | Purpose |
+|-----------|------|---------|
+| `StreamingAssets/QuizWeb/` | `quiz.html` | HTML-based quiz interface loaded by Scene6_Quiz |
+| `StreamingAssets/ReportWeb/` | `report.html`, `report.css`, `report.js` | Web-based experiment report system loaded by Scene7_Report |
+
+These are rendered via Unity's web view component. Modifications to quiz content or report templates should be made here.
+
+## Editor-Only Scene Builders
+
+Two programmatic scene construction tools exist in `Scripts/ConoscopicAnalysis/Editor/` for building test/visualization scenes in the Editor:
+
+- **ConoscopicIntensityVisualizationSceneBuilder.cs**: Constructs test scenes for the CPU-based intensity pipeline.
+- **ConoscopicJonesVisualizationSceneBuilder.cs**: Constructs test scenes for the GPU-based Jones pipeline.
+
+## .claude/ Directory
+
+The `.claude/` directory at repo root contains Claude Code configuration for this repository:
+
+- **`settings.local.json`**: Grants Bash permissions for `node *` commands.
+- **`agents/prd-analyst.md`**: Custom agent definition for PRD analysis — use via the Agent tool with `subagent_type: "prd-analyst"` when generating product requirement documents from codebase analysis.
+
+## Empty / Stale Directories
+
+- **`Scripts/Polarizer View/`** — Exists but contains no scripts. May be a placeholder or stale artifact.
