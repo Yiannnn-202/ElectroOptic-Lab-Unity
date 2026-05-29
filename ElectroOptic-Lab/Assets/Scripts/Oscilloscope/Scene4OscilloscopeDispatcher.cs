@@ -1,6 +1,7 @@
 using TMPro;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using ElectroOptics.DataTransfer;
 
@@ -13,6 +14,7 @@ namespace ElectroOptics.Oscilloscope
     public class Scene4OscilloscopeDispatcher : MonoBehaviour
     {
         private const string LogPrefix = "[Scene4OscilloscopeDispatcher]";
+        private const float MinCh2DisplayScale = 0.0001f;
 
         [Header("Core References")]
         [SerializeField] private CrystalPhysicalCore physicalCore;
@@ -31,7 +33,11 @@ namespace ElectroOptics.Oscilloscope
         [SerializeField] private ModulationMode modulationMode = ModulationMode.Transverse;
         [SerializeField] private ElectricFieldAxis fieldAxis = ElectricFieldAxis.Z_Axis;
         [SerializeField] private float intensityMax = 1f;
-        [SerializeField] private bool autoScaleCh2Display = true;
+        [FormerlySerializedAs("autoScaleCh2Display")]
+        [SerializeField] private bool normalizeCh2Display = true;
+        [Min(MinCh2DisplayScale)]
+        [Tooltip("Visual scale for CH2 display. Only applies when Normalize Ch2 Display is disabled.")]
+        [SerializeField] private float ch2DisplayScale = 1f;
         [SerializeField] private float ch2DisplayPaddingRatio = 0.12f;
         [SerializeField] private bool logDiagnostics = true;
 
@@ -229,15 +235,8 @@ namespace ElectroOptics.Oscilloscope
                 _ch1Graphic.SetSamples(result.ch1, -modulationAmplitude, modulationAmplitude);
             if (_ch2Graphic != null)
             {
-                if (autoScaleCh2Display)
-                {
-                    GetDisplayRange(result.ch2, out float minY, out float maxY);
-                    _ch2Graphic.SetSamples(result.ch2, minY, maxY);
-                }
-                else
-                {
-                    _ch2Graphic.SetSamples(result.ch2, 0f, Mathf.Max(0.0001f, intensityMax));
-                }
+                GetCh2DisplayRange(result.ch2, out float minY, out float maxY);
+                _ch2Graphic.SetSamples(result.ch2, minY, maxY);
             }
 
             UpdateVoltageText();
@@ -250,6 +249,23 @@ namespace ElectroOptics.Oscilloscope
                           $"vPi={result.vPi:F3}, gamma0={result.gamma0:F3}, vDC={_currentVdc:F1}, " +
                           $"ch2Range={GetRangeText(result.ch2)}");
             }
+        }
+
+        private void GetCh2DisplayRange(float[] samples, out float minY, out float maxY)
+        {
+            if (normalizeCh2Display)
+            {
+                GetDisplayRange(samples, out minY, out maxY);
+                return;
+            }
+
+            float range = Mathf.Max(0.0001f, intensityMax);
+            float center = range * 0.5f;
+            float scale = Mathf.Max(MinCh2DisplayScale, ch2DisplayScale);
+            range /= scale;
+
+            minY = center - range * 0.5f;
+            maxY = center + range * 0.5f;
         }
 
         private void GetDisplayRange(float[] samples, out float minY, out float maxY)

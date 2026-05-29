@@ -6362,6 +6362,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   voltageText: {fileID: 0}
   receiverText: {fileID: 0}
+  powerReadoutSourceBehaviour: {fileID: 0}
   recordButton: {fileID: 750528274}
   clearButton: {fileID: 453424529}
   tableArea: {fileID: 0}
@@ -6373,6 +6374,12 @@ MonoBehaviour:
   voltageChangeSpeed: 20
   halfWaveVoltage: 150
   maxIntensity: 100
+  darkPower: 0.2
+  powerScale: 198.5
+  leakage: 0.01
+  visibility: 0.99
+  phaseOffset: 0
+  beamFocus: 20
   suggestedVoltages:
   - 0
   - 100
@@ -6383,6 +6390,8 @@ MonoBehaviour:
   placeholderColor: {r: 0.6, g: 0.6, b: 0.6, a: 0.8}
   normalTextColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
   clearTableOnStart: 1
+  voltageCells: []
+  powerCells: []
 --- !u!4 &1475552759
 Transform:
   m_ObjectHideFlags: 0
@@ -6421,8 +6430,9 @@ MonoBehaviour:
   displayPeriods: 2
   modulationMode: 0
   fieldAxis: 2
-  intensityMax: 1
-  autoScaleCh2Display: 1
+  intensityMax: 20
+  normalizeCh2Display: 1
+  ch2DisplayScale: 2
   ch2DisplayPaddingRatio: 0.12
   logDiagnostics: 1
   voltageText: {fileID: 1614430659}
