@@ -8,11 +8,12 @@ This is a Unity 2022.3.62f2c1 project for an electro-optic lab simulation. The p
 
 ## Multi-Project Structure
 
-This repo contains multiple independent Unity projects:
+This repo contains multiple Unity projects:
 - **ElectroOptic-Lab/** — Main simulation project (primary working directory for all code below)
-- **3DAssets/** — Separate project for 3D model asset management
-- **Screen/** — Separate screen-related project
+- **3DAssets/** — Legacy project for 3D model asset management
+- **Screen/** — Legacy screen-related project
 - **TestRepo/** — Test/sandbox project
+- **Docs/** — Structured documentation (PRD, Architecture, API, DevLog, Guide, Plan)
 
 All paths below are relative to the **ElectroOptic-Lab/** project directory.
 
@@ -47,6 +48,7 @@ Located in `Scripts/Business_logic/`:
   4. Provides matrices and data to shaders
 - **LabController.cs**: UI orchestrator that manages crystal configuration from UI controls (voltage, modulation mode, field axis)
 - **EOEnums.cs**: Enums for PropagationAxis, ElectricFieldAxis, ModulationMode
+- **CrystalWorkingGeometry.cs**: Resolves working geometry (light direction, E-field direction, modulation mode) for conoscopic and oscilloscope contexts. Contains special KTP handling that forces Vector3.up light direction and transverse modulation mode.
 
 ### Experiment Module (P0-P2)
 
@@ -169,7 +171,7 @@ Located in `Scripts/exercise/`:
 ### Power Meter
 
 - **ReceiverStateController.cs** (Scripts/Receiver/): Receiver state machine (0=off, 1=monitoring/blue, 2=selected for adjustment/green). Double-click to power on/off, single click to toggle monitor/selected
-- **PowerReadoutController.cs**: Power meter readout window with virtual adjustment via WASD, calculates power based on beam focus model
+- **PowerReadoutController.cs** (Scripts/ root): Power meter readout window implementing `IPowerReadoutSource`. Virtual adjustment via WASD (±0.15m initial random deviation, 0.2 m/s adjust speed), calculates power via Gaussian beam focus model. Supports dark power, leakage, visibility, and phase offset parameters. Auto-resolves half-wave voltage from RecordManager or crystal config.
 
 ### Power Readout Math
 
@@ -193,11 +195,32 @@ Located in `Scripts/UI/VoltageSwitch/`:
 - **RecordManager.cs**: Data recording table — records voltage/power pairs to table cells, supports delete and clear
 - **KnobAdjuster.cs** (Scripts/ViewButton/): Hold-down UI knob that rotates a target 3D knob model
 - **SceneLoad.cs** (Scripts/Buttons/): Button-based scene loading (used in main menu and navigation)
+- **CrystalStateController.cs** (Scripts/ root): Simple crystal click-to-toggle selection with color change (green/original). Separate from the CrystalControllerWrapper experiment system.
+- **FocusableItem.cs** (Scripts/ root): Component providing closeUpCameraAnchor transform for ExperimentCameraController close-up views.
+- **Cardclick.cs** (Scripts/ root): Simple scene loader (loads Scene2.The Lab). Legacy utility.
+
+### Scene3 Data Analysis (Scripts/Scene3_UIRebuild/)
+
+- **UIStateManager.cs**: Data fitting and analysis orchestrator — performs nonlinear curve fitting on recorded voltage/power data using **MathNet.Numerics**, renders scatter + fit curves via **XCharts**, computes residual chart, and extracts Vπ from fitted extrema.
+- **KnobToggleController.cs**: UI knob with Outline highlight toggle on pointer click.
+
+### Debug Tools
+
+- **CoreDebugger.cs** (Scripts/Business_logic/): Inspector-driven debug harness for CrystalPhysicalCore — exposes Euler angles, light direction, voltage, thickness, and E-field direction for real-time experimentation without the full LabController pipeline.
+- **RenderStateDiagnostics.cs** (Scripts/Debug/): Comprehensive render state dump tool — logs camera HDR, PostProcessLayer, Global Volume effects (Bloom), directional light, RenderSettings, QualitySettings, area lights, and Outline components. Attach to camera for scene comparison debugging.
+- **BridgeLayerTest.cs** (Scripts/DataContract/): Bridge layer test for NativeInterface validation.
 
 ### Shader Visualization
 
-- **ConoscopicInterference.shader**: GPU-based visualization of interference patterns using Fresnel equations. Used by ConoscopicTextureRenderer and CrystalVisualizer.
-- **ConoscopicJonesIntensity.shader** (registered as `ElectroOptics/ConoscopicJonesIntensity`): GPU-based Jones calculus intensity computation. Used by ConoscopicJonesGpuCore for both uniaxial and biaxial crystal modes. Supports polarizer/analyzer angles, crystal rotation, optic axis tilt, electric field modulation, and KTP paper-mode display.
+| Shader | File | Purpose |
+|--------|------|---------|
+| Conoscopic Interference | `ConoscopicInterference.shader` | GPU Fresnel-based interference pattern visualization. Used by ConoscopicTextureRenderer and CrystalVisualizer. |
+| Conoscopic Jones Intensity | `ConoscopicJonesIntensity.shader` | GPU Jones calculus intensity computation (registered as `ElectroOptics/ConoscopicJonesIntensity`). Supports uniaxial/baixial modes, polarizer/analyzer angles, crystal rotation, optic axis tilt, E-field modulation, and KTP paper-mode display. Used by ConoscopicJonesGpuCore. |
+| Intensity Vertex Color | `ConoscopicIntensityVertexColor.shader` | Vertex-color shader for 3D mesh surface visualization of computed intensity fields. Used by ConoscopicIntensitySurfaceVisualizer and ConoscopicJonesSurfaceVisualizer. |
+| Dot Tracking | `DotTracking.shader` | Light spot / red dot rendering on screen. |
+| Waveform Line | `WaveformLine.shader` | Oscilloscope waveform line rendering. Used by OscilloscopeWaveformGraphic. |
+| Outline Fill / Mask | `OutlineFill.shader`, `OutlineMask.shader` | QuickOutline package shaders for selection highlight effect. |
+
 - **CrystalVisualizer.cs** (Scripts/ShaderScripts/): Syncs crystal physics data to shader properties (refractive indices, rotation matrix, crystal length, wavelength, FOV, base color)
 - **Mat_Conoscopic.mat**: Material using the ConoscopicInterference shader for visualization
 
@@ -211,6 +234,7 @@ Main scenes in `Assets/Scenes/`:
 - **Scene4_UIRebuild 1.unity**: Rebuild oscilloscope scene with waveform rendering, voltage/status UI, and key-point recording (Scene4OscilloscopeDispatcher)
 - **Scene5.History Records.unity**: History records / data log viewer
 - **Scene6_Quiz.unity**: Quiz/exercise scene
+- **Scene7_Report.unity**: Experiment report generation and export
 
 Work-in-progress / legacy scenes (not production):
 - SceneTest.unity, SceneTest2.unity, test.unity
@@ -231,6 +255,8 @@ The native DLL uses right-handed coordinates; Unity uses left-handed. Conversion
 - **QuickOutline** (Assets/QuickOutline/): Outline highlight effect used by selectable optical components
 - **Postprocessing** (via Package Manager): Post-processing stack for visual effects
 - **TextMesh Pro** (via Package Manager): Advanced text rendering for UI elements
+- **XCharts** (Assets/): Unity charting library used by UIStateManager for scatter plots, line charts, and residual charts in data analysis
+- **MathNet.Numerics** (Assets/): .NET numerical library used by UIStateManager for nonlinear least-squares curve fitting (`Fit.Curve`)
 
 ### Code Language
 
@@ -265,7 +291,7 @@ Windowed UI is created dynamically at runtime:
 
 | Namespace | Contains |
 |-----------|----------|
-| `ElectroOptics` | CrystalProfile, CrystalConfig, CrystalPhysicalCore (original) |
+| `ElectroOptics` | CrystalProfile, CrystalConfig, CrystalPhysicalCore, CrystalWorkingGeometry (original core) |
 | `ElectroOptics.DataTransfer` | CrystalSelectionData, CrystalRuntime |
 | `ElectroOptics.Experiment.Interfaces` | ICrystalSelectable, ICrystalConfigurable |
 | `ElectroOptics.Experiment.Controller` | CrystalControllerWrapper, CrystalKnobBridge |
@@ -280,3 +306,18 @@ Windowed UI is created dynamically at runtime:
 ## Material Safety
 
 When modifying materials at runtime, use `.material` (creates instance) not `.sharedMaterial` (modifies asset permanently).
+
+## Documentation
+
+Structured design docs live in `Docs/` at the repo root:
+
+| Directory | Contents |
+|-----------|----------|
+| `PRD/` | Product requirements — what to build and acceptance criteria |
+| `Architecture/` | Architecture design — codebase audit, biaxial display, interaction systems |
+| `API/` | Public API and interface contracts |
+| `DevLog/` | Development logs — implementation process, decisions, version records |
+| `Guide/` | Editor setup guides and configuration steps |
+| `Plan/` | Phased development plans and task breakdowns |
+
+Key docs: [Codebase Audit](Docs/Architecture/Architecture_Codebase_Audit.md) (enabled vs deprecated logic), [ScreenDisplay API](Docs/API/ScreenDisplay_API.md), [Biaxial Conoscopic Display](Docs/Architecture/Architecture_Biaxial_Conoscopic_Display.md).

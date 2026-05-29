@@ -104,17 +104,71 @@
       <h2>四、原始实验数据</h2>
 
       <h3>4.1 极值法：直流偏置电压与光功率测量数据</h3>
-      <div class="placeholder-block">
-        <strong>动态数据表区域</strong>
-        <p>此处后续由 Unity 根据实验记录数据自动生成极值法电压 - 光功率表。</p>
-        <p class="placeholder-note">预计字段：dcMethod.data[]，包含 voltage、power；单位：V、μW。</p>
+
+      <div class="image-upload-zone" id="dcCurveZone">
+        <input type="file" accept="image/*" class="file-input" hidden />
+        <div class="upload-drop-area">
+          <span class="upload-icon">📷</span>
+          <span class="upload-text">点击上传或拖拽光功率-电压特性曲线图到此处</span>
+          <span class="upload-hint">支持 JPG、PNG 格式</span>
+        </div>
+        <div class="upload-preview-wrap" style="display:none">
+          <img class="preview-img" alt="曲线图预览" />
+          <button type="button" class="remove-img-btn" title="删除图片">✕</button>
+          <span class="preview-label">光功率-电压特性曲线图</span>
+        </div>
+      </div>
+
+      <table class="data-table expandable" id="dcDataTable">
+        <thead>
+          <tr>
+            <th class="num-header">序号</th>
+            <th class="data-header" data-col="1">偏置电压 U₁ (V)</th>
+            <th class="data-header" data-col="2">功率计示数 P₁ (μW)</th>
+            <th class="data-header" data-col="3">偏置电压 U₂ (V)<button type="button" class="col-remove-btn" title="删除此组">✕</button></th>
+            <th class="data-header" data-col="4">功率计示数 P₂ (μW)</th>
+            <th class="op-header">操作</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" class="add-row-btn" data-table="dcDataTable">+ 添加数据行</button>
+      <button type="button" class="add-col-btn" data-table="dcDataTable">+ 添加列</button>
+
+      <div class="result-input-group">
+        <label>极值法半波电压 V<sub>π</sub> = </label>
+        <input type="text" class="vpi-input" id="dcVpi" placeholder="请输入计算值" />
+        <span class="unit">V</span>
       </div>
 
       <h3>4.2 交流调制法：倍频失真点测量记录</h3>
-      <div class="placeholder-block">
-        <strong>动态倍频点记录区域</strong>
-        <p>此处后续由 Unity 根据示波器观测结果自动生成交流调制法记录表。</p>
-        <p class="placeholder-note">预计字段：acMethod.records[]，包含 biasVoltage、waveformFeature、analysis。</p>
+
+      <div class="image-upload-zone" id="acWaveZone">
+        <input type="file" accept="image/*" class="file-input" hidden />
+        <div class="upload-drop-area">
+          <span class="upload-icon">📷</span>
+          <span class="upload-text">点击上传或拖拽倍频失真波形截图到此处</span>
+          <span class="upload-hint">支持 JPG、PNG 格式，请上传示波器倍频现象截图</span>
+        </div>
+        <div class="upload-preview-wrap" style="display:none">
+          <img class="preview-img" alt="波形预览" />
+          <button type="button" class="remove-img-btn" title="删除图片">✕</button>
+          <span class="preview-label">倍频失真波形截图</span>
+        </div>
+      </div>
+
+      <table class="data-table" id="acDataTable">
+        <thead>
+          <tr><th class="num-header">序号</th><th class="data-header" data-col="1">偏置电压 U<sub>bias</sub> (V)</th><th class="op-header">操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" class="add-row-btn" data-table="acDataTable">+ 添加记录行</button>
+
+      <div class="result-input-group">
+        <label>交流调制法半波电压 V<sub>π</sub> = </label>
+        <input type="text" class="vpi-input" id="acVpi" placeholder="请输入计算值" />
+        <span class="unit">V</span>
       </div>
     </section>
 
@@ -123,17 +177,37 @@
 
       <h3>5.1 极值法半波电压计算</h3>
       <p>根据测量数据，绘制光功率 - 电压特性曲线，定位得到光强极小值点与光强极大值点。根据半波电压定义，相邻极值点的电压差即为单次测量的半波电压，取平均值得到极值法测量结果。</p>
-      <div class="placeholder-block">
-        <strong>动态曲线图区域</strong>
-        <p>此处后续生成光功率 - 电压特性曲线，并标注极大值、极小值和半波电压。</p>
+      <p class="cross-ref">（曲线图已上传至第 4.1 节，极值法半波电压已填入第 4.1 节下方）</p>
+
+      <h3>5.2 两种方法结果汇总与误差分析</h3>
+      <p>根据倍频失真点的测量结果，相邻倍频失真点的电压差即为单次测量的半波电压，取平均值得到交流调制法测量结果。将两种方法的测量结果与铌酸锂晶体半波电压理论标称值进行比较，计算相对误差。</p>
+
+      <table class="data-table readonly" id="resultsTable">
+        <thead>
+          <tr><th>测量方法</th><th>半波电压 V<sub>π</sub> (V)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>极值法</td><td class="readonly-cell" id="summaryDcVpi">—</td></tr>
+          <tr><td>交流调制法</td><td class="readonly-cell" id="summaryAcVpi">—</td></tr>
+        </tbody>
+      </table>
+
+      <div class="result-input-group">
+        <label>铌酸锂晶体半波电压理论标称值 V<sub>π,theory</sub> = </label>
+        <input type="text" class="vpi-input" id="theoryVpi" placeholder="请输入理论值" value="300" />
+        <span class="unit">V</span>
       </div>
 
-      <h3>5.2 交流调制法半波电压计算</h3>
-      <p>根据倍频失真点的测量结果，相邻倍频失真点的电压差即为单次测量的半波电压，取平均值得到交流调制法测量结果。两种方法的测量结果与铌酸锂晶体半波电压理论标称值（300V）进行比较，得到相对误差。</p>
-      <div class="placeholder-block">
-        <strong>动态计算结果区域</strong>
-        <p>此处后续显示极值法半波电压、交流调制法半波电压、理论半波电压与相对误差。</p>
-        <p class="placeholder-note">预计字段：results.extremeHalfWaveVoltage、results.acHalfWaveVoltage、results.theoreticalHalfWaveVoltage、results.errorRate。</p>
+      <div class="result-input-group">
+        <label>极值法相对误差 = </label>
+        <input type="text" class="vpi-input" id="dcErrorRate" placeholder="计算值" />
+        <span class="unit">%</span>
+      </div>
+
+      <div class="result-input-group">
+        <label>交流调制法相对误差 = </label>
+        <input type="text" class="vpi-input" id="acErrorRate" placeholder="计算值" />
+        <span class="unit">%</span>
       </div>
 
       <h3>5.3 调制特性与倍频失真分析</h3>
@@ -174,9 +248,30 @@
         <li>光通信演示实验验证了电光调制技术的工程应用价值：当工作点设置在线性区时，电光调制可实现音频信号的无失真传输，遮挡光路后信号传输中断，直观复现光纤通信系统中“电 - 光 - 电”的信号转换与传输过程。</li>
       </ol>
 
-      <div class="placeholder-block">
-        <strong>最终动态结论区域</strong>
-        <p>此处后续根据 Unity 传入的实验数据自动补入最终半波电压、相对误差和光通信演示结果。</p>
+      <div class="conclusion-summary">
+        <h3>最终实验结果</h3>
+        <div class="conclusion-grid">
+          <div class="conclusion-item">
+            <span class="conclusion-label">极值法半波电压 V<sub>π</sub></span>
+            <span class="conclusion-value" id="finalDcVpi">—</span>
+          </div>
+          <div class="conclusion-item">
+            <span class="conclusion-label">交流调制法半波电压 V<sub>π</sub></span>
+            <span class="conclusion-value" id="finalAcVpi">—</span>
+          </div>
+          <div class="conclusion-item">
+            <span class="conclusion-label">理论标称值 V<sub>π,theory</sub></span>
+            <span class="conclusion-value" id="finalTheoryVpi">300 V</span>
+          </div>
+          <div class="conclusion-item">
+            <span class="conclusion-label">极值法相对误差</span>
+            <span class="conclusion-value" id="finalDcError">—</span>
+          </div>
+          <div class="conclusion-item">
+            <span class="conclusion-label">交流调制法相对误差</span>
+            <span class="conclusion-value" id="finalAcError">—</span>
+          </div>
+        </div>
       </div>
     </section>
   </main>
