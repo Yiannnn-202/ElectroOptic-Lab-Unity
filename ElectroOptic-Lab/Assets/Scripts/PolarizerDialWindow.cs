@@ -117,7 +117,6 @@ public class PolarizerDialWindow : MonoBehaviour
         Text text = titleText.AddComponent<Text>();
         text.text = windowTitle;
         text.color = Color.white;
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         text.fontSize = 14;
         text.alignment = TextAnchor.MiddleLeft;
     }
