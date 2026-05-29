@@ -17,7 +17,7 @@ public class UIStateManager : MonoBehaviour
     [Header("画图数据引用")]
     public RecordManager recordManager;
     public LineChart lineChart;
-    public LineChart residualChart; // 新增：残差图表引用
+    public LineChart residualChart; // 残差图表引用
 
     // 全局拟合留存的物理量与状态
     private bool hasValidFit = false;
@@ -81,7 +81,6 @@ public class UIStateManager : MonoBehaviour
             return;
         }
 
-        // 使用更紧凑的换行和排版，节省下方空间给残差图
         sb.AppendLine($"<color=#333><b>1. 拟合方程：</b></color>\n   {globalFormula}");
         sb.AppendLine($"<color=#333><b>2. 特征点提取：</b></color>\n   波峰: <b>V_max = {fitCurveMaxV:F2} V</b> ({fitCurveMaxP:F2} μW)\n   波谷: <b>V_min = {fitCurveMinV:F2} V</b> ({fitCurveMinP:F2} μW)");
         sb.AppendLine($"<color=#333><b>3. 半波电压解算：</b></color>\n   V_π = V_min - V_max = <b>{lastCalculatedV:F2} V</b>");
@@ -95,8 +94,9 @@ public class UIStateManager : MonoBehaviour
         hasValidFit = false;
         if (recordManager == null || lineChart == null) return;
 
-        lineChart.RemoveData();
-        if (residualChart != null) residualChart.RemoveData(); // 清空残差图
+        // ✨【核心修复点】：用 RemoveAllSerie 彻底砸碎并清空所有旧序列，确保新加的序列索引永远从 0 开始！
+        lineChart.RemoveAllSerie();
+        if (residualChart != null) residualChart.RemoveAllSerie();
 
         List<double> xData = new List<double>();
         List<double> yData = new List<double>();
@@ -114,7 +114,7 @@ public class UIStateManager : MonoBehaviour
 
         if (xData.Count < 5) return;
 
-        // 1. 绘制实验主图离散点
+        // 1. 绘制实验主图离散点 -> 此时绝对是 0 号序列
         var scatterSerie = lineChart.AddSerie<Scatter>("实验数据");
         scatterSerie.symbol.show = true;
         scatterSerie.symbol.type = SymbolType.Circle;
@@ -178,7 +178,7 @@ public class UIStateManager : MonoBehaviour
             lastCalculatedV = fitCurveMinV - fitCurveMaxV;
             hasValidFit = true;
 
-            // 5. 绘制主图拟合曲线
+            // 5. 绘制主图拟合曲线 -> 此时绝对是 1 号序列
             var globalLineSerie = lineChart.AddSerie<Line>("理论拟合");
             globalLineSerie.lineType = LineType.Smooth;
             globalLineSerie.symbol.show = false;
@@ -193,16 +193,16 @@ public class UIStateManager : MonoBehaviour
                 lineChart.AddData(1, (float)x, (float)y);
             }
 
-            // 6. ⚠️ 新增：计算并绘制残差图 (Residuals)
+            // 6. 计算并绘制残差图 (Residuals)
             if (residualChart != null)
             {
-                // 残差散点序列
+                // 残差散点序列 -> 此时绝对是 0 号序列
                 var resScatter = residualChart.AddSerie<Scatter>("残差");
                 resScatter.symbol.type = SymbolType.Circle;
                 resScatter.symbol.size = 5f;
-                resScatter.itemStyle.color = new Color(0.1f, 0.5f, 0.8f); // 科技蓝
+                resScatter.itemStyle.color = new Color(0.1f, 0.5f, 0.8f);
 
-                // 残差零基准线
+                // 残差零基准线 -> 此时绝对是 1 号序列
                 var zeroLine = residualChart.AddSerie<Line>("零线");
                 zeroLine.lineType = LineType.Normal;
                 zeroLine.symbol.show = false;
@@ -214,10 +214,10 @@ public class UIStateManager : MonoBehaviour
                     double v = xData[i];
                     double pActual = yData[i];
                     double pFit = fitA * System.Math.Cos(fitW * v + fitPhi) + fitB;
-                    double residual = pActual - pFit; // 计算残差：实测值 - 拟合理论值
+                    double residual = pActual - pFit;
 
-                    residualChart.AddData(0, (float)v, (float)residual);
-                    residualChart.AddData(1, (float)v, 0f); // 绘制零基准线
+                    residualChart.AddData(0, (float)v, (float)residual); // 0号数据线
+                    residualChart.AddData(1, (float)v, 0f);              // 1号零基准线
                 }
             }
         }

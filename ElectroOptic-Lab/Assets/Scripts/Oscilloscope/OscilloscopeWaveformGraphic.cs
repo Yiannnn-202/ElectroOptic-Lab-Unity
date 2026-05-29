@@ -79,7 +79,7 @@ namespace ElectroOptics.Oscilloscope
                 _runtimeMaterial.SetColor("_LineColor", newColor);
         }
 
-        public new void Clear()
+        public void Clear()
         {
             _samples = null;
             _hasSamples = false;
