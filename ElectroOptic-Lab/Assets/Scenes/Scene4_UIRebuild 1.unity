@@ -6430,9 +6430,18 @@ MonoBehaviour:
   displayPeriods: 2
   modulationMode: 0
   fieldAxis: 2
-  intensityMax: 20
+  intensityMax: 2
   normalizeCh2Display: 1
-  ch2DisplayScale: 2
+  ch2DisplayScale: 1.5
+  ch2IntensityPerDivision: 0.5
+  ch2VerticalDivisions: 8
+  useDetectorVoltageForCh2: 1
+  detectorGainVoltsPerIntensity: 5
+  detectorOffsetVoltage: 0
+  detectorSaturationVoltage: 5
+  clampDetectorVoltage: 0
+  ch2DetectorVoltsPerDivision: 0.5
+  ch2DetectorVerticalDivisions: 8
   ch2DisplayPaddingRatio: 0.12
   logDiagnostics: 1
   voltageText: {fileID: 1614430659}

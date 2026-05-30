@@ -15,6 +15,11 @@ namespace ElectroOptics.Oscilloscope
     {
         private const string LogPrefix = "[Scene4OscilloscopeDispatcher]";
         private const float MinCh2DisplayScale = 0.0001f;
+        private const float MinCh2IntensityPerDivision = 0.0001f;
+        private const float MinCh2VerticalDivisions = 0.0001f;
+        private const float MinDetectorSaturationVoltage = 0.0001f;
+        private const float MinDetectorVoltsPerDivision = 0.0001f;
+        private const float MinDetectorVerticalDivisions = 0.0001f;
 
         [Header("Core References")]
         [SerializeField] private CrystalPhysicalCore physicalCore;
@@ -36,8 +41,30 @@ namespace ElectroOptics.Oscilloscope
         [FormerlySerializedAs("autoScaleCh2Display")]
         [SerializeField] private bool normalizeCh2Display = true;
         [Min(MinCh2DisplayScale)]
-        [Tooltip("Visual scale for CH2 display. Only applies when Normalize Ch2 Display is disabled.")]
+        [Tooltip("Legacy CH2 display gain kept for serialized scene compatibility. Not used by the intensity/div display mode.")]
         [SerializeField] private float ch2DisplayScale = 1f;
+        [Min(MinCh2IntensityPerDivision)]
+        [Tooltip("CH2 vertical sensitivity in intensity units per division. Applies when Normalize Ch2 Display is disabled.")]
+        [SerializeField] private float ch2IntensityPerDivision = 0.125f;
+        [Min(MinCh2VerticalDivisions)]
+        [Tooltip("Number of vertical divisions used to compute the CH2 display range.")]
+        [SerializeField] private float ch2VerticalDivisions = 8f;
+        [SerializeField] private bool useDetectorVoltageForCh2 = false;
+        [Min(0f)]
+        [Tooltip("Detector conversion gain in volts per CH2 intensity unit.")]
+        [SerializeField] private float detectorGainVoltsPerIntensity = 1f;
+        [Tooltip("Detector output voltage when CH2 intensity is zero.")]
+        [SerializeField] private float detectorOffsetVoltage = 0f;
+        [Min(MinDetectorSaturationVoltage)]
+        [Tooltip("Detector output saturation voltage and the center reference for detector voltage display.")]
+        [SerializeField] private float detectorSaturationVoltage = 5f;
+        [SerializeField] private bool clampDetectorVoltage = true;
+        [Min(MinDetectorVoltsPerDivision)]
+        [Tooltip("CH2 detector voltage sensitivity in volts per division. Applies when detector voltage display is enabled and Normalize Ch2 Display is disabled.")]
+        [SerializeField] private float ch2DetectorVoltsPerDivision = 0.5f;
+        [Min(MinDetectorVerticalDivisions)]
+        [Tooltip("Number of vertical divisions used to compute the CH2 detector voltage display range.")]
+        [SerializeField] private float ch2DetectorVerticalDivisions = 8f;
         [SerializeField] private float ch2DisplayPaddingRatio = 0.12f;
         [SerializeField] private bool logDiagnostics = true;
 
@@ -56,6 +83,7 @@ namespace ElectroOptics.Oscilloscope
         private OscilloscopeCore _core;
         private OscilloscopeWaveformGraphic _ch1Graphic;
         private OscilloscopeWaveformGraphic _ch2Graphic;
+        private float[] _ch2DetectorVoltage;
         private float _currentVdc;
         private int _recordIndex;
         private bool _loggedFirstRefresh;
@@ -235,8 +263,9 @@ namespace ElectroOptics.Oscilloscope
                 _ch1Graphic.SetSamples(result.ch1, -modulationAmplitude, modulationAmplitude);
             if (_ch2Graphic != null)
             {
-                GetCh2DisplayRange(result.ch2, out float minY, out float maxY);
-                _ch2Graphic.SetSamples(result.ch2, minY, maxY);
+                float[] ch2DisplaySamples = GetCh2DisplaySamples(result.ch2);
+                GetCh2DisplayRange(ch2DisplaySamples, out float minY, out float maxY);
+                _ch2Graphic.SetSamples(ch2DisplaySamples, minY, maxY);
             }
 
             UpdateVoltageText();
@@ -251,27 +280,69 @@ namespace ElectroOptics.Oscilloscope
             }
         }
 
+        private float[] GetCh2DisplaySamples(float[] intensitySamples)
+        {
+            if (!useDetectorVoltageForCh2 || intensitySamples == null)
+                return intensitySamples;
+
+            if (_ch2DetectorVoltage == null || _ch2DetectorVoltage.Length != intensitySamples.Length)
+                _ch2DetectorVoltage = new float[intensitySamples.Length];
+
+            float gain = Mathf.Max(0f, detectorGainVoltsPerIntensity);
+            float saturation = Mathf.Max(MinDetectorSaturationVoltage, detectorSaturationVoltage);
+            for (int i = 0; i < intensitySamples.Length; i++)
+            {
+                float voltage = detectorOffsetVoltage + gain * intensitySamples[i];
+                _ch2DetectorVoltage[i] = clampDetectorVoltage ? Mathf.Clamp(voltage, 0f, saturation) : voltage;
+            }
+
+            return _ch2DetectorVoltage;
+        }
+
         private void GetCh2DisplayRange(float[] samples, out float minY, out float maxY)
         {
             if (normalizeCh2Display)
             {
-                GetDisplayRange(samples, out minY, out maxY);
+                float referenceMax = useDetectorVoltageForCh2
+                    ? Mathf.Max(MinDetectorSaturationVoltage, detectorSaturationVoltage)
+                    : intensityMax;
+                GetDisplayRange(samples, referenceMax, out minY, out maxY);
                 return;
             }
 
-            float range = Mathf.Max(0.0001f, intensityMax);
-            float center = range * 0.5f;
-            float scale = Mathf.Max(MinCh2DisplayScale, ch2DisplayScale);
-            range /= scale;
+            if (useDetectorVoltageForCh2)
+            {
+                GetCh2DetectorVoltageRange(out minY, out maxY);
+                return;
+            }
+
+            float minRange = Mathf.Max(0.0001f, intensityMax * 0.0001f);
+            float perDivision = Mathf.Max(MinCh2IntensityPerDivision, ch2IntensityPerDivision);
+            float divisions = Mathf.Max(MinCh2VerticalDivisions, ch2VerticalDivisions);
+            float range = Mathf.Max(minRange, perDivision * divisions);
+            float center = intensityMax * 0.5f;
 
             minY = center - range * 0.5f;
             maxY = center + range * 0.5f;
         }
 
-        private void GetDisplayRange(float[] samples, out float minY, out float maxY)
+        private void GetCh2DetectorVoltageRange(out float minY, out float maxY)
+        {
+            float saturation = Mathf.Max(MinDetectorSaturationVoltage, detectorSaturationVoltage);
+            float minRange = Mathf.Max(0.0001f, saturation * 0.0001f);
+            float voltsPerDivision = Mathf.Max(MinDetectorVoltsPerDivision, ch2DetectorVoltsPerDivision);
+            float divisions = Mathf.Max(MinDetectorVerticalDivisions, ch2DetectorVerticalDivisions);
+            float range = Mathf.Max(minRange, voltsPerDivision * divisions);
+            float center = saturation * 0.5f;
+
+            minY = center - range * 0.5f;
+            maxY = center + range * 0.5f;
+        }
+
+        private void GetDisplayRange(float[] samples, float referenceMax, out float minY, out float maxY)
         {
             minY = 0f;
-            maxY = Mathf.Max(0.0001f, intensityMax);
+            maxY = Mathf.Max(0.0001f, referenceMax);
 
             if (samples == null || samples.Length == 0)
                 return;
@@ -287,7 +358,7 @@ namespace ElectroOptics.Oscilloscope
 
             float center = (minY + maxY) * 0.5f;
             float range = maxY - minY;
-            float minVisibleRange = Mathf.Max(intensityMax * 0.005f, 0.0001f);
+            float minVisibleRange = Mathf.Max(referenceMax * 0.005f, 0.0001f);
             range = Mathf.Max(range, minVisibleRange);
             range *= 1f + Mathf.Max(0f, ch2DisplayPaddingRatio);
 
