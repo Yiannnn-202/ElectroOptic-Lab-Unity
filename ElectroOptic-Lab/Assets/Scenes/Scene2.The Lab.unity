@@ -23108,7 +23108,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   crystalModel: {fileID: 1032930223}
   renderTextureSize: 1024
-  conoscopicFOV: 6
+  conoscopicFOV: 3.9
   conoscopicPhaseScale: 1
   laserColor: {r: 1, g: 0, b: 0, a: 1}
   displayGamma: 1.15
