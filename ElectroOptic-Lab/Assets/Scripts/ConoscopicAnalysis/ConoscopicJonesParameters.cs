@@ -84,7 +84,7 @@ namespace ElectroOptics.ConoscopicAnalysis
         public float crossWidth = 0.16f;
         public float blackCutoff = 0.012f;
         public float displayGamma = 1.25f;
-        public Vector2 initialMelatopeOffset = new Vector2(0.035f, -0.025f);
+        public Vector2 initialMelatopeOffset = Vector2.zero;
         public float uniaxialEpsilon = DefaultUniaxialEpsilon;
         public bool forceUniaxial = false;
         public bool uniaxialEoView = false;

@@ -30,7 +30,7 @@ public class SceneLoad: MonoBehaviour
 
     public void Onclick_Btn_LoadScene_02()
     {
-        SceneManager.LoadScene(3);
+        SceneManager.LoadScene("Scene2.The Lab");
     }
 
     public void Onclick_Btn_LoadScene_05()

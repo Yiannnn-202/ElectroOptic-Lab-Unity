@@ -43,15 +43,19 @@ public class RecordManager : MonoBehaviour, IVoltageSource
     public float phaseOffset = 0f;
     public float beamFocus = 20.0f;
 
-    // ================= 修改点：改成可随意编辑的数组 =================
+    [Header("真实感噪声模拟")]
+    [Tooltip("模拟环境光和仪器探测器的随机跳动幅度 (μW)")]
+    public float noiseAmplitude = 1.5f;
+    [Tooltip("读数跳动的频率")]
+    public float noiseFrequency = 5.0f;
+
     [Header("教学引导（幽灵提示）设置")]
-    [Tooltip("按行自定义提示电压，专门针对极值法设计（比如填入波峰波谷附近的电压）")]
-    public float[] suggestedVoltages = new float[] { 0f, 100f, 260f, 400f, 540f };
+    [Tooltip("提示电压的步进值。从0开始，每个格子增加这个数值")]
+    public float suggestedVoltageStep = 32f; // ✨ 修改点：改为统一的步进值
     [Tooltip("提示文字的颜色（灰色）")]
-    public Color placeholderColor = new Color(0.6f, 0.6f, 0.6f, 0.8f); // 适中的灰色
+    public Color placeholderColor = new Color(0.6f, 0.6f, 0.6f, 0.8f);
     [Tooltip("真实记录数据的文字颜色（深色）")]
     public Color normalTextColor = new Color(0.1f, 0.1f, 0.1f, 1f);
-    // ==========================================================
 
     [Header("运行设置")]
     public bool clearTableOnStart = true;
@@ -156,6 +160,7 @@ public class RecordManager : MonoBehaviour, IVoltageSource
         if (arrowDecOutline != null) arrowDecOutline.enabled = isDecSelected;
     }
 
+    // ================= 终极无错版计算与噪声注入逻辑 =================
     float CalculateReceiverValue(float voltage)
     {
         if (powerReadoutSource == null)
@@ -163,16 +168,34 @@ public class RecordManager : MonoBehaviour, IVoltageSource
             powerReadoutSource = ResolvePowerReadoutSource();
         }
 
+        float baseValue = 0f;
+
         if (powerReadoutSource != null)
         {
-            return powerReadoutSource.CurrentStablePower;
+            baseValue = powerReadoutSource.CurrentDisplayPower;
+        }
+        else
+        {
+            PowerReadoutParameters parameters = BuildReadoutParameters();
+
+            // 关键修复：实例化正确的系统预设类型
+            PowerNoiseParameters noise = new PowerNoiseParameters();
+
+            // 严格对齐底层的 6 个参数调用
+            PowerReadoutResult result = PowerReadoutCalculator.Calculate(
+                voltage,
+                0f,
+                0f,
+                parameters,
+                noise,
+                Time.time);
+
+            baseValue = result.displayPower;
         }
 
-        return PowerReadoutCalculator.CalculateStablePower(
-            voltage,
-            0f,
-            0f,
-            BuildReadoutParameters());
+        // 强行叠加基于设定幅度的物理白噪声，完美激活散点残差图
+        float randomJitter = UnityEngine.Random.Range(-noiseAmplitude, noiseAmplitude);
+        return Mathf.Max(0f, baseValue + randomJitter); // 保证功率不为负数
     }
 
     void UpdateInstrumentUI()
@@ -183,7 +206,7 @@ public class RecordManager : MonoBehaviour, IVoltageSource
             voltageText.text = currentVoltage.ToString("F1");
 
         if (receiverText != null)
-            receiverText.text = $"{receiverValue:F2}μ";
+            receiverText.text = $"{receiverValue:F2}";
     }
 
     void BuildCellLists()
@@ -254,38 +277,19 @@ public class RecordManager : MonoBehaviour, IVoltageSource
         ResetCellToPlaceholder(currentIndex);
     }
 
+    // ✨ 核心修改点：彻底精简填表逻辑，按顺序递增步长填充每一个格子
     private void ResetCellToPlaceholder(int index)
     {
-        int blocksCount = tableArea.childCount;
-        int cellsPerRow = blocksCount > 0 ? voltageCells.Count / blocksCount : 1;
-
-        if (index % cellsPerRow == 0)
+        if (index < voltageCells.Count && voltageCells[index] != null)
         {
-            if (index < voltageCells.Count && voltageCells[index] != null)
-            {
-                int rowIndex = index / cellsPerRow;
-                voltageCells[index].color = placeholderColor;
-
-                // ================= 修改点：根据行数从数组里取值 =================
-                if (rowIndex < suggestedVoltages.Length)
-                {
-                    voltageCells[index].text = $"({suggestedVoltages[rowIndex]})";
-                }
-                else
-                {
-                    voltageCells[index].text = ""; // 如果行数超过了数组长度，就不显示
-                }
-            }
-            if (index < powerCells.Count && powerCells[index] != null)
-            {
-                powerCells[index].color = placeholderColor;
-                powerCells[index].text = "--";
-            }
+            voltageCells[index].color = placeholderColor;
+            voltageCells[index].text = $"({index * suggestedVoltageStep})";
         }
-        else
+
+        if (index < powerCells.Count && powerCells[index] != null)
         {
-            if (index < voltageCells.Count && voltageCells[index] != null) voltageCells[index].text = "";
-            if (index < powerCells.Count && powerCells[index] != null) powerCells[index].text = "";
+            powerCells[index].color = placeholderColor;
+            powerCells[index].text = "--";
         }
     }
 

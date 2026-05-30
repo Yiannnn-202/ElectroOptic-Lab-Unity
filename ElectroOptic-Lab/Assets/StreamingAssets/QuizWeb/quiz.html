@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>晶体电光效应 — 课后习题</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Microsoft YaHei", Arial, sans-serif;
+  background: #eef2f7;
+  color: #1f2937;
+  min-height: 100vh;
+}
+
+/* ===== Top Bar ===== */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 32px;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+.topbar h1 { font-size: 20px; color: #0f172a; }
+.topbar .sub { font-size: 13px; color: #94a3b8; margin-left: 10px; }
+.topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+.btn {
+  padding: 8px 18px; border: none; border-radius: 8px;
+  font-size: 14px; cursor: pointer; font-weight: 500;
+  transition: all .15s;
+}
+.btn-primary { background: #2563eb; color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-outline { background: white; border: 1px solid #d1d5db; color: #374151; }
+.btn-outline:hover { background: #f8fafc; border-color: #2563eb; color: #2563eb; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.score-badge {
+  font-size: 16px; font-weight: 700; padding: 6px 14px;
+  border-radius: 8px; background: #f1f5f9;
+}
+.score-badge.done { background: #dcfce7; color: #16a34a; }
+
+/* ===== Layout ===== */
+.layout { display: flex; max-width: 1100px; margin: 24px auto; gap: 24px; padding: 0 20px; }
+
+/* ===== Sidebar ===== */
+.sidebar {
+  position: sticky; top: 80px; align-self: flex-start;
+  width: 200px; flex-shrink: 0;
+  background: white; border-radius: 12px; padding: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+.sidebar h3 { font-size: 14px; color: #64748b; margin-bottom: 10px; }
+.nav-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+
+.nav-dot {
+  width: 100%; aspect-ratio: 1;
+  border: 1px solid #d1d5db; border-radius: 6px;
+  background: white; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.nav-dot:hover { border-color: #2563eb; }
+.nav-dot.answered { background: #fef9c3; border-color: #eab308; }
+.nav-dot.correct { background: #bbf7d0; border-color: #22c55e; color: #15803d; }
+.nav-dot.wrong { background: #fecaca; border-color: #ef4444; color: #dc2626; }
+.nav-dot.unanswered-wrong { background: #fee2e2; border-color: #f87171; color: #b91c1c; }
+
+/* ===== Main content ===== */
+.main { flex: 1; min-width: 0; }
+
+.question-card {
+  background: white; border-radius: 12px; padding: 24px;
+  margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  scroll-margin-top: 80px;
+}
+.question-card.correct-card { border-left: 4px solid #22c55e; }
+.question-card.wrong-card { border-left: 4px solid #ef4444; }
+
+.q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.q-num { font-size: 15px; font-weight: 700; color: #1e3a8a; }
+.q-status { font-size: 13px; font-weight: 600; display: none; }
+.q-status.show { display: inline; }
+.q-status.correct { color: #16a34a; }
+.q-status.wrong { color: #dc2626; }
+
+.q-text { font-size: 16px; line-height: 1.7; margin-bottom: 14px; color: #1f2937; }
+
+.options { display: flex; flex-direction: column; gap: 8px; }
+
+.opt-btn {
+  display: block; width: 100%; text-align: left;
+  padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px;
+  background: #f8fafc; font-size: 15px; cursor: pointer;
+  transition: all .15s;
+}
+.opt-btn:hover:not(.locked) { background: #eff6ff; border-color: #93c5fd; }
+.opt-btn.selected { background: #dbeafe; border-color: #2563eb; color: #1e40af; font-weight: 600; }
+.opt-btn.correct-reveal { background: #dcfce7; border-color: #86efac; color: #15803d; }
+.opt-btn.wrong-reveal { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+.opt-btn.locked { cursor: default; }
+
+.explanation {
+  display: none; margin-top: 12px; padding: 12px 16px;
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  font-size: 14px; line-height: 1.7; color: #475569;
+}
+.explanation.show { display: block; }
+.explanation b { color: #1e3a8a; }
+
+.empty-state {
+  text-align: center; padding: 60px 20px; color: #94a3b8;
+  font-size: 16px;
+}
+
+/* ===== History Modal ===== */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(15,23,42,.4);
+  align-items: center; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+
+.modal {
+  background: white; border-radius: 16px; padding: 32px;
+  max-width: 640px; width: 90%; max-height: 80vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.modal h2 { font-size: 22px; color: #0f172a; margin-bottom: 6px; }
+.modal .modal-sub { font-size: 13px; color: #94a3b8; margin-bottom: 18px; }
+
+.history-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.history-table th, .history-table td {
+  padding: 10px 14px; text-align: center; border-bottom: 1px solid #e5e7eb;
+}
+.history-table th { background: #f8fafc; color: #64748b; font-weight: 600; }
+.history-table .score-cell { font-weight: 700; }
+.history-table .score-cell.good { color: #16a34a; }
+.history-table .score-cell.ok { color: #eab308; }
+.history-table .score-cell.bad { color: #ef4444; }
+
+.clear-history-btn {
+  margin-top: 16px; padding: 6px 14px;
+  border: 1px solid #fca5a5; border-radius: 6px;
+  background: white; color: #ef4444; font-size: 13px;
+  cursor: pointer; transition: all .15s;
+}
+.clear-history-btn:hover { background: #fef2f2; }
+
+.modal-close {
+  position: absolute; top: 16px; right: 20px;
+  width: 32px; height: 32px; border: none; border-radius: 50%;
+  background: #f1f5f9; color: #64748b; font-size: 18px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: #e2e8f0; }
+
+@media print {
+  body { background: white; }
+  .topbar, .sidebar, .btn { display: none !important; }
+  .layout { max-width: none; margin: 0; padding: 0; }
+  .question-card { box-shadow: none; border: 1px solid #e5e7eb; break-inside: avoid; }
+  .opt-btn.locked { background: white; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>晶体电光效应 · 课后习题<span class="sub">Electro-Optic Effect Quiz</span></h1>
+  </div>
+  <div class="topbar-actions">
+    <span class="score-badge" id="scoreBadge">未交卷</span>
+    <button class="btn btn-outline" id="historyBtn" title="历史成绩">📊 历史成绩</button>
+    <button class="btn btn-outline" id="retryBtn">🔄 重新出题</button>
+    <button class="btn btn-primary" id="submitBtn">📝 交卷</button>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h3>📋 题目导航</h3>
+    <div class="nav-grid" id="navGrid"></div>
+  </aside>
+  <main class="main" id="questionList"></main>
+</div>
+
+<!-- History Modal -->
+<div class="modal-overlay" id="historyModal">
+  <div class="modal">
+    <h2>📊 历史成绩</h2>
+    <p class="modal-sub">成绩保存在本地浏览器中</p>
+    <div id="historyContent"></div>
+    <button class="clear-history-btn" id="clearHistoryBtn">清空历史记录</button>
+    <button class="modal-close" id="closeModalBtn">✕</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // =====================================================================
+  //  Question Bank (34 questions)
+  // =====================================================================
+  var BANK = [
+    {q:"由电场的二次项引起折射率变化的现象被称为？", opts:["A) Pockels效应","B) Faraday效应","C) Kerr效应","D) Zeeman效应"], ans:2, exp:"二次电光效应与电场强度的平方成正比，这一现象早在1875年由Kerr发现，称为克尔效应。"},
+    {q:"半波电压 Uπ 的物理意义是什么？", opts:["A) 相位延迟π/2","B) 相位延迟2π","C) 相位延迟π","D) 折射率变为一半"], ans:2, exp:"当外加电压使沿两个感应主轴方向传播的光分量之间产生 π (即半个波长) 的位相差时，相应的电压值即为半波电压。"},
+    {q:"横向电光调制中，半波电压与晶体厚度 d 和长度 L 的关系是？", opts:["A) 与d成正比, 与L成反比","B) 与L成正比, 与d成反比","C) 均无关","D) 只与d有关"], ans:0, exp:"公式中明确包含了几何因子 d/L，这在数学上清晰地表明了 Uπ 与极板间厚度 d 成正比，与通光长度 L 成反比。"},
+    {q:"铌酸锂晶体实验光路时，“最佳运用方式”是？", opts:["A) 沿x通光, 沿y加电","B) 沿z通光, 沿x或y加电","C) 沿z通光, 沿z加电","D) 沿光轴45°通光"], ans:1, exp:"沿光轴(z轴)通光时，o光和e光的折射率原本是相同的(无自然双折射)。此时在垂直于z轴的方向加电场，能避免自然双折射的干扰。"},
+    {q:"粗调“消光”时，起偏器和检偏器的透光轴应？", opts:["A) 相互平行","B) 成45°夹角","C) 相互垂直","D) 任意角度"], ans:2, exp:"当起偏器和检偏器的透光轴完全垂直时，根据马吕斯定律，透射光强为零，实现彻底消光。"},
+    {q:"未加电压时，单轴晶体会聚光锥光干涉图呈什么形状？", opts:["A) 同心圆环中央暗十字","B) 平行等间距条纹","C) 双曲线条纹","D) 均匀暗场"], ans:0, exp:"单轴晶体在正交偏振场下，其等倾干涉图样具有特征性的同心圆环（等色线）和覆盖其上的暗十字（等相线）。"},
+    {q:"正交偏振场中，调制器透过率 T 与电压 u 的关系是？", opts:["A) cos²","B) sin²","C) 线性","D) tan²"], ans:1, exp:"根据推导，代入相位差公式后，即可得到透过率与电压的非线性正弦平方 (sin²) 关系。"},
+    {q:"为了实现小信号线性调制，直流偏压应设在？", opts:["A) 0","B) Uπ","C) 1/2 Uπ","D) 2 Uπ"], ans:2, exp:"将偏压设置在半波电压的一半处，对应透过率曲线斜率最大且最接近直线的线性工作区中心，可使小信号调制失真最小。"},
+    {q:"不加直流偏置而在光路中插入元件实现线性区工作，该元件是？", opts:["A) 半波片","B) 1/4波片","C) 毛玻璃","D) 全反射棱镜"], ans:1, exp:"插入快慢轴调节恰当的 1/4 波片可以产生额外的 π/2 固定相位差，这与施加 1/2 Uπ 直流偏压的物理效果完全等效。"},
+    {q:"消光比 M 的定义是？", opts:["A) 输出/入射比","B) 调制/偏压比","C) 最大/最小光强比","D) 折射率差"], ans:2, exp:"消光比 M = I_max / I_min 反映了调制器将光路彻底关闭与完全打开之间对比度的能力。"},
+    {q:"偏置电压位于极小值点时，交流光信号会出现？", opts:["A) 完美方波","B) 幅度最大","C) 明显的倍频失真","D) 信号消失"], ans:2, exp:"由于极值点处曲线具有偶对称性，正负半周的输入电压变化都会导致同向的透射率变化，从而产生频率为两倍的失真波形。"},
+    {q:"与KDP相比，铌酸锂的显著优点是？", opts:["A) 无自然双折射","B) 不潮解, 性质稳定","C) 系数低","D) 免疫强光"], ans:1, exp:"KDP 晶体是水溶性的，极其容易在空气中潮解损坏，而 LN (铌酸锂) 晶体不潮解，更适合制成实用器件。"},
+    {q:"极值法测试中，半波电压等于？", opts:["A) |u1 - u2|/2","B) |u1 - u2|","C) 2|u1 - u2|","D) 平均值"], ans:1, exp:"在透过率曲线中，从一个波谷到相邻的波峰，其横坐标的跨度精确对应于产生 π 弧度相位差所需的电压增量（即半波电压）。"},
+    {q:"准确判断激光已与晶体光轴(Z轴)重合的依据是？", opts:["A) 功率最大","B) 光强不受电压影响","C) 暗十字中心与光斑重合","D) 圆环消失"], ans:2, exp:"锥光干涉图的对称暗十字中心精确代表了晶体光轴的方向，光斑与之重合即实现了严格对准。"},
+    {q:"电场方向与通光方向平行被称为？", opts:["A) 横向调制","B) 纵向调制","C) 表面调制","D) 极化调制"], ans:1, exp:"纵向（Longitudinal）在物理学中常用来表示物理量作用方向与波传播方向平行的情形。"},
+    {q:"关于自然双折射，正确的是？", opts:["A) 电场引起","B) 铌酸锂加电才有","C) 压力引起","D) 晶体固有特性"], ans:3, exp:"自然双折射是由晶体内部固有的微观各向异性排列决定的，在无外场干扰时依然存在。"},
+    {q:"计算：λ=0.633μm, n0=2.297, γ22=3.4e-12, L=20mm, d=2mm。Uπ约为？", opts:["A) 384V","B) 768V","C) 1536V","D) 7680V"], ans:1, exp:"根据公式 Uπ = (λ / (2 * n0³ * γ22)) * (d / L)，代入数据计算约等于 768 V。"},
+    {q:"不改材料和波长，如何使半波电压降低一半？", opts:["A) L和d减半","B) d加倍","C) L加倍","D) 变圆柱"], ans:2, exp:"半波电压与晶体长度 L 成反比。增加通光长度可以增加电光效应的积累光程，从而使所需的半波电压降低一半。"},
+    {q:"测试得极小80V，极大310V，再至极小540V。半波电压是？", opts:["A) 310V","B) 230V","C) 460V","D) 195V"], ans:1, exp:"从波谷（极小值80V）到相邻波峰（极大值310V），电压增量 310 - 80 = 230V 即为半波电压。"},
+    {q:"音频信号保真调制时，直流偏置 U 应设在？", opts:["A) 80V","B) 195V","C) 310V","D) 0V"], ans:1, exp:"相邻波谷(80V)与波峰(310V)的中点为 (80+310)/2 = 195V。这是透过率曲线斜率最大的线性区中心，最适合线性调制。"},
+    {q:"沿 X 通光沿 Z 加电，会面临什么干扰？", opts:["A) 无效应","B) 击穿","C) 巨大的自然双折射相差","D) 各向同性"], ans:2, exp:"沿 X 轴传播时，两者巨大的固有折射率差异会产生自然相位差，掩盖微弱的电光效应。"},
+    {q:"最佳方式加电后，感应椭圆主轴旋转了多少度？", opts:["A) 0°","B) 30°","C) 45°","D) 90°"], ans:2, exp:"由于交叉项的影响，在主轴变换对角化方程后，新产生的感应主轴会绕着 Z 轴旋转精确的 45 度。"},
+    {q:"Uπ=280V，加偏压140V，静态透过率 T 为？", opts:["A) 0","B) 25%","C) 50%","D) 100%"], ans:2, exp:"公式 T = sin²(πU / 2Uπ)。当 U = 140V 且 Uπ = 280V 时，T = sin²(π/4) = 0.5 (即50%)。"},
+    {q:"线性点观察调制信号，波形削顶的原因是？", opts:["A) 功率弱","B) 信号幅值过大","C) 不正交","D) 没加毛玻璃"], ans:1, exp:"输入的交流信号振幅过大，就会越过线性区进入极值点附近的弯曲区域，导致输出波形上下峰值被非线性压缩。"},
+    {q:"为了低失真，调制信号幅值 φm 应控制在？", opts:["A) (1/2~1)π","B) (1/10~1/3)π","C) 极小","D) (1~2)π"], ans:1, exp:"既能保证有足够大的信号振幅，又能确保信号主体落在曲线斜率最恒定的“直线区”内，有效控制谐波失真。"},
+    {q:"测得最高 500μW，最低 2μW。消光比是？", opts:["A) 1000:1","B) 500:1","C) 250:1","D) 498μW"], ans:2, exp:"消光比 M = I_max / I_min = 500 / 2 = 250。这是一个无量纲的比值指标。"},
+    {q:"输出始终为零，最不可能的原因是？", opts:["A) 未开电源","B) 偏振轴相互平行","C) 毛玻璃未移","D) 探头偏离"], ans:1, exp:"如果两偏振片平行，光线会大量穿透到达接收器，此时应该显示极高的信号电平（亮场），而不是零。"},
+    {q:"双折射率差 Δn 与外加电场 E 呈什么关系？", opts:["A) 平方","B) 线性正比","C) 指数","D) 反比"], ans:1, exp:"感应产生的双折射率差 Δn 与电场强度 E 是一次方线性比例关系。"},
+    {q:"铌酸锂晶体的“光损伤”可采用什么方法缓解？", opts:["A) 打磨","B) 浸水","C) 退火","D) 真空"], ans:2, exp:"在高温（居里温度附近）退火能消除内部应力和重新分布电荷，提高其抗光折变的光损伤阈值。"},
+    {q:"U=Uπ 时，偏振面旋转了多少度？", opts:["A) 0°","B) 45°","C) 90°","D) 180°"], ans:2, exp:"半波电压相当于将偏振面沿着 45度主轴作了镜像翻转，翻转后的偏振面刚好旋转了 90 度，从而 100% 穿透正交检偏器。"},
+    {q:"减小横向调制的控制电压，可以？", opts:["A) 选短波长","B) 选长波长","C) 增加厚度","D) 减小长度"], ans:0, exp:"公式中 Uπ 与波长 λ 成正比。选用波长更短的激光，所需的半波电压也会按比例降低。"},
+    {q:"1/4 波片作为偏压，快慢轴应？", opts:["A) 与起偏器平行","B) 与起偏器垂直","C) 与起偏器成 45°","D) 任意"], ans:2, exp:"为了产生额外的相位延迟，快慢轴必须与线偏振方向成 45°，等幅分解光矢量从而拉开 π/2 的相位差。"},
+    {q:"电光效应响应速度受限于？", opts:["A) 晶格移动","B) 外部电路 RC","C) 穿过时间","D) 热传导"], ans:1, exp:"由于电光效应是极化效应，响应时间极短。实际应用中的调制速率上限几乎全部受限于外部电路的 RC 时间常数。"},
+    {q:"最大线性范围内，工作点选在透过率曲线的？", opts:["A) 波峰","B) 波谷","C) 线性中点 Q","D) 任意"], ans:2, exp:"线性中点对应的透射率曲线斜率最大且相对恒定，适合大动态范围的线性调制。"}
+  ];
+
+  // =====================================================================
+  //  State
+  // =====================================================================
+  var TOTAL = 10;
+  var questions = [];       // selected questions (indices into BANK)
+  var answers = [];         // user answers, -1 = unanswered
+  var submitted = false;
+
+  // DOM refs
+  var navGrid = document.getElementById("navGrid");
+  var questionList = document.getElementById("questionList");
+  var scoreBadge = document.getElementById("scoreBadge");
+  var submitBtn = document.getElementById("submitBtn");
+  var retryBtn = document.getElementById("retryBtn");
+  var historyBtn = document.getElementById("historyBtn");
+  var historyModal = document.getElementById("historyModal");
+  var historyContent = document.getElementById("historyContent");
+  var closeModalBtn = document.getElementById("closeModalBtn");
+  var clearHistoryBtn = document.getElementById("clearHistoryBtn");
+
+  // =====================================================================
+  //  Shuffle & Init
+  // =====================================================================
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function initQuiz() {
+    var indices = [];
+    for (var i = 0; i < BANK.length; i++) indices.push(i);
+    questions = shuffle(indices).slice(0, TOTAL);
+    answers = [];
+    for (var j = 0; j < TOTAL; j++) answers.push(-1);
+    submitted = false;
+    submitBtn.disabled = false;
+    scoreBadge.textContent = "未交卷";
+    scoreBadge.className = "score-badge";
+    renderAll();
+  }
+
+  // =====================================================================
+  //  Render
+  // =====================================================================
+  function renderAll() {
+    renderNav();
+    renderQuestions();
+  }
+
+  function renderNav() {
+    navGrid.innerHTML = "";
+    for (var i = 0; i < TOTAL; i++) {
+      var dot = document.createElement("button");
+      dot.className = "nav-dot";
+      dot.textContent = i + 1;
+      dot.title = "第" + (i+1) + "题";
+
+      if (submitted) {
+        var q = BANK[questions[i]];
+        var correct = answers[i] === q.ans;
+        if (answers[i] === -1) {
+          dot.classList.add("unanswered-wrong");
+        } else {
+          dot.classList.add(correct ? "correct" : "wrong");
+        }
+      } else if (answers[i] !== -1) {
+        dot.classList.add("answered");
+      }
+
+      (function(idx) {
+        dot.addEventListener("click", function() {
+          document.getElementById("q" + idx).scrollIntoView({ behavior: "smooth" });
+        });
+      })(i);
+
+      navGrid.appendChild(dot);
+    }
+  }
+
+  function renderQuestions() {
+    questionList.innerHTML = "";
+    for (var i = 0; i < TOTAL; i++) {
+      var q = BANK[questions[i]];
+      var card = document.createElement("div");
+      card.className = "question-card";
+      card.id = "q" + i;
+
+      // header
+      var header = document.createElement("div");
+      header.className = "q-header";
+
+      var num = document.createElement("span");
+      num.className = "q-num";
+      num.textContent = "第 " + (i+1) + " / " + TOTAL + " 题";
+      header.appendChild(num);
+
+      if (submitted) {
+        var status = document.createElement("span");
+        status.className = "q-status show";
+        var correct = answers[i] === q.ans;
+        if (answers[i] === -1) {
+          status.textContent = "未作答";
+          status.classList.add("wrong");
+          card.classList.add("wrong-card");
+        } else if (correct) {
+          status.textContent = "✓ 正确";
+          status.classList.add("correct");
+          card.classList.add("correct-card");
+        } else {
+          status.textContent = "✗ 错误";
+          status.classList.add("wrong");
+          card.classList.add("wrong-card");
+        }
+        header.appendChild(status);
+      }
+
+      card.appendChild(header);
+
+      // question text
+      var qText = document.createElement("p");
+      qText.className = "q-text";
+      qText.textContent = q.q;
+      card.appendChild(qText);
+
+      // options
+      var optsDiv = document.createElement("div");
+      optsDiv.className = "options";
+
+      for (var o = 0; o < 4; o++) {
+        var btn = document.createElement("button");
+        btn.className = "opt-btn";
+        btn.textContent = q.opts[o];
+
+        if (submitted) {
+          btn.classList.add("locked");
+          if (o === q.ans) {
+            btn.classList.add("correct-reveal");
+          } else if (o === answers[i] && answers[i] !== q.ans) {
+            btn.classList.add("wrong-reveal");
+          }
+        } else {
+          if (answers[i] === o) btn.classList.add("selected");
+          (function(qi, oi) {
+            btn.addEventListener("click", function() {
+              if (submitted) return;
+              answers[qi] = oi;
+              renderAll();
+            });
+          })(i, o);
+        }
+
+        optsDiv.appendChild(btn);
+      }
+
+      card.appendChild(optsDiv);
+
+      // explanation
+      if (submitted) {
+        var expDiv = document.createElement("div");
+        expDiv.className = "explanation show";
+        var correctLetter = ["A","B","C","D"][q.ans];
+        var userLetter = answers[i] === -1 ? "未作答" : ["A","B","C","D"][answers[i]];
+        expDiv.innerHTML = "<b>正确答案：" + correctLetter + "</b>　你的答案：" + userLetter + "<br><b>解析：</b>" + q.exp;
+        card.appendChild(expDiv);
+      }
+
+      questionList.appendChild(card);
+    }
+  }
+
+  // =====================================================================
+  //  Submit
+  // =====================================================================
+  function submitQuiz() {
+    if (submitted) return;
+    submitted = true;
+    submitBtn.disabled = true;
+
+    var correctCount = 0;
+    for (var i = 0; i < TOTAL; i++) {
+      if (answers[i] === BANK[questions[i]].ans) correctCount++;
+    }
+
+    var score = correctCount * 5;
+    var total = TOTAL * 5;
+    var pct = Math.round(score / total * 100);
+
+    scoreBadge.textContent = "得分：" + score + " / " + total + " (" + pct + "%)";
+    scoreBadge.className = "score-badge done";
+
+    saveResult(score, total, correctCount);
+    renderAll();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // =====================================================================
+  //  History (localStorage)
+  // =====================================================================
+  function getHistory() {
+    try {
+      var raw = localStorage.getItem("eo_quiz_history");
+      return raw ? JSON.parse(raw) : [];
+    } catch(e) { return []; }
+  }
+
+  function saveResult(score, total, correctCount) {
+    var history = getHistory();
+    var now = new Date();
+    var ds = now.getFullYear() + "-" +
+      String(now.getMonth()+1).padStart(2,"0") + "-" +
+      String(now.getDate()).padStart(2,"0") + " " +
+      String(now.getHours()).padStart(2,"0") + ":" +
+      String(now.getMinutes()).padStart(2,"0");
+    history.unshift({
+      date: ds,
+      score: score,
+      total: total,
+      correct: correctCount,
+      questionCount: TOTAL,
+      pct: Math.round(score / total * 100)
+    });
+    // keep last 50 records
+    if (history.length > 50) history = history.slice(0, 50);
+    try {
+      localStorage.setItem("eo_quiz_history", JSON.stringify(history));
+    } catch(e) {}
+  }
+
+  function showHistory() {
+    var history = getHistory();
+    if (history.length === 0) {
+      historyContent.innerHTML = '<div class="empty-state">暂无历史成绩记录</div>';
+    } else {
+      var html = '<table class="history-table"><thead><tr><th>日期时间</th><th>题数</th><th>答对</th><th>得分</th><th>正确率</th></tr></thead><tbody>';
+      for (var i = 0; i < history.length; i++) {
+        var h = history[i];
+        var cls = h.pct >= 80 ? "good" : h.pct >= 60 ? "ok" : "bad";
+        html += '<tr>';
+        html += '<td>' + h.date + '</td>';
+        html += '<td>' + h.questionCount + '</td>';
+        html += '<td>' + h.correct + '</td>';
+        html += '<td class="score-cell ' + cls + '">' + h.score + ' / ' + h.total + '</td>';
+        html += '<td class="score-cell ' + cls + '">' + h.pct + '%</td>';
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      historyContent.innerHTML = html;
+    }
+    historyModal.classList.add("show");
+  }
+
+  function hideHistory() {
+    historyModal.classList.remove("show");
+  }
+
+  function clearHistory() {
+    if (confirm("确定要清空所有历史成绩记录吗？此操作不可撤销。")) {
+      localStorage.removeItem("eo_quiz_history");
+      showHistory();
+    }
+  }
+
+  // =====================================================================
+  //  Event bindings
+  // =====================================================================
+  submitBtn.addEventListener("click", submitQuiz);
+  retryBtn.addEventListener("click", function() {
+    if (submitted || answers.every(function(a) { return a === -1; }) || confirm("确定要重新出题吗？当前答题进度将丢失。")) {
+      initQuiz();
+    }
+  });
+  historyBtn.addEventListener("click", showHistory);
+  closeModalBtn.addEventListener("click", hideHistory);
+  historyModal.addEventListener("click", function(e) {
+    if (e.target === historyModal) hideHistory();
+  });
+  clearHistoryBtn.addEventListener("click", clearHistory);
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") hideHistory();
+  });
+
+  // =====================================================================
+  //  Boot
+  // =====================================================================
+  initQuiz();
+})();
+</script>
+</body>
+</html>
