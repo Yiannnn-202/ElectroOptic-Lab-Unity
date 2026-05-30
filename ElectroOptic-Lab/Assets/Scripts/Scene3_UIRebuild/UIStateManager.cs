@@ -3,13 +3,13 @@ using XCharts.Runtime;
 using System.Collections.Generic;
 using System.Text;
 using TMPro;
+using MathNet.Numerics;
 
 public class UIStateManager : MonoBehaviour
 {
     [Header("UI 面板引用")]
     public GameObject tablePanel;
     public GameObject graphPanel;
-
     public GameObject leftControlPanel;
     public GameObject analysisPanel;
     public TextMeshProUGUI analysisText;
@@ -17,20 +17,24 @@ public class UIStateManager : MonoBehaviour
     [Header("画图数据引用")]
     public RecordManager recordManager;
     public LineChart lineChart;
+    public LineChart residualChart; // 残差图表引用
 
-    private int localFitRange = 2;
+    // 全局拟合留存的物理量与状态
+    private bool hasValidFit = false;
+    private string globalFormula = "";
+
+    // 记录拟合曲线本身的理论极值点坐标
+    private float fitCurveMaxV = 0f;
+    private float fitCurveMinV = 0f;
+    private float fitCurveMaxP = 0f;
+    private float fitCurveMinP = 0f;
 
     private float lastCalculatedV = 0f;
-    private float lastErrorAbs = 0f;
-    private float lastErrorRelative = 0f;
-    private string quadraticFormula = "";
-    private bool hasValidFit = false;
 
     void Start()
     {
         if (leftControlPanel != null) leftControlPanel.SetActive(true);
         if (analysisPanel != null) analysisPanel.SetActive(false);
-
         if (tablePanel != null) tablePanel.SetActive(true);
         if (graphPanel != null) graphPanel.SetActive(false);
     }
@@ -39,15 +43,19 @@ public class UIStateManager : MonoBehaviour
     {
         if (tablePanel != null) tablePanel.SetActive(false);
         if (graphPanel != null) graphPanel.SetActive(true);
-
         DrawGraph();
+    }
+
+    public void BackToTable()
+    {
+        if (tablePanel != null) tablePanel.SetActive(true);
+        if (graphPanel != null) graphPanel.SetActive(false);
     }
 
     public void ShowAnalysisReport()
     {
         if (leftControlPanel != null) leftControlPanel.SetActive(false);
         if (analysisPanel != null) analysisPanel.SetActive(true);
-
         GenerateReportText();
     }
 
@@ -57,141 +65,166 @@ public class UIStateManager : MonoBehaviour
         if (analysisPanel != null) analysisPanel.SetActive(false);
     }
 
-    // ================= 优化后的报告生成 =================
+    // ================= 紧凑版报告生成 =================
     private void GenerateReportText()
     {
         if (analysisText == null) return;
 
         StringBuilder sb = new StringBuilder();
-        sb.AppendLine("<size=120%><color=#005088><b>实验数据处理与误差分析</b></color></size>");
+        sb.AppendLine("<size=110%><color=#005088><b>实验数据处理与结果分析</b></color></size>");
         sb.AppendLine("-----------------------------------------");
 
         if (!hasValidFit)
         {
-            sb.AppendLine("\n<color=red><b>⚠️ 数据不足，无法完成局部极值拟合。</b></color>");
+            sb.AppendLine("<color=red><b>⚠️ 数据不足或算法迭代发散。</b></color>");
             analysisText.text = sb.ToString();
             return;
         }
 
-        // 精简了文字描述，去掉了最后一句，使得排版更紧凑
-        sb.AppendLine($"<color=#333><b>1. 局部二次拟合方程：</b></color>");
-        sb.AppendLine($"   {quadraticFormula}");
-        sb.AppendLine();
-        sb.AppendLine($"<color=#333><b>2. 极值解算 (顶点法)：</b></color>");
-        sb.AppendLine($"   公式: V = -b / (2a)");
-        sb.AppendLine($"   测量值: <b>V_calc = {lastCalculatedV:F2} V</b>");
-        sb.AppendLine();
-        sb.AppendLine($"<color=#333><b>3. 误差分析：</b></color>");
-
-        float trueV = recordManager.halfWaveVoltage;
-        sb.AppendLine($"   理论值: V_true = {trueV:F2} V");
-        sb.AppendLine($"   绝对误差: ΔV = <b>{lastErrorAbs:F3} V</b>");
-        sb.AppendLine($"   相对误差: δ = <b>{lastErrorRelative:F2}%</b>");
+        sb.AppendLine($"<color=#333><b>1. 拟合方程：</b></color>\n   {globalFormula}");
+        sb.AppendLine($"<color=#333><b>2. 特征点提取：</b></color>\n   波峰: <b>V_max = {fitCurveMaxV:F2} V</b> ({fitCurveMaxP:F2} μW)\n   波谷: <b>V_min = {fitCurveMinV:F2} V</b> ({fitCurveMinP:F2} μW)");
+        sb.AppendLine($"<color=#333><b>3. 半波电压解算：</b></color>\n   V_π = V_min - V_max = <b>{lastCalculatedV:F2} V</b>");
 
         analysisText.text = sb.ToString();
     }
 
+    // ================= 核心画图与非线性拟合算法 =================
     private void DrawGraph()
     {
         hasValidFit = false;
         if (recordManager == null || lineChart == null) return;
-        lineChart.RemoveData();
 
-        List<float> xData = new List<float>();
-        List<float> yData = new List<float>();
+        // ✨【核心修复点】：用 RemoveAllSerie 彻底砸碎并清空所有旧序列，确保新加的序列索引永远从 0 开始！
+        lineChart.RemoveAllSerie();
+        if (residualChart != null) residualChart.RemoveAllSerie();
+
+        List<double> xData = new List<double>();
+        List<double> yData = new List<double>();
 
         for (int i = 0; i < recordManager.voltageCells.Count; i++)
         {
             string vText = recordManager.voltageCells[i].text;
             string pText = recordManager.powerCells[i].text;
-            if (float.TryParse(vText, out float voltage) && float.TryParse(pText, out float power))
+            if (double.TryParse(vText, out double voltage) && double.TryParse(pText, out double power))
             {
                 xData.Add(voltage);
                 yData.Add(power);
             }
         }
 
-        if (xData.Count < 3) return;
+        if (xData.Count < 5) return;
 
+        // 1. 绘制实验主图离散点 -> 此时绝对是 0 号序列
         var scatterSerie = lineChart.AddSerie<Scatter>("实验数据");
         scatterSerie.symbol.show = true;
         scatterSerie.symbol.type = SymbolType.Circle;
         scatterSerie.symbol.size = 8f;
         scatterSerie.itemStyle.color = Color.red;
-        for (int i = 0; i < xData.Count; i++) lineChart.AddData(0, xData[i], yData[i]);
+        for (int i = 0; i < xData.Count; i++) lineChart.AddData(0, (float)xData[i], (float)yData[i]);
 
-        var globalLineSerie = lineChart.AddSerie<Line>("全局趋势");
-        globalLineSerie.lineType = LineType.Smooth;
-        globalLineSerie.symbol.show = false;
-        globalLineSerie.lineStyle.color = new Color(0.2f, 0.6f, 1f, 0.5f);
-        globalLineSerie.lineStyle.width = 2f;
-        for (int i = 0; i < xData.Count; i++) lineChart.AddData(1, xData[i], yData[i]);
-
-        int maxIndex = 0;
-        for (int i = 1; i < yData.Count; i++) if (yData[i] > yData[maxIndex]) maxIndex = i;
-
-        int startIndex = Mathf.Max(0, maxIndex - localFitRange);
-        int endIndex = Mathf.Min(xData.Count - 1, maxIndex + localFitRange);
-
-        List<float> localX = new List<float>();
-        List<float> localY = new List<float>();
-        for (int i = startIndex; i <= endIndex; i++)
+        // 2. 预计算初始猜想值
+        double maxP = yData[0], minP = yData[0];
+        double maxV = xData[0], minV = xData[0];
+        for (int i = 1; i < yData.Count; i++)
         {
-            localX.Add(xData[i]);
-            localY.Add(yData[i]);
+            if (yData[i] > maxP) { maxP = yData[i]; maxV = xData[i]; }
+            if (yData[i] < minP) { minP = yData[i]; minV = xData[i]; }
         }
+        double guessA = (maxP - minP) / 2.0;
+        double guessB = (maxP + minP) / 2.0;
+        double guessW = System.Math.PI / System.Math.Abs(maxV - minV);
+        double guessPhi = -guessW * maxV;
 
-        if (localX.Count >= 3)
+        try
         {
-            float[] coeffs = CalculateQuadraticLeastSquares(localX, localY);
-            float a = coeffs[0], b = coeffs[1], c = coeffs[2];
+            // 3. 全局非线性曲线拟合
+            (double fitA, double fitW, double fitPhi, double fitB) = Fit.Curve(
+                xData.ToArray(), yData.ToArray(),
+                (a, w, phi, b, x) => a * System.Math.Cos(w * x + phi) + b,
+                guessA, guessW, guessPhi, guessB);
 
-            if (a < 0)
+            string signPhi = fitPhi < 0 ? "-" : "+";
+            string signB = fitB < 0 ? "-" : "+";
+            globalFormula = $"P = {System.Math.Abs(fitA):F1}cos({System.Math.Abs(fitW):F4}V {signPhi} {System.Math.Abs(fitPhi):F2}) {signB} {System.Math.Abs(fitB):F1}";
+
+            // 4. 双重扫描法找极值
+            double scanStart = xData[0];
+            double scanEnd = xData[xData.Count - 1];
+
+            double tempMaxP = double.MinValue;
+            for (double v = scanStart; v <= scanEnd; v += 0.1)
             {
-                hasValidFit = true;
-                lastCalculatedV = -b / (2f * a);
-                lastErrorAbs = Mathf.Abs(lastCalculatedV - recordManager.halfWaveVoltage);
-                lastErrorRelative = (lastErrorAbs / recordManager.halfWaveVoltage) * 100f;
-
-                // ================= 优化数学方程的显示格式 =================
-                string signB = b < 0 ? "-" : "+";
-                string signC = c < 0 ? "-" : "+";
-                // 这样就不会出现 "+ (-数字)" 的情况了
-                quadraticFormula = $"P = {a:F4}V² {signB} {Mathf.Abs(b):F3}V {signC} {Mathf.Abs(c):F2}";
-
-                var localLineSerie = lineChart.AddSerie<Line>("局部抛物线拟合");
-                localLineSerie.lineType = LineType.Smooth;
-                localLineSerie.symbol.show = false;
-                localLineSerie.lineStyle.color = Color.green;
-                localLineSerie.lineStyle.width = 4f;
-
-                float plotMinX = localX[0] - 20f;
-                float plotMaxX = localX[localX.Count - 1] + 20f;
-                for (float x = plotMinX; x <= plotMaxX; x += 1f)
+                double p = fitA * System.Math.Cos(fitW * v + fitPhi) + fitB;
+                if (p > tempMaxP)
                 {
-                    lineChart.AddData(2, x, a * x * x + b * x + c);
+                    tempMaxP = p;
+                    fitCurveMaxV = (float)v;
+                    fitCurveMaxP = (float)p;
+                }
+            }
+
+            double tempMinP = double.MaxValue;
+            for (double v = fitCurveMaxV; v <= scanEnd; v += 0.1)
+            {
+                double p = fitA * System.Math.Cos(fitW * v + fitPhi) + fitB;
+                if (p < tempMinP)
+                {
+                    tempMinP = p;
+                    fitCurveMinV = (float)v;
+                    fitCurveMinP = (float)p;
+                }
+            }
+
+            lastCalculatedV = fitCurveMinV - fitCurveMaxV;
+            hasValidFit = true;
+
+            // 5. 绘制主图拟合曲线 -> 此时绝对是 1 号序列
+            var globalLineSerie = lineChart.AddSerie<Line>("理论拟合");
+            globalLineSerie.lineType = LineType.Smooth;
+            globalLineSerie.symbol.show = false;
+            globalLineSerie.lineStyle.color = Color.green;
+            globalLineSerie.lineStyle.width = 3f;
+
+            double plotMinX = scanStart - 20;
+            double plotMaxX = scanEnd + 20;
+            for (double x = plotMinX; x <= plotMaxX; x += 2)
+            {
+                double y = fitA * System.Math.Cos(fitW * x + fitPhi) + fitB;
+                lineChart.AddData(1, (float)x, (float)y);
+            }
+
+            // 6. 计算并绘制残差图 (Residuals)
+            if (residualChart != null)
+            {
+                // 残差散点序列 -> 此时绝对是 0 号序列
+                var resScatter = residualChart.AddSerie<Scatter>("残差");
+                resScatter.symbol.type = SymbolType.Circle;
+                resScatter.symbol.size = 5f;
+                resScatter.itemStyle.color = new Color(0.1f, 0.5f, 0.8f);
+
+                // 残差零基准线 -> 此时绝对是 1 号序列
+                var zeroLine = residualChart.AddSerie<Line>("零线");
+                zeroLine.lineType = LineType.Normal;
+                zeroLine.symbol.show = false;
+                zeroLine.lineStyle.color = Color.gray;
+                zeroLine.lineStyle.width = 1.5f;
+
+                for (int i = 0; i < xData.Count; i++)
+                {
+                    double v = xData[i];
+                    double pActual = yData[i];
+                    double pFit = fitA * System.Math.Cos(fitW * v + fitPhi) + fitB;
+                    double residual = pActual - pFit;
+
+                    residualChart.AddData(0, (float)v, (float)residual); // 0号数据线
+                    residualChart.AddData(1, (float)v, 0f);              // 1号零基准线
                 }
             }
         }
-    }
-
-    private float[] CalculateQuadraticLeastSquares(List<float> xList, List<float> yList)
-    {
-        int n = xList.Count;
-        double sumX = 0, sumX2 = 0, sumX3 = 0, sumX4 = 0, sumY = 0, sumXY = 0, sumX2Y = 0;
-        for (int i = 0; i < n; i++)
+        catch (System.Exception e)
         {
-            double x = xList[i], y = yList[i], x2 = x * x;
-            sumX += x; sumX2 += x2; sumX3 += x2 * x; sumX4 += x2 * x2;
-            sumY += y; sumXY += x * y; sumX2Y += x2 * y;
+            Debug.LogError("拟合运算失败: " + e.Message);
+            hasValidFit = false;
         }
-        double m11 = sumX4, m12 = sumX3, m13 = sumX2, m21 = sumX3, m22 = sumX2, m23 = sumX, m31 = sumX2, m32 = sumX, m33 = n;
-        double v1 = sumX2Y, v2 = sumXY, v3 = sumY;
-        double det = m11 * (m22 * m33 - m23 * m32) - m12 * (m21 * m33 - m23 * m31) + m13 * (m21 * m32 - m22 * m31);
-        if (System.Math.Abs(det) < 1e-10) return new float[] { 0, 0, 0 };
-        double a = (v1 * (m22 * m33 - m23 * m32) - m12 * (v2 * m33 - m23 * v3) + m13 * (v2 * m32 - m22 * v3)) / det;
-        double b = (m11 * (v2 * m33 - m23 * v3) - v1 * (m21 * m33 - m23 * m31) + m13 * (m21 * v3 - v2 * m31)) / det;
-        double c = (m11 * (m22 * v3 - v2 * m32) - m12 * (m21 * v3 - v2 * m31) + v1 * (m21 * m32 - m22 * m31)) / det;
-        return new float[] { (float)a, (float)b, (float)c };
     }
 }

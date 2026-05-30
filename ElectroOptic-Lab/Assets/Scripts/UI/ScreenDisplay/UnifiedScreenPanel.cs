@@ -73,6 +73,10 @@ namespace ElectroOptics.UI.ScreenDisplay
         // 状态
         private bool _isInitialized;
         private bool _isVisible = true;
+        private bool _isFading;
+
+        // 面板整体 CanvasGroup（用于淡入淡出）
+        private CanvasGroup _panelGroup;
 
         #endregion
 
@@ -86,6 +90,20 @@ namespace ElectroOptics.UI.ScreenDisplay
         private void Update()
         {
             if (!_isInitialized) return;
+
+            // 管理面板可见性：光屏闲置在桌面上时隐藏，吸附导轨/被选中时显示
+            bool screenOnDesktop = screenOpticalComponent != null
+                                   && !screenOpticalComponent.isOnRail
+                                   && !screenOpticalComponent.isSelected;
+            bool shouldShow = !screenOnDesktop;
+
+            if (shouldShow != _isVisible && !_isFading)
+            {
+                StartCoroutine(FadePanel(shouldShow));
+            }
+
+            // 面板隐藏时不检测模式切换和渲染
+            if (!_isVisible && !_isFading) return;
 
             // 检测模式切换
             ScreenMode targetMode = DetectTargetMode();
@@ -137,8 +155,10 @@ namespace ElectroOptics.UI.ScreenDisplay
             CreatePanel();
             CreateLayers();
 
-            // 初始状态：Direct 模式
+            // 初始状态：Direct 模式，面板隐藏（等待光屏吸附到导轨）
             SetModeImmediate(ScreenMode.Direct);
+            Hide();
+            _isVisible = false;
 
             _isInitialized = true;
             Debug.Log($"{LOG_PREFIX} 初始化完成");
@@ -191,6 +211,9 @@ namespace ElectroOptics.UI.ScreenDisplay
             _panelRect.pivot = Vector2.zero;     // 轴心在左下角
             _panelRect.anchoredPosition = panelPosition;
             _panelRect.sizeDelta = panelSize;
+
+            // 面板 CanvasGroup（用于整体淡入淡出）
+            _panelGroup = _panelObject.AddComponent<CanvasGroup>();
 
             // 面板背景
             Image bg = _panelObject.AddComponent<Image>();
@@ -485,25 +508,49 @@ namespace ElectroOptics.UI.ScreenDisplay
         #region 公共方法
 
         /// <summary>
-        /// 显示面板
+        /// 面板淡入淡出协程
+        /// </summary>
+        private IEnumerator FadePanel(bool show)
+        {
+            _isFading = true;
+            _isVisible = show;
+
+            if (show)
+            {
+                _panelObject.SetActive(true);
+                yield return CanvasGroupTweener.FadeIn(_panelGroup, transitionDuration);
+            }
+            else
+            {
+                yield return CanvasGroupTweener.FadeOut(_panelGroup, transitionDuration);
+                _panelObject.SetActive(false);
+            }
+
+            _isFading = false;
+        }
+
+        /// <summary>
+        /// 显示面板（立即）
         /// </summary>
         public void Show()
         {
             if (_panelObject != null)
             {
                 _panelObject.SetActive(true);
+                CanvasGroupTweener.SetAlpha(_panelGroup, 1f);
                 _isVisible = true;
             }
         }
 
         /// <summary>
-        /// 隐藏面板
+        /// 隐藏面板（立即）
         /// </summary>
         public void Hide()
         {
             if (_panelObject != null)
             {
                 _panelObject.SetActive(false);
+                CanvasGroupTweener.SetAlpha(_panelGroup, 0f);
                 _isVisible = false;
             }
         }
