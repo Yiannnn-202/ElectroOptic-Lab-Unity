@@ -5545,8 +5545,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.70825976, y: 0.69775486, z: 1}
-  m_Center: {x: 0.005417347, y: 0.7781615, z: 2.1473993e-17}
+  m_Size: {x: 0.70825976, y: 1.7843904, z: 1}
+  m_Center: {x: 0.005417347, y: 1.3723726, z: 2.1473993e-17}
 --- !u!114 &1032930228
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23249,6 +23249,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   crystalModel: {fileID: 1032930223}
+  fallbackProfile: {fileID: 11400000, guid: 27b41b6fc4ec0b14d8283d826138ad3e, type: 2}
   renderTextureSize: 1024
   conoscopicFOV: 3.9
   conoscopicPhaseScale: 1

@@ -105,6 +105,7 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
     {
         currentIntensity = lightIn.intensity;
         receivedLightThisFrame = true;
+        Debug.Log($"[DirectScreen] ReceiveLight I={lightIn.intensity:F6} S1={lightIn.stokesQ:F6} S2={lightIn.stokesU:F6} S3={lightIn.stokesV:F6}");
 
         // 获取激光打在光屏上的局部坐标
         Vector3 localPos = screenCube.transform.InverseTransformPoint(hitPoint);

@@ -186,7 +186,46 @@ public class OpticalComponent : MonoBehaviour
         finalPos.y += snapYOffset;
         transform.position = finalPos;
 
+        RefreshCrystalRuntimeAfterSnap();
+
         Debug.Log("已吸附到导轨");
+    }
+
+    private void RefreshCrystalRuntimeAfterSnap()
+    {
+        var controller = GetComponent<ElectroOptics.Experiment.Controller.CrystalControllerWrapper>();
+        if (controller == null) controller = GetComponentInParent<ElectroOptics.Experiment.Controller.CrystalControllerWrapper>();
+        if (controller == null) controller = GetComponentInChildren<ElectroOptics.Experiment.Controller.CrystalControllerWrapper>();
+
+        var initializer = Object.FindFirstObjectByType<ElectroOptics.Experiment.Initializer.CrystalComponentInitializer>();
+        bool isCrystalModel = initializer != null && IsSameHierarchy(initializer.GetCrystalModel());
+
+        if (controller == null && !isCrystalModel)
+        {
+            return;
+        }
+
+        if (controller != null)
+        {
+            controller.RefreshPhysicsConfig();
+        }
+
+        if (initializer != null)
+        {
+            initializer.RefreshDirectRetarderSettings();
+        }
+    }
+
+    private bool IsSameHierarchy(GameObject other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+
+        return other == gameObject
+               || other.transform.IsChildOf(transform)
+               || transform.IsChildOf(other.transform);
     }
 
     void OnDrawGizmos()
