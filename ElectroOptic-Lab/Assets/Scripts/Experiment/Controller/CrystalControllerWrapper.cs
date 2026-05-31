@@ -117,6 +117,11 @@ namespace ElectroOptics.Experiment.Controller
         /// <inheritdoc/>
         public Vector2 GetRotation() => _rotation;
 
+        public void RefreshPhysicsConfig()
+        {
+            UpdatePhysicsConfig();
+        }
+
         /// <inheritdoc/>
         public void AddRotation(Vector2 delta)
         {

@@ -97,6 +97,10 @@ namespace ElectroOptics.Experiment.Initializer
         [Tooltip("Laser emitter Transform. If empty, searches for LaserEmitter in the scene.")]
         [SerializeField] private Transform lightDirectionSource;
 
+        [Header("Direct Red-Dot Retarder")]
+        [Tooltip("Initial in-plane axis offset for the direct red-dot retarder. 45 degrees makes a crossed-polarizer crystal insertion visibly brighten without requiring a first manual adjustment.")]
+        [SerializeField] [Range(-90f, 90f)] private float directRetarderInitialAxisOffsetDeg = 45f;
+
         #endregion
 
         #region Private Fields
@@ -104,6 +108,7 @@ namespace ElectroOptics.Experiment.Initializer
         private CrystalControllerWrapper _controller;
         private ConoscopicTextureRenderer _textureRenderer;
         private CrystalPhysicalCore _physicalCore;
+        private global::CrystalRetarderPhysics _directRetarder;
 
         #endregion
 
@@ -185,17 +190,18 @@ namespace ElectroOptics.Experiment.Initializer
 
             _controller.Initialize(_physicalCore);
 
-            var retarder = crystalModel.GetComponent<global::CrystalRetarderPhysics>();
-            if (retarder == null)
+            _directRetarder = crystalModel.GetComponent<global::CrystalRetarderPhysics>();
+            if (_directRetarder == null)
             {
-                retarder = crystalModel.AddComponent<global::CrystalRetarderPhysics>();
+                _directRetarder = crystalModel.AddComponent<global::CrystalRetarderPhysics>();
                 Debug.Log("[CrystalComponentInitializer] Added CrystalRetarderPhysics component");
             }
 
             global::OpticalComponent opticalComponent = crystalModel.GetComponent<global::OpticalComponent>();
             if (opticalComponent == null) opticalComponent = crystalModel.GetComponentInParent<global::OpticalComponent>();
             if (opticalComponent == null) opticalComponent = crystalModel.GetComponentInChildren<global::OpticalComponent>();
-            retarder.Bind(_physicalCore, opticalComponent);
+            _directRetarder.Bind(_physicalCore, opticalComponent);
+            ApplyDirectRetarderRuntimeSettings();
         }
 
         private void SetupLightDirectionSource()
@@ -300,11 +306,22 @@ namespace ElectroOptics.Experiment.Initializer
             _textureRenderer.SetBiaxialDisplayMode(biaxialDisplayMode, usePaperKtpPresetForKtp);
         }
 
+        private void ApplyDirectRetarderRuntimeSettings()
+        {
+            if (_directRetarder == null)
+            {
+                return;
+            }
+
+            _directRetarder.initialAxisAngleOffsetDeg = directRetarderInitialAxisOffsetDeg;
+        }
+
         private void OnValidate()
         {
             if (Application.isPlaying)
             {
                 ApplyRendererRuntimeSettings();
+                ApplyDirectRetarderRuntimeSettings();
             }
         }
 
@@ -353,6 +370,23 @@ namespace ElectroOptics.Experiment.Initializer
         public GameObject GetCrystalModel() => crystalModel;
 
         public ConoscopicTextureRenderer GetTextureRenderer() => _textureRenderer;
+
+        public void RefreshDirectRetarderSettings()
+        {
+            if (crystalModel == null)
+            {
+                FindCrystalModel();
+            }
+
+            if (_directRetarder == null && crystalModel != null)
+            {
+                _directRetarder = crystalModel.GetComponent<global::CrystalRetarderPhysics>();
+                if (_directRetarder == null) _directRetarder = crystalModel.GetComponentInParent<global::CrystalRetarderPhysics>();
+                if (_directRetarder == null) _directRetarder = crystalModel.GetComponentInChildren<global::CrystalRetarderPhysics>();
+            }
+
+            ApplyDirectRetarderRuntimeSettings();
+        }
 
         #endregion
 

@@ -14,6 +14,7 @@ public class CrystalRetarderPhysics : MonoBehaviour, IOpticalReceiver
     public CrystalPhysicalCore physicalCore;
     public OpticalComponent opticalComponent;
     [Min(0f)] public float retardanceScale = 1f;
+    [Range(-90f, 90f)] public float initialAxisAngleOffsetDeg = 45f;
     public float rayExitOffset = 0.06f;
     public float maxRayDistance = 50f;
 
@@ -138,8 +139,9 @@ public class CrystalRetarderPhysics : MonoBehaviour, IOpticalReceiver
             return false;
         }
 
-        Debug.Log($"[CrystalRetarder] delta={delta:F6}rad({delta/TwoPi:F3}*2π) scale={retardanceScale} axis={axisAngleDeg:F1}° rayDir={rayDir}");
-        lightOut = ApplyLinearRetarder(lightIn, axisAngleDeg, delta * retardanceScale);
+        float effectiveAxisAngleDeg = Mathf.Repeat(axisAngleDeg + initialAxisAngleOffsetDeg, 180f);
+        Debug.Log($"[CrystalRetarder] delta={delta:F6}rad({delta/TwoPi:F3}*2π) scale={retardanceScale} axis={axisAngleDeg:F1}° offset={initialAxisAngleOffsetDeg:F1}° effectiveAxis={effectiveAxisAngleDeg:F1}° rayDir={rayDir}");
+        lightOut = ApplyLinearRetarder(lightIn, effectiveAxisAngleDeg, delta * retardanceScale);
         return true;
     }
 
