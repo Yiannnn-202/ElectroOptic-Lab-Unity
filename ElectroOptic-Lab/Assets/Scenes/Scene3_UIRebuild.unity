@@ -10015,8 +10015,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: -30, y: -135}
-  m_SizeDelta: {x: 250, y: 80}
+  m_AnchoredPosition: {x: -45, y: -135}
+  m_SizeDelta: {x: 300, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &575278069
 MonoBehaviour:
@@ -10072,7 +10072,7 @@ MonoBehaviour:
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 1
-  m_HorizontalAlignment: 1
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -23387,7 +23387,7 @@ MonoBehaviour:
   beamFocus: 20
   noiseAmplitude: 1.5
   noiseFrequency: 5
-  suggestedVoltageStep: 32
+  suggestedVoltageStep: 30
   placeholderColor: {r: 0.38993704, g: 0.38993704, b: 0.36418647, a: 0.8}
   normalTextColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
   clearTableOnStart: 1
@@ -25274,7 +25274,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1598429624
 MonoBehaviour:
   m_ObjectHideFlags: 0

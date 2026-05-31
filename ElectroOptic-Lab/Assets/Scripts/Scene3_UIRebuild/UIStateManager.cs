@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using XCharts.Runtime;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using TMPro;
@@ -30,6 +31,10 @@ public class UIStateManager : MonoBehaviour
     private float fitCurveMinP = 0f;
 
     private float lastCalculatedV = 0f;
+
+    [Header("动画延迟")]
+    [Tooltip("残差点逐个弹出的间隔（秒）")]
+    [SerializeField] private float residualAnimDelay = 0.05f;
 
     void Start()
     {
@@ -209,22 +214,35 @@ public class UIStateManager : MonoBehaviour
                 zeroLine.lineStyle.color = Color.gray;
                 zeroLine.lineStyle.width = 1.5f;
 
-                for (int i = 0; i < xData.Count; i++)
-                {
-                    double v = xData[i];
-                    double pActual = yData[i];
-                    double pFit = fitA * System.Math.Cos(fitW * v + fitPhi) + fitB;
-                    double residual = pActual - pFit;
-
-                    residualChart.AddData(0, (float)v, (float)residual); // 0号数据线
-                    residualChart.AddData(1, (float)v, 0f);              // 1号零基准线
-                }
+                // 协程逐个添加残差点，恢复"一个一个跳出来"的动画效果
+                StartCoroutine(AnimateResidualPoints(xData, yData, fitA, fitW, fitPhi, fitB));
             }
         }
         catch (System.Exception e)
         {
             Debug.LogError("拟合运算失败: " + e.Message);
             hasValidFit = false;
+        }
+    }
+
+    /// <summary>
+    /// 逐个添加残差点，恢复动画弹出效果
+    /// </summary>
+    private System.Collections.IEnumerator AnimateResidualPoints(
+        List<double> xData, List<double> yData,
+        double fitA, double fitW, double fitPhi, double fitB)
+    {
+        for (int i = 0; i < xData.Count; i++)
+        {
+            double v = xData[i];
+            double pActual = yData[i];
+            double pFit = fitA * System.Math.Cos(fitW * v + fitPhi) + fitB;
+            double residual = pActual - pFit;
+
+            residualChart.AddData(0, (float)v, (float)residual);
+            residualChart.AddData(1, (float)v, 0f);
+
+            yield return new WaitForSeconds(residualAnimDelay);
         }
     }
 }

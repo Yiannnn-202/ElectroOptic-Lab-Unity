@@ -363,8 +363,8 @@ namespace ElectroOptics.Oscilloscope
             switch (index)
             {
                 case 0: return "对应：U0";
-                case 1: return "对应：U0+UΠ";
-                case 2: return "对应：U0+2UΠ";
+                case 1: return "对应：U0+Uπ";
+                case 2: return "对应：U0+2Uπ";
                 case 3: return "对应：";
                 default: return "对应：";
             }
