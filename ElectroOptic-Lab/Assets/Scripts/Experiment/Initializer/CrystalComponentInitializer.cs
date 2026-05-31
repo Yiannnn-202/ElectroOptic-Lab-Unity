@@ -7,29 +7,30 @@ using ElectroOptics.Experiment.Renderer;
 namespace ElectroOptics.Experiment.Initializer
 {
     /// <summary>
-    /// 晶体组件初始化器
-    /// 在 Scene2.The Lab 启动时初始化晶体组件并加载选择的 Profile
-    /// 挂载在场景中的任意 GameObject 上（建议创建空对象 "CrystalInitializer"）
+    /// Initializes the Scene2 crystal components and loads the selected crystal profile.
     /// </summary>
     public class CrystalComponentInitializer : MonoBehaviour
     {
-        #region Inspector 配置
+        #region Inspector
 
-        [Header("晶体模型")]
-        [Tooltip("晶体 GameObject，留空则自动查找名为'晶体'的对象")]
+        [Header("Crystal Model")]
+        [Tooltip("Crystal GameObject. If empty, the initializer searches for the object named Crystal.")]
         [SerializeField] private GameObject crystalModel;
 
-        [Header("渲染配置")]
-        [Tooltip("RenderTexture 尺寸")]
+        [Tooltip("Profile used when Scene2 is opened directly without crystal selection data.")]
+        [SerializeField] private CrystalProfile fallbackProfile;
+
+        [Header("Rendering")]
+        [Tooltip("RenderTexture size")]
         [SerializeField] private int renderTextureSize = 512;
 
-        [Tooltip("锥光干涉视场角")]
+        [Tooltip("Conoscopic field of view")]
         [SerializeField] [Range(1f, 120f)] private float conoscopicFOV = 10f;
 
         [Tooltip("Phase scale for showing more rings without increasing FOV")]
         [SerializeField] [Range(0.01f, 5f)] private float conoscopicPhaseScale = 1f;
 
-        [Tooltip("激光颜色")]
+        [Tooltip("Laser color")]
         [SerializeField] private Color laserColor = Color.red;
 
         [Tooltip("Display gamma applied after physical intensity calculation")]
@@ -92,13 +93,13 @@ namespace ElectroOptics.Experiment.Initializer
         [Tooltip("Use the Paper KTP preset when the selected biaxial profile is KTP")]
         [SerializeField] private bool usePaperKtpPresetForKtp = true;
 
-        [Header("光路配置")]
-        [Tooltip("激光发射器 Transform；留空时自动查找场景中的 LaserEmitter")]
+        [Header("Optical Path")]
+        [Tooltip("Laser emitter Transform. If empty, searches for LaserEmitter in the scene.")]
         [SerializeField] private Transform lightDirectionSource;
 
         #endregion
 
-        #region 私有字段
+        #region Private Fields
 
         private CrystalControllerWrapper _controller;
         private ConoscopicTextureRenderer _textureRenderer;
@@ -106,41 +107,28 @@ namespace ElectroOptics.Experiment.Initializer
 
         #endregion
 
-        #region Unity 生命周期
+        #region Unity Lifecycle
 
         private void Start()
         {
-            Debug.Log("[CrystalComponentInitializer] 开始初始化...");
+            Debug.Log("[CrystalComponentInitializer] Initializing...");
 
-            // 1. 查找晶体模型
             FindCrystalModel();
 
-            // 2. 验证晶体存在
             if (crystalModel == null)
             {
-                Debug.LogError("[CrystalComponentInitializer] 未找到晶体模型！请确保场景中有名为'晶体'的 GameObject");
+                Debug.LogError("[CrystalComponentInitializer] Crystal model was not found.");
                 enabled = false;
                 return;
             }
 
-            Debug.Log($"[CrystalComponentInitializer] 找到晶体模型: {crystalModel.name}");
+            Debug.Log($"[CrystalComponentInitializer] Found crystal model: {crystalModel.name}");
 
-            // 3. 设置晶体组件
             SetupCrystalComponents();
-
-            // 4. 设置真实光路方向
             SetupLightDirectionSource();
-
-            // 5. 设置纹理渲染器
             SetupTextureRenderer();
-
-            // 6. 注册到 CrystalRuntime
             RegisterToRuntime();
-
-            // 7. 加载选择的 Profile
             LoadSelectedProfile();
-
-            // 8. 强制复位 PostProcessLayer，修复跨场景跳转后 Bloom 失效的问题
             ResetPostProcessLayer();
         }
 
@@ -148,63 +136,66 @@ namespace ElectroOptics.Experiment.Initializer
         {
             var cam = Camera.main;
             if (cam == null) return;
+
             var ppLayer = cam.GetComponent<UnityEngine.Rendering.PostProcessing.PostProcessLayer>();
             if (ppLayer != null)
             {
                 ppLayer.enabled = false;
                 ppLayer.enabled = true;
-                Debug.Log("[CrystalComponentInitializer] PostProcessLayer 已强制复位");
+                Debug.Log("[CrystalComponentInitializer] PostProcessLayer reset");
             }
         }
 
         #endregion
 
-        #region 初始化方法
+        #region Initialization
 
-        /// <summary>
-        /// 查找晶体模型
-        /// </summary>
         private void FindCrystalModel()
         {
             if (crystalModel != null)
+            {
                 return;
+            }
 
-            // 尝试按名称查找
-            crystalModel = GameObject.Find("晶体");
+            crystalModel = GameObject.Find("\u6676\u4f53");
 
-            // 如果还找不到，尝试通过标签查找
             if (crystalModel == null)
             {
                 crystalModel = GameObject.FindGameObjectWithTag("Crystal");
             }
         }
 
-        /// <summary>
-        /// 设置晶体组件
-        /// </summary>
         private void SetupCrystalComponents()
         {
-            // 1. 获取或添加 CrystalPhysicalCore
             _physicalCore = crystalModel.GetComponent<CrystalPhysicalCore>();
             if (_physicalCore == null)
             {
                 _physicalCore = crystalModel.AddComponent<CrystalPhysicalCore>();
-                Debug.Log("[CrystalComponentInitializer] 添加 CrystalPhysicalCore 组件");
+                Debug.Log("[CrystalComponentInitializer] Added CrystalPhysicalCore component");
             }
 
-            // 2. 确保有 Collider（用于检测）
             EnsureCollider();
 
-            // 3. 获取或添加 CrystalControllerWrapper
             _controller = crystalModel.GetComponent<CrystalControllerWrapper>();
             if (_controller == null)
             {
                 _controller = crystalModel.AddComponent<CrystalControllerWrapper>();
-                Debug.Log("[CrystalComponentInitializer] 添加 CrystalControllerWrapper 组件");
+                Debug.Log("[CrystalComponentInitializer] Added CrystalControllerWrapper component");
             }
 
-            // 4. 初始化控制器
             _controller.Initialize(_physicalCore);
+
+            var retarder = crystalModel.GetComponent<global::CrystalRetarderPhysics>();
+            if (retarder == null)
+            {
+                retarder = crystalModel.AddComponent<global::CrystalRetarderPhysics>();
+                Debug.Log("[CrystalComponentInitializer] Added CrystalRetarderPhysics component");
+            }
+
+            global::OpticalComponent opticalComponent = crystalModel.GetComponent<global::OpticalComponent>();
+            if (opticalComponent == null) opticalComponent = crystalModel.GetComponentInParent<global::OpticalComponent>();
+            if (opticalComponent == null) opticalComponent = crystalModel.GetComponentInChildren<global::OpticalComponent>();
+            retarder.Bind(_physicalCore, opticalComponent);
         }
 
         private void SetupLightDirectionSource()
@@ -224,46 +215,38 @@ namespace ElectroOptics.Experiment.Initializer
             }
         }
 
-        /// <summary>
-        /// 确保晶体有 Collider 组件
-        /// </summary>
         private void EnsureCollider()
         {
             var collider = crystalModel.GetComponent<Collider>();
-            if (collider == null)
+            if (collider != null)
             {
-                // 尝试使用 MeshCollider
-                var meshFilter = crystalModel.GetComponent<MeshFilter>();
-                if (meshFilter != null && meshFilter.sharedMesh != null)
-                {
-                    var meshCollider = crystalModel.AddComponent<MeshCollider>();
-                    meshCollider.sharedMesh = meshFilter.sharedMesh;
-                    meshCollider.convex = true;  // 用于物理检测
-                    Debug.Log("[CrystalComponentInitializer] 添加 MeshCollider 组件");
-                }
-                else
-                {
-                    // 没有网格，使用 BoxCollider
-                    crystalModel.AddComponent<BoxCollider>();
-                    Debug.Log("[CrystalComponentInitializer] 添加 BoxCollider 组件");
-                }
+                return;
+            }
+
+            var meshFilter = crystalModel.GetComponent<MeshFilter>();
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                var meshCollider = crystalModel.AddComponent<MeshCollider>();
+                meshCollider.sharedMesh = meshFilter.sharedMesh;
+                meshCollider.convex = true;
+                Debug.Log("[CrystalComponentInitializer] Added MeshCollider component");
+            }
+            else
+            {
+                crystalModel.AddComponent<BoxCollider>();
+                Debug.Log("[CrystalComponentInitializer] Added BoxCollider component");
             }
         }
 
-        /// <summary>
-        /// 设置纹理渲染器
-        /// </summary>
         private void SetupTextureRenderer()
         {
-            // 在当前 GameObject 上添加或获取 ConoscopicTextureRenderer
             _textureRenderer = GetComponent<ConoscopicTextureRenderer>();
             if (_textureRenderer == null)
             {
                 _textureRenderer = gameObject.AddComponent<ConoscopicTextureRenderer>();
-                Debug.Log("[CrystalComponentInitializer] 添加 ConoscopicTextureRenderer 组件");
+                Debug.Log("[CrystalComponentInitializer] Added ConoscopicTextureRenderer component");
             }
 
-            // 初始化渲染器
             _textureRenderer.Initialize(
                 _physicalCore,
                 renderTextureSize,
@@ -325,9 +308,6 @@ namespace ElectroOptics.Experiment.Initializer
             }
         }
 
-        /// <summary>
-        /// 注册到 CrystalRuntime
-        /// </summary>
         private void RegisterToRuntime()
         {
             CrystalRuntime.CrystalObject = crystalModel;
@@ -335,80 +315,64 @@ namespace ElectroOptics.Experiment.Initializer
             CrystalRuntime.TextureRenderer = _textureRenderer;
             CrystalRuntime.PhysicalCore = _physicalCore;
 
-            Debug.Log("[CrystalComponentInitializer] 已注册到 CrystalRuntime");
+            Debug.Log("[CrystalComponentInitializer] Registered to CrystalRuntime");
         }
 
-        /// <summary>
-        /// 加载选择的 Profile
-        /// </summary>
         private void LoadSelectedProfile()
         {
-            // 1. 检查是否有选择数据
-            if (!CrystalSelectionData.HasSelection)
+            CrystalProfile selectedProfile = CrystalSelectionData.SelectedProfile;
+            if (selectedProfile == null && fallbackProfile != null)
             {
-                Debug.LogWarning("[CrystalComponentInitializer] 无晶体选择数据，可能是直接进入场景");
-                return;
+                selectedProfile = fallbackProfile;
+                Debug.LogWarning($"[CrystalComponentInitializer] No crystal selection data; using fallback profile: {selectedProfile.crystalName}");
             }
 
-            var selectedProfile = CrystalSelectionData.SelectedProfile;
-
-            // 2. 验证 Profile 有效
             if (selectedProfile == null)
             {
-                Debug.LogWarning("[CrystalComponentInitializer] 选择的 Profile 为 null");
+                Debug.LogWarning("[CrystalComponentInitializer] Selected profile is null");
                 return;
             }
 
-            // 3. 应用到控制器
             if (_controller != null && _controller.IsInitialized())
             {
                 _controller.SetProfile(selectedProfile);
-                Debug.Log($"[CrystalComponentInitializer] 已加载晶体 Profile: {selectedProfile.crystalName}");
+                Debug.Log($"[CrystalComponentInitializer] Loaded crystal profile: {selectedProfile.crystalName}");
             }
             else
             {
-                Debug.LogError("[CrystalComponentInitializer] 控制器未初始化，无法加载 Profile");
+                Debug.LogError("[CrystalComponentInitializer] Controller is not initialized; cannot load profile.");
             }
         }
 
         #endregion
 
-        #region 公共方法
+        #region Public API
 
-        /// <summary>
-        /// 获取晶体控制器
-        /// </summary>
         public CrystalControllerWrapper GetController() => _controller;
 
-        /// <summary>
-        /// 获取晶体模型
-        /// </summary>
         public GameObject GetCrystalModel() => crystalModel;
 
-        /// <summary>
-        /// 获取纹理渲染器
-        /// </summary>
         public ConoscopicTextureRenderer GetTextureRenderer() => _textureRenderer;
 
         #endregion
 
-        #region 编辑器调试
+        #region Editor Debug
 
 #if UNITY_EDITOR
-        [ContextMenu("重新初始化")]
+        [ContextMenu("Reinitialize")]
         private void ContextMenuReinitialize()
         {
             Start();
         }
 
-        [ContextMenu("打印状态")]
+        [ContextMenu("Print Status")]
         private void ContextMenuPrintStatus()
         {
-            Debug.Log($"[CrystalComponentInitializer] 状态报告:\n" +
-                      $"  - 晶体模型: {(crystalModel != null ? crystalModel.name : "null")}\n" +
-                      $"  - 控制器: {(_controller != null ? "已设置" : "null")}\n" +
-                      $"  - 纹理渲染器: {(_textureRenderer != null ? "已设置" : "null")}\n" +
-                      $"  - 物理核心: {(_physicalCore != null ? "已设置" : "null")}\n" +
+            Debug.Log($"[CrystalComponentInitializer] Status:\n" +
+                      $"  - Crystal model: {(crystalModel != null ? crystalModel.name : "null")}\n" +
+                      $"  - Controller: {(_controller != null ? "set" : "null")}\n" +
+                      $"  - Texture renderer: {(_textureRenderer != null ? "set" : "null")}\n" +
+                      $"  - Physical core: {(_physicalCore != null ? "set" : "null")}\n" +
                       $"  - CrystalSelectionData.HasSelection: {CrystalSelectionData.HasSelection}");
         }
 #endif
