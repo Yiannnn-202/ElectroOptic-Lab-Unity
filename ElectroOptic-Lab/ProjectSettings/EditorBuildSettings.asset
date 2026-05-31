@@ -23,13 +23,13 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Scene4_UIRebuild 1.unity
     guid: 3dcda9bde54188343813afc2307d759b
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Scene5.History Records.unity
     guid: 0be6f5559a25f6b42aa5fcb966a90bad
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Scene6_Quiz.unity
     guid: 59a761a1b16fda448a5d36e9825acf7d
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Scene7_Report.unity
     guid: adc0e017dc1c07c4386df652666dc056
   m_configObjects: {}

@@ -23259,7 +23259,7 @@ MonoBehaviour:
   crossWidth: 0.08
   initialMelatopeOffset: {x: 0, y: 0}
   screenDistanceM: 0.47
-  screenHalfSizeM: 0.08
+  screenHalfSizeM: 0.05
   phaseAntiAliasStrength: 1
   overrideRawJonesPhysicalParameters: 1
   rawJonesWavelengthNm: 589.3
