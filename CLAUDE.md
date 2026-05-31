@@ -75,7 +75,7 @@ Located in `Scripts/Business_logic/`:
 The experiment module extends the base system without modifying original code:
 
 **Data Transfer** (`Scripts/DataTransfer/`):
-- **CrystalSelectionData**: Static class for cross-scene crystal profile selection
+- **CrystalSelectionData**: Static class for cross-scene crystal profile selection. Only stores `CrystalProfile` references — downstream code (CrystalComponentInitializer, Scene3CrystalBridge, CrystalPhysicalCore) only depends on this type. This means a runtime-constructed `CrystalProfile` (e.g., from CustomCrystalPanel via `ScriptableObject.CreateInstance<CrystalProfile>()`) flows through the entire pipeline without any code changes.
 - **CrystalRuntime**: Static class providing runtime access to crystal components (Controller, TextureRenderer, PhysicalCore)
 
 **Interfaces** (`Scripts/Experiment/Interfaces/`):
@@ -94,9 +94,10 @@ The experiment module extends the base system without modifying original code:
 - **ConoscopicTextureRenderer**: Renders conoscopic interference pattern to RenderTexture using a dedicated offscreen camera and preview quad with ConoscopicInterference shader
 
 **Crystal Selector** (`Scripts/UI/CrystalSelector/`):
-- **CrystalCardSelector.cs**: Handles crystal card click in Scene2-preview, saves selection to CrystalSelectionData and loads target scene
-- **CustomCrystalCard.cs**: Placeholder for a future "custom crystal" card. Currently a stub — logs a message on click, no scene transition.
-- **Editor/Scene2PreviewUIRefactor.cs**: One-shot editor menu tool (ElectroOptics → Refactor Scene2-Preview UI) that restructured Scene2-preview from a horizontal ScrollView to four side-by-side panels. Run once then can be deleted.
+- **CrystalCardSelector.cs**: Handles crystal card click in Scene2-preview, saves selection to CrystalSelectionData and loads target scene.
+- **CustomCrystalCard.cs**: Fourth "自定义晶体" card. On click opens `CustomCrystalPanel` for parameter entry.
+- **CustomCrystalPanel.cs**: Full custom-crystal parameter input panel with 25 fields (name, wavelength, nx/ny/nz, length, thickness, 18 r-coefficients). Built entirely at runtime under WindowsCanvas using a persistent singleton pattern (Show/Hide, not create/destroy). On confirm, creates a runtime `CrystalProfile` via `ScriptableObject.CreateInstance`, stores it to `CrystalSelectionData.SelectedProfile`, and loads the target scene — requiring **zero changes to downstream code**. All layout parameters and colors are `[SerializeField]` fields editable in the Inspector at runtime; right-click → "Rebuild UI" applies changes.
+- **Editor/Scene2PreviewUIRefactor.cs**: Already-executed one-shot editor menu tool that restructured Scene2-preview from a horizontal ScrollView to four side-by-side panels (380×530 each, spacing 50).
 
 ### Optical Component System
 
@@ -315,11 +316,20 @@ Optical components follow a chain pattern. When adding new components:
 ## Working with UI Windows
 
 Windowed UI is created dynamically at runtime:
-- Windows use Screen Space Overlay canvas named "WindowsCanvas"
+- Windows use Screen Space Overlay canvas named "WindowsCanvas" (auto-created if missing, `sortingOrder = 100`)
 - Drag functionality via `SimpleDrag` class (in `Scripts/LightScreen/`) or EventTrigger
 - Canvas scaling is set to 1920x1080 reference resolution
 - Ensure EventSystem exists before creating UI elements
 - Double-click detection uses 0.3s interval consistently
+
+### Runtime-Built Dynamic UI (CustomCrystalPanel pattern)
+
+When building complex UI entirely from code:
+- The root GameObject **must have a `RectTransform`** that fills the parent Canvas (`anchorMin=0,0 anchorMax=1,1 offsetMin=offsetMax=0`), otherwise all child RectTransform anchors fail silently.
+- `Mask` on a ScrollRect Viewport requires an **opaque Image** (e.g., `Color.white`) to write into the stencil buffer. An alpha=0 Image causes the mask to clip everything. Use `showMaskGraphic = false` to hide the white Image while keeping the mask functional.
+- `TMP_Text` created at runtime gets the default LiberationSans font which has **no CJK glyphs**. Find a Chinese-capable font from existing scene TMP_Text components (e.g., SIMHEI SDF) and assign it explicitly via `tmp.font = ...`.
+- Create all child GameObjects **before** calling `AddComponent<TMP_InputField>()`, then assign `textViewport`, `textComponent`, `placeholder` — the component expects children to exist during Awake.
+- For persistent panels, use a **static singleton** + Show/Hide pattern rather than create/destroy, so Inspector-tweaked `[SerializeField]` values survive.
 
 ## Namespaces
 
