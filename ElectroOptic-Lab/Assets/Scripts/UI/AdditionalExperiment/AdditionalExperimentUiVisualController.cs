@@ -23,6 +23,17 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private const float SectionSpacing = 10f;
     private const float RowHeight = 38f;
     private const float HeaderHeight = 42f;
+    private const float SectionInnerPaddingX = 15f;
+    private const float SectionInnerPaddingTop = 8f;
+    private const float PanelInsetX = 20f;
+    private const float TabTop = 20f;
+    private const float TabHeight = 45f;
+    private const float GlobalTop = 75f;
+    private const float GlobalHeight = 290f;
+    private const float ModeTop = 375f;
+    private const float M1Height = 290f;
+    private const float M2Height = 380f;
+    private const float M3Height = 230f;
 
     private readonly Color _panelColor = new Color(0.42f, 0.42f, 0.42f, 0.45f);
     private readonly Color _selectedTabColor = new Color(0.92f, 0.92f, 0.92f, 1f);
@@ -36,25 +47,25 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private GameObject _sectionM2;
     private GameObject _sectionM3;
     private Mode _activeMode;
+    private bool _hasInitialized;
+    private float _nextSectionY;
 
     private void OnEnable()
     {
-        if (!gameObject.scene.IsValid())
-        {
-            return;
-        }
-
-        RebuildVisualTree();
-        SetMode(defaultMode);
+        InitializeVisualTree();
     }
 
     private void Awake()
     {
         if (Application.isPlaying)
         {
-            RebuildVisualTree();
-            SetMode(defaultMode);
+            InitializeVisualTree();
         }
+    }
+
+    private void OnDisable()
+    {
+        _hasInitialized = false;
     }
 
     public void ShowM1()
@@ -74,20 +85,22 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private void RebuildVisualTree()
     {
+        ConfigureFixedRoot();
+
         _tabGroup = transform.Find("TabGroup");
         if (_tabGroup == null)
         {
             _tabGroup = CreateRectObject("TabGroup", transform).transform;
-            SetupHorizontalLayout(_tabGroup.gameObject, 10f, TextAnchor.MiddleCenter, true, true);
-            SetLayout(_tabGroup.gameObject, preferredHeight: 45f);
         }
+        DisableLayoutGroup<HorizontalLayoutGroup>(_tabGroup.gameObject);
+        SetLayout(_tabGroup.gameObject, preferredHeight: -1f, flexibleHeight: -1f);
 
         EnsureTabs();
 
-        _sectionGlobal = RecreateSection("Section_Global", 330f);
-        _sectionM1 = RecreateSection("Section_M1", 260f);
-        _sectionM2 = RecreateSection("Section_M2", 320f);
-        _sectionM3 = RecreateSection("Section_M3", 190f);
+        _sectionGlobal = RecreateSection("Section_Global");
+        _sectionM1 = RecreateSection("Section_M1");
+        _sectionM2 = RecreateSection("Section_M2");
+        _sectionM3 = RecreateSection("Section_M3");
 
         BuildGlobalSection(_sectionGlobal.transform);
         BuildM1Section(_sectionM1.transform);
@@ -99,6 +112,8 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         _sectionM1.transform.SetSiblingIndex(2);
         _sectionM2.transform.SetSiblingIndex(3);
         _sectionM3.transform.SetSiblingIndex(4);
+
+        ApplyFixedPanelLayout();
     }
 
     private void EnsureTabs()
@@ -106,6 +121,18 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         CreateOrSetupTab("Tab_M1", "单轴晶体 (M1)", ShowM1);
         CreateOrSetupTab("Tab_M2", "双轴晶体 (M2)", ShowM2);
         CreateOrSetupTab("Tab_M3", "单轴电压调整 (M3)", ShowM3);
+    }
+
+    private void InitializeVisualTree()
+    {
+        if (_hasInitialized || !gameObject.scene.IsValid())
+        {
+            return;
+        }
+
+        RebuildVisualTree();
+        SetMode(defaultMode);
+        _hasInitialized = true;
     }
 
     private void CreateOrSetupTab(string objectName, string text, UnityAction action)
@@ -141,7 +168,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         ApplyChineseFont(label);
     }
 
-    private GameObject RecreateSection(string name, float preferredHeight)
+    private GameObject RecreateSection(string name)
     {
         GameObject existing = FindDirectChild(transform, name);
         if (existing == null)
@@ -150,21 +177,22 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         }
 
         ClearChildren(existing.transform);
-        SetupSection(existing, preferredHeight);
+        SetupSection(existing);
         return existing;
     }
 
-    private void SetupSection(GameObject section, float preferredHeight)
+    private void SetupSection(GameObject section)
     {
         Image image = Ensure<Image>(section);
         image.color = _panelColor;
 
-        SetupVerticalLayout(section, SectionSpacing, TextAnchor.UpperLeft);
-        SetLayout(section, preferredHeight: preferredHeight, flexibleWidth: -1f, flexibleHeight: -1f);
+        DisableLayoutGroup<VerticalLayoutGroup>(section);
+        SetLayout(section, preferredHeight: -1f, flexibleWidth: -1f, flexibleHeight: -1f);
     }
 
     private void BuildGlobalSection(Transform parent)
     {
+        BeginFixedSection();
         AddHeader(parent, "全局物理参数");
         AddParamRow(parent, "波长 (nm)", 532f, 400f, 800f, "{0:0}");
         AddParamRow(parent, "晶体厚度 (mm)", 2.5f, 0.1f, 60f, "{0:0.00}");
@@ -175,6 +203,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private void BuildM1Section(Transform parent)
     {
+        BeginFixedSection();
         AddHeader(parent, "单轴晶体参数 (M1)");
         AddInfoRow(parent, "晶体", "LiNbO3");
         AddParamRow(parent, "光轴倾角 θ (°)", 0f, 0f, 45f, "{0:0}");
@@ -185,6 +214,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private void BuildM2Section(Transform parent)
     {
+        BeginFixedSection();
         AddHeader(parent, "双轴晶体特有参数 (M2)");
         AddInfoRow(parent, "晶体", "KTP");
         AddParamRow(parent, "电压 (V)", 0f, 0f, 1000f, "{0:0}");
@@ -197,6 +227,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private void BuildM3Section(Transform parent)
     {
+        BeginFixedSection();
         AddHeader(parent, "单轴电压调制参数 (M3)");
         AddInfoRow(parent, "晶体", "LiNbO3");
         AddParamRow(parent, "电压 (V)", 0f, 0f, 1000f, "{0:0}");
@@ -208,12 +239,14 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     {
         TMP_Text label = CreateText("Header", parent, text, 26, _textColor, TextAlignmentOptions.Center);
         SetLayout(label.gameObject, preferredHeight: HeaderHeight);
+        PlaceSectionChild(label.gameObject, HeaderHeight);
     }
 
     private void AddSubHeader(Transform parent, string text)
     {
         TMP_Text label = CreateText("AdvancedHeader", parent, text, 19, _textColor, TextAlignmentOptions.Left);
         SetLayout(label.gameObject, preferredHeight: 30f);
+        PlaceSectionChild(label.gameObject, 30f);
     }
 
     private void AddInfoRow(Transform parent, string labelText, string valueText)
@@ -227,6 +260,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
         TMP_Text value = CreateText("Value", row.transform, valueText, 22, _textColor, TextAlignmentOptions.Left);
         SetLayout(value.gameObject, flexibleWidth: 1f);
+        PlaceSectionChild(row, RowHeight);
     }
 
     private void AddParamRow(Transform parent, string labelText, float value, float min, float max, string format)
@@ -262,6 +296,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         }
         ConfigureInput(input, string.Format(format, value));
         SetLayout(input.gameObject, preferredWidth: 86f, preferredHeight: 30f);
+        PlaceSectionChild(row, RowHeight);
     }
 
     private GameObject CreateParamRow(Transform parent, string name)
@@ -296,6 +331,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
         Button button = CreateButton(row.transform, "Button_正交偏振", "正交偏振", 130f, 32f);
         button.onClick.RemoveAllListeners();
+        PlaceSectionChild(row, RowHeight);
     }
 
     private Slider CreateSlider(Transform parent, float value, float min, float max)
@@ -448,6 +484,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         UpdateTabVisual("Tab_M1", mode == Mode.M1);
         UpdateTabVisual("Tab_M2", mode == Mode.M2);
         UpdateTabVisual("Tab_M3", mode == Mode.M3);
+        ApplyFixedPanelLayout();
     }
 
     private void UpdateTabVisual(string tabName, bool selected)
@@ -560,6 +597,149 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         layout.flexibleHeight = flexibleHeight;
     }
 
+    private void ConfigureFixedRoot()
+    {
+        DisableLayoutGroup<VerticalLayoutGroup>(gameObject);
+        DisableLayoutGroup<HorizontalLayoutGroup>(gameObject);
+        DisableContentSizeFitter(gameObject);
+    }
+
+    private void ApplyFixedPanelLayout()
+    {
+        ConfigureFixedRoot();
+
+        if (_tabGroup != null)
+        {
+            GameObject tabGroupObject = _tabGroup.gameObject;
+            DisableLayoutGroup<HorizontalLayoutGroup>(tabGroupObject);
+            DisableContentSizeFitter(tabGroupObject);
+            SetTopStretch(_tabGroup as RectTransform, TabTop, TabHeight, PanelInsetX, PanelInsetX);
+            ApplyFixedTabLayout();
+        }
+
+        ApplyFixedSection(_sectionGlobal, GlobalTop, GlobalHeight);
+        ApplyFixedSection(_sectionM1, ModeTop, M1Height);
+        ApplyFixedSection(_sectionM2, ModeTop, M2Height);
+        ApplyFixedSection(_sectionM3, ModeTop, M3Height);
+    }
+
+    private void ApplyFixedTabLayout()
+    {
+        SetFixedTabRect("Tab_M1", 0.18f);
+        SetFixedTabRect("Tab_M2", 0.5f);
+        SetFixedTabRect("Tab_M3", 0.82f);
+    }
+
+    private void SetFixedTabRect(string tabName, float anchorX)
+    {
+        GameObject tab = FindDirectChild(_tabGroup, tabName);
+        if (tab == null)
+        {
+            return;
+        }
+
+        DisableContentSizeFitter(tab);
+        RectTransform rect = tab.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(anchorX, 0.5f);
+        rect.anchorMax = new Vector2(anchorX, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = new Vector2(160f, 32f);
+    }
+
+    private void ApplyFixedSection(GameObject section, float top, float height)
+    {
+        if (section == null)
+        {
+            return;
+        }
+
+        DisableLayoutGroup<VerticalLayoutGroup>(section);
+        DisableContentSizeFitter(section);
+        SetTopStretch(section.GetComponent<RectTransform>(), top, height, PanelInsetX, PanelInsetX);
+        ApplyFixedSectionChildren(section.transform);
+    }
+
+    private void BeginFixedSection()
+    {
+        _nextSectionY = SectionInnerPaddingTop;
+    }
+
+    private void PlaceSectionChild(GameObject child, float height)
+    {
+        if (child == null)
+        {
+            return;
+        }
+
+        SetTopStretch(child.GetComponent<RectTransform>(), _nextSectionY, height, SectionInnerPaddingX, SectionInnerPaddingX);
+        _nextSectionY += height + SectionSpacing;
+    }
+
+    private void ApplyFixedSectionChildren(Transform section)
+    {
+        float nextY = SectionInnerPaddingTop;
+        for (int i = 0; i < section.childCount; i++)
+        {
+            RectTransform child = section.GetChild(i) as RectTransform;
+            if (child == null)
+            {
+                continue;
+            }
+
+            float height = GetFixedChildHeight(child.gameObject);
+            SetTopStretch(child, nextY, height, SectionInnerPaddingX, SectionInnerPaddingX);
+            nextY += height + SectionSpacing;
+        }
+    }
+
+    private static float GetFixedChildHeight(GameObject child)
+    {
+        if (child.name == "Header")
+        {
+            return HeaderHeight;
+        }
+
+        if (child.name == "AdvancedHeader")
+        {
+            return 30f;
+        }
+
+        return RowHeight;
+    }
+
+    private static void SetTopStretch(RectTransform rect, float top, float height, float left, float right)
+    {
+        if (rect == null)
+        {
+            return;
+        }
+
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.offsetMin = new Vector2(left, -top - height);
+        rect.offsetMax = new Vector2(-right, -top);
+    }
+
+    private static void DisableLayoutGroup<T>(GameObject obj) where T : Behaviour
+    {
+        T layout = obj.GetComponent<T>();
+        if (layout != null)
+        {
+            layout.enabled = false;
+        }
+    }
+
+    private static void DisableContentSizeFitter(GameObject obj)
+    {
+        ContentSizeFitter fitter = obj.GetComponent<ContentSizeFitter>();
+        if (fitter != null)
+        {
+            fitter.enabled = false;
+        }
+    }
+
     private static void Stretch(RectTransform rect)
     {
         rect.anchorMin = Vector2.zero;
@@ -599,11 +779,8 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         {
             GameObject child = parent.GetChild(i).gameObject;
 #if UNITY_EDITOR
-            if (!Application.isPlaying)
-            {
-                Object.DestroyImmediate(child);
-                continue;
-            }
+            Object.DestroyImmediate(child);
+            continue;
 #endif
             Object.Destroy(child);
         }
