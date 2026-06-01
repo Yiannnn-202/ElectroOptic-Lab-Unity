@@ -1,3 +1,4 @@
+using System.Globalization;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -34,6 +35,9 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private const float M1Height = 290f;
     private const float M2Height = 380f;
     private const float M3Height = 230f;
+    private const string PolarizerAngleLabel = "起偏器角度 (°)";
+    private const string AnalyzerAngleLabel = "检偏器角度 (°)";
+    private const string AngleFormat = "{0:0}";
 
     private readonly Color _panelColor = new Color(0.42f, 0.42f, 0.42f, 0.45f);
     private readonly Color _selectedTabColor = new Color(0.92f, 0.92f, 0.92f, 1f);
@@ -49,6 +53,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private Mode _activeMode;
     private bool _hasInitialized;
     private float _nextSectionY;
+    private Slider _polarizerSlider;
+    private TMP_InputField _polarizerInput;
+    private Slider _analyzerSlider;
+    private TMP_InputField _analyzerInput;
 
     private void OnEnable()
     {
@@ -196,8 +204,8 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         AddHeader(parent, "全局物理参数");
         AddParamRow(parent, "波长 (nm)", 532f, 400f, 800f, "{0:0}");
         AddParamRow(parent, "晶体厚度 (mm)", 2.5f, 0.1f, 60f, "{0:0.00}");
-        AddParamRow(parent, "起偏器角度 (°)", 0f, 0f, 180f, "{0:0}");
-        AddParamRow(parent, "检偏器角度 (°)", 90f, 0f, 180f, "{0:0}");
+        AddParamRow(parent, PolarizerAngleLabel, 0f, 0f, 180f, AngleFormat);
+        AddParamRow(parent, AnalyzerAngleLabel, 90f, 0f, 180f, AngleFormat);
         AddActionRow(parent);
     }
 
@@ -289,13 +297,16 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         ConfigureSlider(slider, value, min, max);
         SetLayout(slider.gameObject, flexibleWidth: 1f, preferredHeight: 24f);
 
+        string formattedValue = FormatValue(value, format);
         TMP_InputField input = FindDirectChild(row.transform, "InputField (TMP)")?.GetComponent<TMP_InputField>();
         if (input == null)
         {
-            input = CreateInput(row.transform, string.Format(format, value));
+            input = CreateInput(row.transform, formattedValue);
         }
-        ConfigureInput(input, string.Format(format, value));
+        ConfigureInput(input, formattedValue);
         SetLayout(input.gameObject, preferredWidth: 86f, preferredHeight: 30f);
+        BindSliderAndInput(slider, input, min, max, format);
+        CachePolarizerControl(labelText, slider, input);
         PlaceSectionChild(row, RowHeight);
     }
 
@@ -331,6 +342,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
         Button button = CreateButton(row.transform, "Button_正交偏振", "正交偏振", 130f, 32f);
         button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(SetOrthogonalPolarization);
         PlaceSectionChild(row, RowHeight);
     }
 
@@ -434,8 +446,9 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private void ConfigureInput(TMP_InputField input, string value)
     {
-        input.text = value;
+        input.SetTextWithoutNotify(value);
         input.lineType = TMP_InputField.LineType.SingleLine;
+        input.contentType = TMP_InputField.ContentType.DecimalNumber;
         input.characterLimit = 0;
         input.richText = true;
 
@@ -456,6 +469,95 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             placeholder.alignment = TextAlignmentOptions.Center;
             ApplyChineseFont(placeholder);
         }
+    }
+
+    private void BindSliderAndInput(Slider slider, TMP_InputField input, float min, float max, string format)
+    {
+        float clampedValue = Mathf.Clamp(slider.value, min, max);
+        slider.SetValueWithoutNotify(clampedValue);
+        input.SetTextWithoutNotify(FormatValue(clampedValue, format));
+
+        slider.onValueChanged.RemoveAllListeners();
+        input.onValueChanged.RemoveAllListeners();
+        input.onEndEdit.RemoveAllListeners();
+
+        slider.onValueChanged.AddListener(newValue =>
+        {
+            input.SetTextWithoutNotify(FormatValue(newValue, format));
+        });
+
+        input.onValueChanged.AddListener(rawValue =>
+        {
+            if (TryParseFloat(rawValue, out float parsedValue))
+            {
+                slider.SetValueWithoutNotify(Mathf.Clamp(parsedValue, min, max));
+            }
+        });
+
+        input.onEndEdit.AddListener(rawValue =>
+        {
+            if (!TryParseFloat(rawValue, out float parsedValue))
+            {
+                input.SetTextWithoutNotify(FormatValue(slider.value, format));
+                return;
+            }
+
+            float clampedInputValue = Mathf.Clamp(parsedValue, min, max);
+            slider.value = clampedInputValue;
+            input.SetTextWithoutNotify(FormatValue(clampedInputValue, format));
+        });
+    }
+
+    private void CachePolarizerControl(string labelText, Slider slider, TMP_InputField input)
+    {
+        if (labelText == PolarizerAngleLabel)
+        {
+            _polarizerSlider = slider;
+            _polarizerInput = input;
+            return;
+        }
+
+        if (labelText == AnalyzerAngleLabel)
+        {
+            _analyzerSlider = slider;
+            _analyzerInput = input;
+        }
+    }
+
+    private void SetOrthogonalPolarization()
+    {
+        SetSliderInputPair(_polarizerSlider, _polarizerInput, 0f, AngleFormat);
+        SetSliderInputPair(_analyzerSlider, _analyzerInput, 90f, AngleFormat);
+    }
+
+    private static void SetSliderInputPair(Slider slider, TMP_InputField input, float value, string format)
+    {
+        if (slider == null || input == null)
+        {
+            return;
+        }
+
+        float clampedValue = Mathf.Clamp(value, slider.minValue, slider.maxValue);
+        slider.value = clampedValue;
+        input.SetTextWithoutNotify(FormatValue(clampedValue, format));
+    }
+
+    private static string FormatValue(float value, string format)
+    {
+        return string.Format(CultureInfo.InvariantCulture, format, value);
+    }
+
+    private static bool TryParseFloat(string text, out float value)
+    {
+        value = 0f;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        string normalizedText = text.Trim();
+        return float.TryParse(normalizedText, NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+            || float.TryParse(normalizedText, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
     }
 
     private Button CreateButton(Transform parent, string name, string text, float width, float height)
