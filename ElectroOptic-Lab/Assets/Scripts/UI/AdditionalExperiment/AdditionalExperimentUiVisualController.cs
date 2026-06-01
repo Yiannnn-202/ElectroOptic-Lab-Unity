@@ -28,7 +28,12 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private const float SectionInnerPaddingTop = 8f;
     private const float PanelInsetX = 20f;
     private const float TabTop = 20f;
-    private const float TabHeight = 45f;
+    private const float TabHeight = 50f;
+    private const float TabWidth = 210f;
+    private const float TabButtonHeight = 38f;
+    private const float ParamLabelWidth = 220f;
+    private const float InfoLabelWidth = 140f;
+    private const float InputWidth = 82f;
     private const float GlobalTop = 75f;
     private const float GlobalHeight = 290f;
     private const float ModeTop = 375f;
@@ -149,7 +154,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         if (tab == null)
         {
             tab = CreateRectObject(objectName, _tabGroup);
-            SetLayout(tab, preferredWidth: 160f, preferredHeight: 32f);
+            SetLayout(tab, preferredWidth: TabWidth, preferredHeight: TabButtonHeight);
         }
 
         Image image = Ensure<Image>(tab);
@@ -173,6 +178,11 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             label.color = _darkTextColor;
             label.alignment = TextAlignmentOptions.Center;
         }
+        label.enableWordWrapping = false;
+        label.enableAutoSizing = true;
+        label.fontSizeMin = 16f;
+        label.fontSizeMax = 20f;
+        label.overflowMode = TextOverflowModes.Ellipsis;
         ApplyChineseFont(label);
     }
 
@@ -264,7 +274,8 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         SetLayout(row, preferredHeight: RowHeight);
 
         TMP_Text label = CreateText("Label", row.transform, labelText, 22, _textColor, TextAlignmentOptions.Left);
-        SetLayout(label.gameObject, preferredWidth: 130f);
+        label.enableWordWrapping = false;
+        SetLayout(label.gameObject, preferredWidth: InfoLabelWidth);
 
         TMP_Text value = CreateText("Value", row.transform, valueText, 22, _textColor, TextAlignmentOptions.Left);
         SetLayout(value.gameObject, flexibleWidth: 1f);
@@ -286,8 +297,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         label.fontSize = 21;
         label.color = _textColor;
         label.alignment = TextAlignmentOptions.Left;
+        label.enableWordWrapping = false;
+        label.overflowMode = TextOverflowModes.Overflow;
         ApplyChineseFont(label);
-        SetLayout(label.gameObject, preferredWidth: 150f);
+        SetLayout(label.gameObject, preferredWidth: ParamLabelWidth);
 
         Slider slider = FindDirectChild(row.transform, "Slider")?.GetComponent<Slider>();
         if (slider == null)
@@ -304,7 +317,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             input = CreateInput(row.transform, formattedValue);
         }
         ConfigureInput(input, formattedValue);
-        SetLayout(input.gameObject, preferredWidth: 86f, preferredHeight: 30f);
+        SetLayout(input.gameObject, preferredWidth: InputWidth, preferredHeight: 30f);
         BindSliderAndInput(slider, input, min, max, format);
         CachePolarizerControl(labelText, slider, input);
         PlaceSectionChild(row, RowHeight);
@@ -746,7 +759,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         rect.anchorMax = new Vector2(anchorX, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = Vector2.zero;
-        rect.sizeDelta = new Vector2(160f, 32f);
+        rect.sizeDelta = new Vector2(TabWidth, TabButtonHeight);
     }
 
     private void ApplyFixedSection(GameObject section, float top, float height)
