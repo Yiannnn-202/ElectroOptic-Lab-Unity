@@ -134,6 +134,60 @@ namespace ElectroOptics.ConoscopicAnalysis
             return TwoPi * thicknessM * (nEffective - parameters.ordinaryIndexNo) * pathFactor / wavelengthM;
         }
 
+        public static bool TryGetRetarderEigenSystem(
+            Vector3 rayDir,
+            ConoscopicJonesParameters parameters,
+            out Vector3 eigenAView,
+            out Vector3 eigenBView,
+            out float delta)
+        {
+            eigenAView = Vector3.right;
+            eigenBView = Vector3.up;
+            delta = 0f;
+
+            if (parameters == null || rayDir.sqrMagnitude < Epsilon)
+            {
+                return false;
+            }
+
+            parameters.Clamp();
+            rayDir.Normalize();
+
+            if (parameters.IsBiaxial()
+                && TryGetBiaxialEigenSystem(rayDir, parameters, out eigenAView, out eigenBView, out delta, 1f))
+            {
+                return true;
+            }
+
+            Vector3 opticAxis = GetRetarderOpticAxis(parameters);
+            eigenBView = ProjectOntoWavefront(opticAxis, rayDir);
+            if (eigenBView.sqrMagnitude < Epsilon)
+            {
+                eigenBView = ProjectOntoWavefront(GetCrystalReferenceAxis(parameters), rayDir);
+            }
+
+            if (eigenBView.sqrMagnitude < Epsilon)
+            {
+                return false;
+            }
+
+            eigenBView.Normalize();
+            eigenAView = Vector3.Cross(rayDir, eigenBView);
+            if (eigenAView.sqrMagnitude < Epsilon)
+            {
+                return false;
+            }
+
+            eigenAView.Normalize();
+            float cosTheta = Mathf.Clamp(Mathf.Abs(Vector3.Dot(rayDir, opticAxis)), 0f, 1f);
+            float nEffective = EffectiveExtraordinaryIndex(parameters.ordinaryIndexNo, parameters.extraordinaryIndexNe, cosTheta);
+            float thicknessM = parameters.thicknessMm * 1e-3f;
+            float wavelengthM = Mathf.Max(parameters.wavelengthNm * 1e-9f, 1e-12f);
+            float pathFactor = 1f;
+            delta = TwoPi * thicknessM * (nEffective - parameters.ordinaryIndexNo) * pathFactor / wavelengthM;
+            return !float.IsNaN(delta) && !float.IsInfinity(delta);
+        }
+
         public static Vector2 GetCoordinate(int x, int y, int resolution)
         {
             if (resolution <= 1)
@@ -273,7 +327,8 @@ namespace ElectroOptics.ConoscopicAnalysis
             ConoscopicJonesParameters parameters,
             out Vector3 eigenAView,
             out Vector3 eigenBView,
-            out float delta)
+            out float delta,
+            float pathFactorOverride = -1f)
         {
             eigenAView = Vector3.right;
             eigenBView = Vector3.up;
@@ -314,7 +369,9 @@ namespace ElectroOptics.ConoscopicAnalysis
             eigenBView.Normalize();
             float thicknessM = parameters.thicknessMm * 1e-3f;
             float wavelengthM = Mathf.Max(parameters.wavelengthNm * 1e-9f, 1e-12f);
-            float pathFactor = 1f / Mathf.Max(Mathf.Abs(rayDir.z), 0.05f);
+            float pathFactor = pathFactorOverride > 0f
+                ? pathFactorOverride
+                : 1f / Mathf.Max(Mathf.Abs(rayDir.z), 0.05f);
             delta = TwoPi * thicknessM * Mathf.Abs(n1 - n2) * pathFactor / wavelengthM;
             return !float.IsNaN(delta) && !float.IsInfinity(delta);
         }
@@ -605,6 +662,43 @@ namespace ElectroOptics.ConoscopicAnalysis
                 sinTilt * Mathf.Cos(azimuthRad),
                 sinTilt * Mathf.Sin(azimuthRad),
                 Mathf.Cos(tiltRad)).normalized;
+        }
+
+        private static Vector3 GetRetarderOpticAxis(ConoscopicJonesParameters parameters)
+        {
+            if (!IsApproximatelyIdentity(parameters.worldToPrincipalMatrix))
+            {
+                Matrix4x4 principalToView = parameters.worldToPrincipalMatrix.transpose;
+                Vector3 axis = principalToView.MultiplyVector(Vector3.forward);
+                if (axis.sqrMagnitude >= Epsilon)
+                {
+                    axis.Normalize();
+                    return axis;
+                }
+            }
+
+            return GetOpticAxis(parameters);
+        }
+
+        private static bool IsApproximatelyIdentity(Matrix4x4 matrix)
+        {
+            const float tolerance = 0.00001f;
+            return Mathf.Abs(matrix.m00 - 1f) <= tolerance
+                   && Mathf.Abs(matrix.m11 - 1f) <= tolerance
+                   && Mathf.Abs(matrix.m22 - 1f) <= tolerance
+                   && Mathf.Abs(matrix.m33 - 1f) <= tolerance
+                   && Mathf.Abs(matrix.m01) <= tolerance
+                   && Mathf.Abs(matrix.m02) <= tolerance
+                   && Mathf.Abs(matrix.m03) <= tolerance
+                   && Mathf.Abs(matrix.m10) <= tolerance
+                   && Mathf.Abs(matrix.m12) <= tolerance
+                   && Mathf.Abs(matrix.m13) <= tolerance
+                   && Mathf.Abs(matrix.m20) <= tolerance
+                   && Mathf.Abs(matrix.m21) <= tolerance
+                   && Mathf.Abs(matrix.m23) <= tolerance
+                   && Mathf.Abs(matrix.m30) <= tolerance
+                   && Mathf.Abs(matrix.m31) <= tolerance
+                   && Mathf.Abs(matrix.m32) <= tolerance;
         }
 
         private static Vector3 GetCrystalReferenceAxis(ConoscopicJonesParameters parameters)

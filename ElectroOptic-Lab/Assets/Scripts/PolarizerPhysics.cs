@@ -1,149 +1,79 @@
 using UnityEngine;
 
-//ZYX
-
 /// <summary>
-
-/// 马吕斯定律（挂载在两个偏振片的子物体上）计算从每个偏振片出射时的光强和振动方向
-
+/// Ideal linear polarizer for the direct red-dot ray chain.
 /// </summary>
-
 public class PolarizerPhysics : MonoBehaviour, IOpticalReceiver
-
 {
+    private const float VisibleIntensityThreshold = 0.001f;
 
-    private LineRenderer lr;
+    private LineRenderer lineRenderer;
+    private bool gotLight;
 
-    private bool gotLight = false;
-
-
-
-    void Start()
-
+    private void Start()
     {
-
-        lr = gameObject.AddComponent<LineRenderer>();
-
-        lr.startWidth = 0.02f;
-
-        lr.endWidth = 0.02f;
-
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-
-        lr.startColor = new Color(1, 0, 0, 0.5f); // 半透明红
-
-        lr.endColor = new Color(1, 0, 0, 0.5f);
-
-        lr.enabled = false;
-
+        lineRenderer = gameObject.AddComponent<LineRenderer>();
+        lineRenderer.positionCount = 2;
+        lineRenderer.startWidth = 0.02f;
+        lineRenderer.endWidth = 0.02f;
+        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        lineRenderer.startColor = new Color(1f, 0f, 0f, 0.5f);
+        lineRenderer.endColor = new Color(1f, 0f, 0f, 0.5f);
+        lineRenderer.enabled = false;
     }
 
-
-
-    void Update()
-
+    private void Update()
     {
-
-        // 如果这一帧没收到光，就把线关掉
-
-        if (!gotLight) lr.enabled = false;
-
-        gotLight = false; // 重置状态
-
-    }
-
-
-
-    // 实现接口：当被上一级光打中时自动触发
-
-    public void ReceiveLight(LightData inLight, Vector3 hitPoint, Vector3 dir)
-
-    {
-
-        gotLight = true;
-
-
-
-        // --- 物理计算 (马吕斯定律 + 部分偏振) ---
-
-        float axis = transform.eulerAngles.z; // 读取自身旋转角度
-
-
-
-        // 1. 自然光部分 (减半)
-
-        float i_unpol = inLight.intensity * (1 - inLight.dop) * 0.5f;
-
-
-
-        // 2. 偏振光部分 (马吕斯定律)
-
-        float delta = (axis - inLight.polarizationAngle) * Mathf.Deg2Rad;
-
-        float i_pol = (inLight.intensity * inLight.dop) * Mathf.Pow(Mathf.Cos(delta), 2);
-
-
-
-        float finalI = i_unpol + i_pol;
-
-
-
-        // --- 射出下一级光 ---
-
-        if (finalI > 0.001f) // 有亮度才射
-
+        if (!gotLight)
         {
-
-            lr.enabled = true;
-
-            lr.startColor = new Color(1, 0, 0, finalI); // 亮度随强度变
-
-            lr.endColor = new Color(1, 0, 0, finalI);
-
-
-
-            // 从背面射出 (防止自己挡住自己)
-
-            Vector3 start = hitPoint + dir * 0.05f;
-
-            Vector3 end = start + dir * 50f;
-
-
-
-            if (Physics.Raycast(start, dir, out RaycastHit hit, 50f))
-
-            {
-
-                end = hit.point;
-
-                // 传给下一个接收者 (可能是另一个偏振片，或者是光屏)
-
-                var next = hit.collider.GetComponent<IOpticalReceiver>();
-
-                if (next == null) next = hit.collider.GetComponentInParent<IOpticalReceiver>();
-
-
-
-                if (next != null)
-
-                {
-
-                    // 发出的光变成了完全线偏振光 (DOP=1)
-
-                    LightData outLight = new LightData(finalI, axis, 1.0f);
-
-                    next.ReceiveLight(outLight, hit.point, dir);
-
-                }
-
-            }
-
-            lr.SetPosition(0, start);
-
-            lr.SetPosition(1, end);
-
+            lineRenderer.enabled = false;
         }
 
+        gotLight = false;
     }
 
+    public void ReceiveLight(LightData inLight, Vector3 hitPoint, Vector3 direction)
+    {
+        gotLight = true;
+
+        float axis = transform.eulerAngles.z;
+        float axisRad = axis * Mathf.Deg2Rad;
+        float cos2Axis = Mathf.Cos(2f * axisRad);
+        float sin2Axis = Mathf.Sin(2f * axisRad);
+        float finalIntensity = 0.5f * (inLight.intensity + inLight.stokesQ * cos2Axis + inLight.stokesU * sin2Axis);
+        finalIntensity = Mathf.Max(0f, finalIntensity);
+        Debug.Log($"[Polarizer:{gameObject.name}] axis={axis:F1}掳 inI={inLight.intensity:F4}(S1={inLight.stokesQ:F4},S2={inLight.stokesU:F4},S3={inLight.stokesV:F4}) outI={finalIntensity:F4}");
+
+        bool drawLine = finalIntensity > VisibleIntensityThreshold;
+        lineRenderer.enabled = drawLine;
+        if (drawLine)
+        {
+            float alpha = Mathf.Clamp01(finalIntensity);
+            lineRenderer.startColor = new Color(1f, 0f, 0f, alpha);
+            lineRenderer.endColor = new Color(1f, 0f, 0f, alpha);
+        }
+
+        Vector3 rayDirection = direction.normalized;
+        Vector3 start = hitPoint + rayDirection * 0.05f;
+        Vector3 end = start + rayDirection * 50f;
+
+        if (Physics.Raycast(start, rayDirection, out RaycastHit hit, 50f))
+        {
+            end = hit.point;
+            IOpticalReceiver next = hit.collider.GetComponent<IOpticalReceiver>();
+            if (next == null) next = hit.collider.GetComponentInParent<IOpticalReceiver>();
+
+            if (next != null)
+            {
+                LightData outLight = LightData.FromLinear(finalIntensity, axis);
+                next.ReceiveLight(outLight, hit.point, rayDirection);
+            }
+        }
+
+        if (lineRenderer.enabled)
+        {
+            lineRenderer.SetPosition(0, start);
+            lineRenderer.SetPosition(1, end);
+        }
+    }
 }
