@@ -207,7 +207,7 @@ public class RecordManager : MonoBehaviour, IVoltageSource
             voltageText.text = currentVoltage.ToString("F1");
 
         if (receiverText != null)
-            receiverText.text = $"{receiverValue:F2}";
+            receiverText.text = $"{receiverValue / 1000f:F2}";
 
         // 缓存当前显示值，供 RecordData() 使用——保证记录值与用户看到的完全一致
         lastDisplayedPower = receiverValue;
@@ -259,7 +259,7 @@ public class RecordManager : MonoBehaviour, IVoltageSource
         powerCells[currentIndex].color = normalTextColor;
 
         voltageCells[currentIndex].text = currentVoltage.ToString("F1");
-        powerCells[currentIndex].text = currentReceiverValue.ToString("F2");
+        powerCells[currentIndex].text = (currentReceiverValue / 1000f).ToString("F2");
 
         currentIndex++;
     }

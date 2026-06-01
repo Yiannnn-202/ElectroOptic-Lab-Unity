@@ -211,7 +211,7 @@ public class PowerReadoutController : MonoBehaviour, IPowerReadoutSource
         powerStyle.fontStyle = FontStyle.Bold;
         powerStyle.normal.textColor = Color.red;
 
-        GUILayout.Label($"{currentPower:F1} μW", powerStyle);
+        GUILayout.Label($"{currentPower / 1000f:F2} mW", powerStyle);
         GUILayout.Space(15);
 
         GUIStyle tipStyle = new GUIStyle(GUI.skin.label);

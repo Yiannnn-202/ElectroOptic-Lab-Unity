@@ -99,7 +99,7 @@ public class UIStateManager : MonoBehaviour
         }
 
         sb.AppendLine($"<color=#333><b>1. 拟合方程：</b></color>\n   {globalFormula}");
-        sb.AppendLine($"<color=#333><b>2. 特征点提取：</b></color>\n   波峰: <b>V_max = {fitCurveMaxV:F2} V</b> ({fitCurveMaxP:F2} μW)\n   波谷: <b>V_min = {fitCurveMinV:F2} V</b> ({fitCurveMinP:F2} μW)");
+        sb.AppendLine($"<color=#333><b>2. 特征点提取：</b></color>\n   波峰: <b>V_max = {fitCurveMaxV:F2} V</b> ({fitCurveMaxP:F2} mW)\n   波谷: <b>V_min = {fitCurveMinV:F2} V</b> ({fitCurveMinP:F2} mW)");
         sb.AppendLine($"<color=#333><b>3. 半波电压解算：</b></color>\n   V_π = V_min - V_max = <b>{lastCalculatedV:F2} V</b>");
 
         analysisText.text = sb.ToString();
@@ -124,7 +124,7 @@ public class UIStateManager : MonoBehaviour
             mainTooltip.show = true;
             mainTooltip.trigger = Tooltip.Trigger.Item;
             mainTooltip.titleFormatter = "";
-            mainTooltip.itemFormatter = "电压: {b}V\n功率: {c}μW";
+            mainTooltip.itemFormatter = "电压: {b}V\n功率: {c:F2}mW";
         }
         if (residualChart != null)
         {
@@ -134,7 +134,7 @@ public class UIStateManager : MonoBehaviour
                 resTooltip.show = true;
                 resTooltip.trigger = Tooltip.Trigger.Item;
                 resTooltip.titleFormatter = "";
-                resTooltip.itemFormatter = "电压: {b}V\n残差: {c}μW";
+                resTooltip.itemFormatter = "电压: {b}V\n残差: {c:F2}mW";
             }
 
             // 设置残差图的纵坐标（Y轴）只保留小数点后一位

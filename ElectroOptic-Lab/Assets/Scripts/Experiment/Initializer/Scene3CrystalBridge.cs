@@ -41,18 +41,31 @@ public class Scene3CrystalBridge : MonoBehaviour
 
         if (profile == null)
         {
-            Debug.LogWarning("[Scene3CrystalBridge] 无晶体 Profile：未在预览中选择，也未配置 fallbackProfile。使用 RecordManager 默认 halfWaveVoltage。");
+            Debug.LogWarning("[Bridge] No crystal profile found. halfWaveVoltage will keep its default value.");
             return;
         }
 
         // 创建物理核心
         _core = gameObject.AddComponent<CrystalPhysicalCore>();
 
+        // ======== 晶体参数打印 ========
+        Debug.Log("[Bridge] ======== Crystal Vpi Calculation ========");
+        Debug.Log($"[Bridge] Crystal: {profile.crystalName}");
+        Debug.Log($"[Bridge] Wavelength: {profile.defaultWavelength_nm} nm");
+        Debug.Log($"[Bridge] Dimensions: L={profile.defaultLength_mm} mm, d={profile.defaultThickness_mm} mm");
+        Debug.Log($"[Bridge] Refractive indices: nx={profile.n_x}, ny={profile.n_y}, nz={profile.n_z}");
+        Debug.Log($"[Bridge] E-field axis: {fieldAxis}, Light direction: {worldLightDirection}, Mode: {modulationMode}");
+
         // 计算灵敏度
         float sensitivity = ComputeSensitivity(profile);
-        Debug.Log($"[Scene3CrystalBridge] Profile={profile.crystalName}, Sensitivity={sensitivity:E6}");
+        Debug.Log($"[Bridge] DLL Sensitivity S_eff = {sensitivity:E6} (1/V)");
 
-        // 计算 Vπ
+        if (Mathf.Approximately(sensitivity, 0f))
+        {
+            Debug.LogWarning("[Bridge] WARNING: S_eff ~= 0! E and k may be parallel, no transverse EO effect. Check light direction vs E-field.");
+        }
+
+        // 计算 Vpi
         double vPi = VpiCalculator.Calculate(
             profile.defaultWavelength_nm,
             profile.defaultLength_mm,
@@ -62,12 +75,15 @@ public class Scene3CrystalBridge : MonoBehaviour
 
         if (double.IsInfinity(vPi) || double.IsNaN(vPi) || vPi <= 0)
         {
-            Debug.LogWarning("[Scene3CrystalBridge] Vπ 计算无效，保留 RecordManager 默认值。");
+            Debug.LogWarning($"[Bridge] Vpi invalid (S_eff={sensitivity:E6}). Keeping default: {_recordManager.halfWaveVoltage:F1} V");
+            Debug.Log("[Bridge] ========================================");
             return;
         }
 
         _recordManager.halfWaveVoltage = (float)vPi;
-        Debug.Log($"[Scene3CrystalBridge] 已设置 halfWaveVoltage = {vPi:F1} V (原默认值 150V 已覆盖)");
+        Debug.Log($"[Bridge] Calculated Vpi = {vPi:F2} V");
+        Debug.Log($"[Bridge] Written to RecordManager.halfWaveVoltage = {vPi:F2} V");
+        Debug.Log("[Bridge] ========================================");
     }
 
     private float ComputeSensitivity(CrystalProfile profile)

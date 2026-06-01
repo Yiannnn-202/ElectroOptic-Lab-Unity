@@ -637,13 +637,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   receiverController: {fileID: 0}
   voltageSourceBehaviour: {fileID: 0}
-  maxPowerReceiver: 198.5
+  maxPowerReceiver: 2300
   adjustSpeed: 0.5
   beamFocus: 20
   initialDeviationRange: 0.15
   darkPower: 0.2
-  leakage: 0.01
-  visibility: 0.99
+  leakage: 0.49
+  visibility: 0.51
   phaseOffset: 0
   fallbackHalfWaveVoltage: 150
   noiseEnabled: 1

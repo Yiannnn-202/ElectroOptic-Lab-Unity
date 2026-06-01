@@ -23380,9 +23380,9 @@ MonoBehaviour:
   halfWaveVoltage: 150
   maxIntensity: 100
   darkPower: 0.2
-  powerScale: 198.5
-  leakage: 0.01
-  visibility: 0.99
+  powerScale: 2300
+  leakage: 0.49
+  visibility: 0.51
   phaseOffset: 0
   beamFocus: 20
   noiseAmplitude: 1.5
