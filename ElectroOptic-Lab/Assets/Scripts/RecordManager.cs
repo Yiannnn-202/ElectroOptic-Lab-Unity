@@ -70,6 +70,10 @@ public class RecordManager : MonoBehaviour, IVoltageSource
     private bool isMouseHolding = false;
     private IPowerReadoutSource powerReadoutSource;
 
+    // 缓存 UpdateInstrumentUI() 最近一次显示的功率值，
+    // 供 RecordData() 使用，避免按下按钮时重新读取已漂移的 CurrentDisplayPower
+    private float lastDisplayedPower;
+
     public float CurrentVoltage => currentVoltage;
     public float HalfWaveVoltage => halfWaveVoltage;
 
@@ -160,7 +164,7 @@ public class RecordManager : MonoBehaviour, IVoltageSource
         if (arrowDecOutline != null) arrowDecOutline.enabled = isDecSelected;
     }
 
-    // ================= 终极无错版计算与噪声注入逻辑 =================
+    // ================= 光功率计算 =================
     float CalculateReceiverValue(float voltage)
     {
         if (powerReadoutSource == null)
@@ -168,34 +172,31 @@ public class RecordManager : MonoBehaviour, IVoltageSource
             powerReadoutSource = ResolvePowerReadoutSource();
         }
 
-        float baseValue = 0f;
-
         if (powerReadoutSource != null)
         {
-            baseValue = powerReadoutSource.CurrentDisplayPower;
+            // 光功率计已存在：直接同步其面板读数，保证记录值与显示值一致
+            return powerReadoutSource.CurrentDisplayPower;
         }
-        else
+
+        // 无光功率计时的后备计算（含自身噪声模拟）
+        PowerReadoutParameters parameters = BuildReadoutParameters();
+
+        PowerNoiseParameters noise = new PowerNoiseParameters
         {
-            PowerReadoutParameters parameters = BuildReadoutParameters();
+            enabled = true,
+            amplitude = noiseAmplitude,
+            frequency = noiseFrequency
+        };
 
-            // 关键修复：实例化正确的系统预设类型
-            PowerNoiseParameters noise = new PowerNoiseParameters();
+        PowerReadoutResult result = PowerReadoutCalculator.Calculate(
+            voltage,
+            0f,
+            0f,
+            parameters,
+            noise,
+            Time.time);
 
-            // 严格对齐底层的 6 个参数调用
-            PowerReadoutResult result = PowerReadoutCalculator.Calculate(
-                voltage,
-                0f,
-                0f,
-                parameters,
-                noise,
-                Time.time);
-
-            baseValue = result.displayPower;
-        }
-
-        // 强行叠加基于设定幅度的物理白噪声，完美激活散点残差图
-        float randomJitter = UnityEngine.Random.Range(-noiseAmplitude, noiseAmplitude);
-        return Mathf.Max(0f, baseValue + randomJitter); // 保证功率不为负数
+        return Mathf.Max(0f, result.displayPower);
     }
 
     void UpdateInstrumentUI()
@@ -207,6 +208,9 @@ public class RecordManager : MonoBehaviour, IVoltageSource
 
         if (receiverText != null)
             receiverText.text = $"{receiverValue:F2}";
+
+        // 缓存当前显示值，供 RecordData() 使用——保证记录值与用户看到的完全一致
+        lastDisplayedPower = receiverValue;
     }
 
     void BuildCellLists()
@@ -248,7 +252,8 @@ public class RecordManager : MonoBehaviour, IVoltageSource
 
         if (maxRecordCount == 0 || currentIndex >= maxRecordCount) return;
 
-        float currentReceiverValue = CalculateReceiverValue(currentVoltage);
+        // 直接使用仪器面板上最近显示的功率值，保证记录的就是用户看到的
+        float currentReceiverValue = lastDisplayedPower;
 
         voltageCells[currentIndex].color = normalTextColor;
         powerCells[currentIndex].color = normalTextColor;

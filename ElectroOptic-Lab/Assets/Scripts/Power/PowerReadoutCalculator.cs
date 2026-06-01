@@ -14,9 +14,9 @@ public struct PowerReadoutParameters
     public static PowerReadoutParameters Default => new PowerReadoutParameters
     {
         darkPower = 0.2f,
-        powerScale = 198.5f,
-        leakage = 0.01f,
-        visibility = 0.99f,
+        powerScale = 2300f,
+        leakage = 0.49f,
+        visibility = 0.51f,
         phaseOffset = 0f,
         halfWaveVoltage = 150f,
         beamFocus = 20f

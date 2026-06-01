@@ -13,7 +13,7 @@ public class PowerReadoutController : MonoBehaviour, IPowerReadoutSource
     public MonoBehaviour voltageSourceBehaviour;
 
     [Header("接收器调节参数")]
-    public float maxPowerReceiver = 198.5f;
+    public float maxPowerReceiver = 2300f;
     private float receiverDevX;
     private float receiverDevY;
 
@@ -24,8 +24,8 @@ public class PowerReadoutController : MonoBehaviour, IPowerReadoutSource
 
     [Header("光功率读数参数")]
     public float darkPower = 0.2f;
-    public float leakage = 0.01f;
-    public float visibility = 0.99f;
+    public float leakage = 0.49f;
+    public float visibility = 0.51f;
     public float phaseOffset = 0f;
     public float fallbackHalfWaveVoltage = 150f;
 

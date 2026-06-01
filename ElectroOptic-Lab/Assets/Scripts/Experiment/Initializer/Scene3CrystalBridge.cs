@@ -19,6 +19,9 @@ public class Scene3CrystalBridge : MonoBehaviour
     [Tooltip("电场方向")]
     [SerializeField] private ElectricFieldAxis fieldAxis = ElectricFieldAxis.Z_Axis;
 
+    [Tooltip("光传播方向（必须垂直于电场方向才能产生横向电光效应）")]
+    [SerializeField] private Vector3 worldLightDirection = Vector3.up;
+
     [Tooltip("调制模式")]
     [SerializeField] private ModulationMode modulationMode = ModulationMode.Transverse;
 
@@ -77,7 +80,7 @@ public class Scene3CrystalBridge : MonoBehaviour
             crystalRotation = Quaternion.identity,
             localEField = axisVec,
             probeFieldDirection = axisVec,
-            worldLightDirection = Vector3.forward
+            worldLightDirection = worldLightDirection.normalized
         };
 
         _core.ApplyConfig(config);

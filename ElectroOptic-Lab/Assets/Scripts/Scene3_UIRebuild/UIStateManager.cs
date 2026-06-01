@@ -33,8 +33,17 @@ public class UIStateManager : MonoBehaviour
     private float lastCalculatedV = 0f;
 
     [Header("动画延迟")]
+    [Tooltip("主图元素逐个出现的间隔（秒）")]
+    [SerializeField] private float graphAnimDelay = 0.08f;
     [Tooltip("残差点逐个弹出的间隔（秒）")]
     [SerializeField] private float residualAnimDelay = 0.05f;
+
+    // 缓存残差图所需数据，等用户按"分析误差"按钮时才播放动画
+    private List<double> cachedResidualX;
+    private List<double> cachedResidualY;
+    private double cachedFitA, cachedFitW, cachedFitPhi, cachedFitB;
+    private bool residualDataReady = false;
+    private Coroutine residualAnimCoroutine;
 
     void Start()
     {
@@ -62,6 +71,9 @@ public class UIStateManager : MonoBehaviour
         if (leftControlPanel != null) leftControlPanel.SetActive(false);
         if (analysisPanel != null) analysisPanel.SetActive(true);
         GenerateReportText();
+
+        // 打开分析面板时，同步触发残差图逐个弹出动画
+        ShowResidualChart();
     }
 
     public void BackToInstruments()
@@ -97,12 +109,43 @@ public class UIStateManager : MonoBehaviour
     private void DrawGraph()
     {
         hasValidFit = false;
+        residualDataReady = false;
+        if (residualAnimCoroutine != null) { StopCoroutine(residualAnimCoroutine); residualAnimCoroutine = null; }
         if (recordManager == null || lineChart == null) return;
 
-        // ✨【核心修复点】：用 RemoveAllSerie 彻底砸碎并清空所有旧序列，确保新加的序列索引永远从 0 开始！
+        // 清空所有旧序列，确保新序列索引从 0 开始
         lineChart.RemoveAllSerie();
         if (residualChart != null) residualChart.RemoveAllSerie();
 
+        // 悬浮提示：仅显示实验数据点的横纵坐标
+        var mainTooltip = lineChart.GetChartComponent<Tooltip>();
+        if (mainTooltip != null)
+        {
+            mainTooltip.show = true;
+            mainTooltip.trigger = Tooltip.Trigger.Item;
+            mainTooltip.titleFormatter = "";
+            mainTooltip.itemFormatter = "电压: {b}V\n功率: {c}μW";
+        }
+        if (residualChart != null)
+        {
+            var resTooltip = residualChart.GetChartComponent<Tooltip>();
+            if (resTooltip != null)
+            {
+                resTooltip.show = true;
+                resTooltip.trigger = Tooltip.Trigger.Item;
+                resTooltip.titleFormatter = "";
+                resTooltip.itemFormatter = "电压: {b}V\n残差: {c}μW";
+            }
+
+            // 设置残差图的纵坐标（Y轴）只保留小数点后一位
+            var resYAxis = residualChart.GetChartComponent<YAxis>();
+            if (resYAxis != null)
+            {
+                resYAxis.axisLabel.numericFormatter = "f1";
+            }
+        }
+
+        // 收集原始数据
         List<double> xData = new List<double>();
         List<double> yData = new List<double>();
 
@@ -119,15 +162,7 @@ public class UIStateManager : MonoBehaviour
 
         if (xData.Count < 5) return;
 
-        // 1. 绘制实验主图离散点 -> 此时绝对是 0 号序列
-        var scatterSerie = lineChart.AddSerie<Scatter>("实验数据");
-        scatterSerie.symbol.show = true;
-        scatterSerie.symbol.type = SymbolType.Circle;
-        scatterSerie.symbol.size = 8f;
-        scatterSerie.itemStyle.color = Color.red;
-        for (int i = 0; i < xData.Count; i++) lineChart.AddData(0, (float)xData[i], (float)yData[i]);
-
-        // 2. 预计算初始猜想值
+        // 预计算初始猜想值
         double maxP = yData[0], minP = yData[0];
         double maxV = xData[0], minV = xData[0];
         for (int i = 1; i < yData.Count; i++)
@@ -142,7 +177,7 @@ public class UIStateManager : MonoBehaviour
 
         try
         {
-            // 3. 全局非线性曲线拟合
+            // 全局非线性曲线拟合
             (double fitA, double fitW, double fitPhi, double fitB) = Fit.Curve(
                 xData.ToArray(), yData.ToArray(),
                 (a, w, phi, b, x) => a * System.Math.Cos(w * x + phi) + b,
@@ -152,7 +187,7 @@ public class UIStateManager : MonoBehaviour
             string signB = fitB < 0 ? "-" : "+";
             globalFormula = $"P = {System.Math.Abs(fitA):F1}cos({System.Math.Abs(fitW):F4}V {signPhi} {System.Math.Abs(fitPhi):F2}) {signB} {System.Math.Abs(fitB):F1}";
 
-            // 4. 双重扫描法找极值
+            // 双重扫描法找极值
             double scanStart = xData[0];
             double scanEnd = xData[xData.Count - 1];
 
@@ -183,40 +218,69 @@ public class UIStateManager : MonoBehaviour
             lastCalculatedV = fitCurveMinV - fitCurveMaxV;
             hasValidFit = true;
 
-            // 5. 绘制主图拟合曲线 -> 此时绝对是 1 号序列
+            double plotMinX = scanStart - 20;
+            double plotMaxX = scanEnd + 20;
+
+            // ===== 预创建所有空序列（不含数据），然后由协程按顺序逐个添加数据 =====
+            // Series 0: 实验数据散点
+            var scatterSerie = lineChart.AddSerie<Scatter>("实验数据");
+            scatterSerie.symbol.show = true;
+            scatterSerie.symbol.type = SymbolType.Plus;
+            scatterSerie.symbol.size = 8f;
+            scatterSerie.symbol.gap = 2.8f;
+            // 【修改点1 & 2】改为深灰色，线条粗细调到1.0f
+            scatterSerie.itemStyle.color = new Color32(100, 100, 100, 255);
+            scatterSerie.itemStyle.borderWidth = 1.0f;
+            scatterSerie.animation.enable = false; // 关掉XCharts自带动画，我们用协程控制顺序
+
+            // Series 1: 理论拟合曲线
             var globalLineSerie = lineChart.AddSerie<Line>("理论拟合");
             globalLineSerie.lineType = LineType.Smooth;
             globalLineSerie.symbol.show = false;
-            globalLineSerie.lineStyle.color = Color.green;
-            globalLineSerie.lineStyle.width = 3f;
+            // 【修改点3】拟合曲线改为天蓝色
+            globalLineSerie.lineStyle.color = new Color32(135, 206, 235, 255);
+            globalLineSerie.lineStyle.width = 1f;
+            globalLineSerie.animation.enable = false;
 
-            double plotMinX = scanStart - 20;
-            double plotMaxX = scanEnd + 20;
-            for (double x = plotMinX; x <= plotMaxX; x += 2)
+            // Series 2 + i*2: 每个数据点的X轴垂线, Series 3 + i*2: Y轴垂线
+            for (int i = 0; i < xData.Count; i++)
             {
-                double y = fitA * System.Math.Cos(fitW * x + fitPhi) + fitB;
-                lineChart.AddData(1, (float)x, (float)y);
+                var vertLine = lineChart.AddSerie<Line>($"vert_{i}");
+                vertLine.lineStyle.type = LineStyle.Type.Dashed;
+                vertLine.lineStyle.color = new Color(0.5f, 0.5f, 0.5f, 0.55f);
+                vertLine.lineStyle.width = 0.5f;
+                vertLine.symbol.show = false;
+
+                var horiLine = lineChart.AddSerie<Line>($"hori_{i}");
+                horiLine.lineStyle.type = LineStyle.Type.Dashed;
+                horiLine.lineStyle.color = new Color(0.5f, 0.5f, 0.5f, 0.55f);
+                horiLine.lineStyle.width = 0.5f;
+                horiLine.symbol.show = false;
             }
 
-            // 6. 计算并绘制残差图 (Residuals)
+            // 预创建残差图序列
             if (residualChart != null)
             {
-                // 残差散点序列 -> 此时绝对是 0 号序列
                 var resScatter = residualChart.AddSerie<Scatter>("残差");
                 resScatter.symbol.type = SymbolType.Circle;
                 resScatter.symbol.size = 5f;
                 resScatter.itemStyle.color = new Color(0.1f, 0.5f, 0.8f);
+                resScatter.animation.enable = false;
 
-                // 残差零基准线 -> 此时绝对是 1 号序列
-                var zeroLine = residualChart.AddSerie<Line>("零线");
-                zeroLine.lineType = LineType.Normal;
-                zeroLine.symbol.show = false;
-                zeroLine.lineStyle.color = Color.gray;
-                zeroLine.lineStyle.width = 1.5f;
-
-                // 协程逐个添加残差点，恢复"一个一个跳出来"的动画效果
-                StartCoroutine(AnimateResidualPoints(xData, yData, fitA, fitW, fitPhi, fitB));
+                // 缓存残差图所需数据
+                cachedResidualX = new List<double>(xData);
+                cachedResidualY = new List<double>(yData);
+                cachedFitA = fitA;
+                cachedFitW = fitW;
+                cachedFitPhi = fitPhi;
+                cachedFitB = fitB;
+                residualDataReady = true;
             }
+
+            // 启动动画协程
+            StartCoroutine(AnimateGraphDrawing(
+                xData, yData, fitA, fitW, fitPhi, fitB,
+                (float)plotMinX, (float)plotMaxX));
         }
         catch (System.Exception e)
         {
@@ -226,23 +290,89 @@ public class UIStateManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 逐个添加残差点，恢复动画弹出效果
+    /// 主图绘制动画协程
     /// </summary>
-    private System.Collections.IEnumerator AnimateResidualPoints(
+    private System.Collections.IEnumerator AnimateGraphDrawing(
         List<double> xData, List<double> yData,
-        double fitA, double fitW, double fitPhi, double fitB)
+        double fitA, double fitW, double fitPhi, double fitB,
+        float plotMinX, float plotMaxX)
     {
-        for (int i = 0; i < xData.Count; i++)
+        int n = xData.Count;
+        WaitForSeconds wait = new WaitForSeconds(graphAnimDelay);
+
+        // ===== Phase 1: 垂线先出现 =====
+        for (int i = 0; i < n; i++)
         {
-            double v = xData[i];
-            double pActual = yData[i];
-            double pFit = fitA * System.Math.Cos(fitW * v + fitPhi) + fitB;
+            float v = (float)xData[i];
+            float y = (float)yData[i];
+            int vertIdx = 2 + i * 2;
+            int horiIdx = 3 + i * 2;
+
+            lineChart.AddData(vertIdx, v, y);
+            lineChart.AddData(vertIdx, v, 0f);
+
+            lineChart.AddData(horiIdx, v, y);
+            lineChart.AddData(horiIdx, plotMinX, y);
+
+            yield return wait;
+        }
+
+        // ===== Phase 2: 散点逐个出现 =====
+        for (int i = 0; i < n; i++)
+        {
+            lineChart.AddData(0, (float)xData[i], (float)yData[i]);
+            yield return wait;
+        }
+
+        // ===== Phase 3: 拟合曲线平滑绘出 =====
+        WaitForSeconds fastWait = new WaitForSeconds(graphAnimDelay * 0.01f);
+        for (double x = plotMinX; x <= plotMaxX; x += 10)
+        {
+            double y = fitA * System.Math.Cos(fitW * x + fitPhi) + fitB;
+            lineChart.AddData(1, (float)x, (float)y);
+            yield return fastWait;
+        }
+    }
+
+    /// <summary>
+    /// 由"分析误差"按钮调用——逐个弹出残差点动画
+    /// </summary>
+    public void ShowResidualChart()
+    {
+        if (!residualDataReady || residualChart == null) return;
+
+        // 防止重复触发
+        if (residualAnimCoroutine != null) StopCoroutine(residualAnimCoroutine);
+
+        // 清空残差图序列已有数据
+        if (residualChart.series.Count >= 1)
+        {
+            residualChart.series[0].ClearData();
+        }
+
+        residualAnimCoroutine = StartCoroutine(AnimateResidualPoints());
+    }
+
+    /// <summary>
+    /// 残差图动画协程
+    /// </summary>
+    private System.Collections.IEnumerator AnimateResidualPoints()
+    {
+        int n = cachedResidualX.Count;
+        WaitForSeconds wait = new WaitForSeconds(residualAnimDelay);
+
+        for (int i = 0; i < n; i++)
+        {
+            double v = cachedResidualX[i];
+            double pActual = cachedResidualY[i];
+            double pFit = cachedFitA * System.Math.Cos(cachedFitW * v + cachedFitPhi) + cachedFitB;
             double residual = pActual - pFit;
 
             residualChart.AddData(0, (float)v, (float)residual);
-            residualChart.AddData(1, (float)v, 0f);
 
-            yield return new WaitForSeconds(residualAnimDelay);
+            yield return wait;
         }
+
+        residualAnimCoroutine = null;
     }
 }
