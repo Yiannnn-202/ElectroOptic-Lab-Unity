@@ -104,15 +104,16 @@ The experiment module extends the base system without modifying original code:
 Light propagation uses a chain-of-responsibility pattern:
 
 - **IOpticalReceiver interface** (OpticalDef.cs): Components that can receive light implement this
-- **LightData struct**: Carries intensity, polarization angle, and degree of polarization
+- **LightData struct** (OpticalDef.cs): Carries intensity, Stokes parameters (Q/U/V for full elliptical polarization), and legacy polarization angle / DOP fields. Factory methods `FromLinear()` and `FromStokes()` construct light payloads
 - **LaserEmitter.cs**: Emits laser using LineRenderer and Raycast along `-transform.right`, calling `ReceiveLight()` on hit objects
-- **PolarizerPhysics.cs**: Implements Malus's law for polarized light, chains to next receiver with fully polarized output (DOP=1)
-- **DirectScreenController.cs**: Implements IOpticalReceiver, renders red dot tracking pattern to a 512x512 Texture2D
+- **PolarizerPhysics.cs**: Implements Malus's law via Stokes-based transmission calculation (`0.5 × (I + Q·cos2θ + U·sin2θ)`), chains to next receiver with analyzed output
+- **CrystalRetarderPhysics.cs**: Implements `IOpticalReceiver` for the **crystal box in direct red-dot mode**. Uses `CrystalPhysicalCore` to apply crystal retardance (linear birefringence) to the Stokes vector of the incident beam. Bridges the optical chain (polarizer → crystal → analyzer) with the crystal physics engine. Propagates the polarization-transformed light downstream via `LineRenderer`. Adds Stokes-based polarization analysis to what was previously a simple intensity-only chain. Auto-resolves references to `CrystalPhysicalCore` and `OpticalComponent` on the same GameObject
+- **DirectScreenController.cs**: Implements IOpticalReceiver, renders red dot tracking pattern to a 512x512 Texture2D. References `crystalOpticalComponent` to detect crystal-on-rail state for mode switching
 
 ### Optical Rail and Placement System
 
 - **OpticalRail.cs**: Defines rail with direction, length, and snap position calculation (clamps to X range, fixes Y to rail top, Z to zero)
-- **OpticalComponent.cs** (OpticalComponent_Keyboard.cs): Optical component movement — click to pick up, A/D to move along rail axis, Space to drop/snap, double-click to remove from rail. Supports `isOnRail` state tracking used by UnifiedScreenPanel for mode switching
+- **OpticalComponent.cs** (file: `OpticalComponent_Keyboard.cs`): Optical component movement — click to pick up, A/D to move along rail axis, Space to drop/snap, double-click to remove from rail. Supports `isOnRail` state tracking used by UnifiedScreenPanel for mode switching
 - **RailObjectMover.cs** (Assets/): Generic rail object mover with axis selection, limits, outline highlight, and close-up camera anchor support
 
 ### Laser Adjustment System
@@ -175,6 +176,7 @@ Editor tests (run via Unity Test Runner or menu commands):
 - **ConoscopicJonesCoreTests.cs** (`Scripts/ConoscopicAnalysis/Editor/`): Tests for ConoscopicJonesCpuReference against ConoscopicJonesGpuCore.
 - **PowerReadoutCalculatorTests.cs** (`Scripts/Power/Editor/`): Tests for PowerReadoutCalculator transmission and alignment efficiency math.
 - **LiNbO3PowerReadoutVpiTests.cs** (`Scripts/Power/Editor/`): Tests for LiNbO3 Vπ calculation against expected values.
+- **DirectPolarizationRetarderTests.cs** (`Scripts/ConoscopicAnalysis/Editor/`): Tests for `CrystalRetarderPhysics` Stokes-based polarization calculations. Run via menu **ElectroOptics/Tests/Run Direct Polarization Retarder Tests**. Covers polarizer transmission, retarder between crossed polarizers (half-wave/quarter-wave), elliptical Stokes through analyzer, direct center-ray path factor, uniaxial retarder rotation matrix, and profile retarder eigen systems.
 
 Editor-only visualization builders also exist in `ConoscopicAnalysis/Editor/` for constructing test scenes programmatically.
 
@@ -322,6 +324,12 @@ Windowed UI is created dynamically at runtime:
 - Ensure EventSystem exists before creating UI elements
 - Double-click detection uses 0.3s interval consistently
 
+**Available TMP Fonts** (under `Assets/Arts/Fonts/` and `Assets/TextMesh Pro/Fonts/`):
+- **SIMHEI SDF** — Primary Chinese-capable font, used by most existing UI. Assign via `tmp.font = ...` when creating TMP_Text at runtime
+- **DS-DIGI SDF** — Digital/monospace font used for numeric readout displays
+- **MaShanZheng, NotoSerifSC, ZhiMangXing** — Decorative Chinese fonts (less commonly used)
+- **LiberationSans SDF** — Default TMP fallback (no CJK glyphs, avoid for user-facing Chinese text)
+
 ### Runtime-Built Dynamic UI (CustomCrystalPanel pattern)
 
 When building complex UI entirely from code:
@@ -340,7 +348,7 @@ The project has a **two-tier namespace structure**:
 
 | Namespace | Contains |
 |-----------|----------|
-| (global) | CrystalPhysicalCore, LabController, CoreDebugger, DataContracts, NativeInterface, LaserEmitter, DirectScreenController, OpticalRail, OpticalComponent, PolarizerPhysics, Scene3CrystalBridge, IPowerReadoutSource, IVoltageSource, PowerReadoutCalculator, CameraSwitch, RecordManager, SceneLoad, ExperimentNavigator, Cardclick, and most editor tests |
+| (global) | CrystalPhysicalCore, LabController, CoreDebugger, DataContracts, NativeInterface, LaserEmitter, DirectScreenController, OpticalRail, OpticalComponent, PolarizerPhysics, CrystalRetarderPhysics, Scene3CrystalBridge, IPowerReadoutSource, IVoltageSource, PowerReadoutCalculator, CameraSwitch, RecordManager, SceneLoad, ExperimentNavigator, and most editor tests |
 | `ElectroOptics` | CrystalProfile, CrystalConfig, CrystalWorkingGeometry, EOEnums |
 | `ElectroOptics.DataTransfer` | CrystalSelectionData, CrystalRuntime |
 | `ElectroOptics.Experiment.Interfaces` | ICrystalSelectable, ICrystalConfigurable |
@@ -349,7 +357,7 @@ The project has a **two-tier namespace structure**:
 | `ElectroOptics.Experiment.Renderer` | ConoscopicTextureRenderer |
 | `ElectroOptics.UI.ScreenDisplay` | UnifiedScreenPanel, IScreenDataProvider, ScreenMode, CanvasGroupTweener |
 | `ElectroOptics.UI.ControlPanel` | CrystalRotationPanel, RotationKnob, AngleDisplay |
-| `ElectroOptics.UI.CrystalSelector` | CrystalCardSelector, CustomCrystalCard |
+| `ElectroOptics.UI.CrystalSelector` | CrystalCardSelector, CustomCrystalCard, CustomCrystalPanel |
 | `ElectroOptics.UI.CrystalSelector.Editor` | Scene2PreviewUIRefactor |
 | `ElectroOptics.Oscilloscope` | OscilloscopeCore, OscilloscopeCrystalBridge, OscilloscopeParameters, WaveformCalculator, WaveformResult, VpiCalculator, OscilloscopeWaveformGraphic, Scene4OscilloscopeDispatcher |
 | `ElectroOptics.ConoscopicAnalysis` | ConoscopicIntensityCore, ConoscopicIntensityCalculator, ConoscopicIntensityParameters, ConoscopicIntensityResult, ConoscopicIntensitySurfaceVisualizer, ConoscopicJonesGpuCore, ConoscopicJonesCpuReference, ConoscopicJonesParameters, ConoscopicJonesResult, ConoscopicJonesSurfaceVisualizer |
