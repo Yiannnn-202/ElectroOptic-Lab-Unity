@@ -51,7 +51,8 @@ public class RecordManager : MonoBehaviour, IVoltageSource
 
     [Header("教学引导（幽灵提示）设置")]
     [Tooltip("提示电压的步进值。从0开始，每个格子增加这个数值")]
-    public float suggestedVoltageStep = 30f; // ✨ 修改点：改为统一的步进值
+    public float suggestedVoltageStep = 15f; // ✨ 修改点：步进值已由 30f 改为 15f
+
     [Tooltip("提示文字的颜色（灰色）")]
     public Color placeholderColor = new Color(0.6f, 0.6f, 0.6f, 0.8f);
     [Tooltip("真实记录数据的文字颜色（深色）")]

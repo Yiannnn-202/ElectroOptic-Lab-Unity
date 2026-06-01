@@ -134,14 +134,18 @@ public class UIStateManager : MonoBehaviour
                 resTooltip.show = true;
                 resTooltip.trigger = Tooltip.Trigger.Item;
                 resTooltip.titleFormatter = "";
-                resTooltip.itemFormatter = "电压: {b}V\n残差: {c:F2}mW";
+                // 修改点 1：将残差悬浮提示单位改为 μW
+                resTooltip.itemFormatter = "电压: {b}V\n残差: {c:F1}μW";
             }
 
-            // 设置残差图的纵坐标（Y轴）只保留小数点后一位
+            // 设置残差图的纵坐标（Y轴）
             var resYAxis = residualChart.GetChartComponent<YAxis>();
             if (resYAxis != null)
             {
                 resYAxis.axisLabel.numericFormatter = "f1";
+                // 修改点 2：显式强制将 Y 轴划分为 4 个分段
+                // 这样在高度有限的空间内，-5.0 到 5.0 之间就能顺利标出 -2.5, 0.0, 2.5 刻度
+                resYAxis.splitNumber = 4;
             }
         }
 
@@ -221,23 +225,21 @@ public class UIStateManager : MonoBehaviour
             double plotMinX = scanStart - 20;
             double plotMaxX = scanEnd + 20;
 
-            // ===== 预创建所有空序列（不含数据），然后由协程按顺序逐个添加数据 =====
+            // ===== 预创建所有空序列 =====
             // Series 0: 实验数据散点
             var scatterSerie = lineChart.AddSerie<Scatter>("实验数据");
             scatterSerie.symbol.show = true;
             scatterSerie.symbol.type = SymbolType.Plus;
             scatterSerie.symbol.size = 8f;
             scatterSerie.symbol.gap = 2.8f;
-            // 【修改点1 & 2】改为深灰色，线条粗细调到1.0f
             scatterSerie.itemStyle.color = new Color32(100, 100, 100, 255);
             scatterSerie.itemStyle.borderWidth = 1.0f;
-            scatterSerie.animation.enable = false; // 关掉XCharts自带动画，我们用协程控制顺序
+            scatterSerie.animation.enable = false;
 
             // Series 1: 理论拟合曲线
             var globalLineSerie = lineChart.AddSerie<Line>("理论拟合");
             globalLineSerie.lineType = LineType.Smooth;
             globalLineSerie.symbol.show = false;
-            // 【修改点3】拟合曲线改为天蓝色
             globalLineSerie.lineStyle.color = new Color32(135, 206, 235, 255);
             globalLineSerie.lineStyle.width = 1f;
             globalLineSerie.animation.enable = false;
@@ -366,7 +368,9 @@ public class UIStateManager : MonoBehaviour
             double v = cachedResidualX[i];
             double pActual = cachedResidualY[i];
             double pFit = cachedFitA * System.Math.Cos(cachedFitW * v + cachedFitPhi) + cachedFitB;
-            double residual = pActual - pFit;
+
+            // 修改点 3：计算残差后乘以 1000.0，将单位从 mW 换算为 μW
+            double residual = (pActual - pFit) * 1000.0;
 
             residualChart.AddData(0, (float)v, (float)residual);
 
