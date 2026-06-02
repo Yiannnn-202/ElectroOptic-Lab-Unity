@@ -31,6 +31,21 @@ public struct AdditionalConoscopicUserParameters
         phiDeg = 0f,
         apertureRadius = 1f
     };
+
+    public static AdditionalConoscopicUserParameters UniaxialVoltageDefaults => new AdditionalConoscopicUserParameters
+    {
+        wavelengthNm = 633f,
+        thicknessMm = 20f,
+        voltageV = 0f,
+        crystalAxisAngleDeg = 45f,
+        polarizerAngleDeg = 0f,
+        analyzerAngleDeg = 90f,
+        opticAxisTiltDeg = 0f,
+        opticAxisAzimuthDeg = 0f,
+        thetaDeg = 0f,
+        phiDeg = 0f,
+        apertureRadius = 1f
+    };
 }
 
 [DisallowMultipleComponent]

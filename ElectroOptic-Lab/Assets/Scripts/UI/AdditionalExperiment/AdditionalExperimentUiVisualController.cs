@@ -59,9 +59,13 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 {
     [SerializeField] private AdditionalConoscopicMode defaultMode = AdditionalConoscopicMode.BiaxialVoltage;
     [SerializeField] private TMP_FontAsset chineseFont;
+    [SerializeField] private Button resetButton;
     [SerializeField] private AdditionalConoscopicGlobalPhysicalParameters m1GlobalParameters = AdditionalConoscopicGlobalPhysicalParameters.StandardDefaults;
     [SerializeField] private AdditionalConoscopicGlobalPhysicalParameters m2GlobalParameters = AdditionalConoscopicGlobalPhysicalParameters.StandardDefaults;
     [SerializeField] private AdditionalConoscopicGlobalPhysicalParameters m3GlobalParameters = AdditionalConoscopicGlobalPhysicalParameters.UniaxialVoltageDefaults;
+    [SerializeField] private AdditionalConoscopicUserParameters m1InitialParameters = AdditionalConoscopicUserParameters.Defaults;
+    [SerializeField] private AdditionalConoscopicUserParameters m2InitialParameters = AdditionalConoscopicUserParameters.Defaults;
+    [SerializeField] private AdditionalConoscopicUserParameters m3InitialParameters = AdditionalConoscopicUserParameters.UniaxialVoltageDefaults;
 
     private const float SectionSpacing = 10f;
     private const float RowHeight = 38f;
@@ -119,6 +123,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private Slider _analyzerSlider;
     private TMP_InputField _analyzerInput;
     private bool _suppressParameterNotification;
+    private bool _hasRuntimeGlobalParameters;
+    private AdditionalConoscopicGlobalPhysicalParameters _m1RuntimeGlobalParameters;
+    private AdditionalConoscopicGlobalPhysicalParameters _m2RuntimeGlobalParameters;
+    private AdditionalConoscopicGlobalPhysicalParameters _m3RuntimeGlobalParameters;
     private readonly Dictionary<string, ControlBinding> _bindings = new Dictionary<string, ControlBinding>();
 
     public event Action<AdditionalConoscopicMode> ModeChanged;
@@ -147,7 +155,13 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             SaveGlobalParametersForMode(_activeMode);
         }
 
+        if (resetButton != null)
+        {
+            resetButton.onClick.RemoveListener(ResetCurrentModeParameters);
+        }
+
         _hasInitialized = false;
+        _hasRuntimeGlobalParameters = false;
     }
 
     public void ShowM1()
@@ -167,7 +181,8 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     public AdditionalConoscopicUserParameters GetUserParameters()
     {
-        AdditionalConoscopicGlobalPhysicalParameters fallback = GetGlobalParametersForMode(_activeMode);
+        EnsureRuntimeGlobalParameters();
+        AdditionalConoscopicGlobalPhysicalParameters fallback = GetRuntimeGlobalParametersForMode(_activeMode);
         return new AdditionalConoscopicUserParameters
         {
             wavelengthNm = GetControlValue(KeyWavelength, fallback.wavelengthNm),
@@ -189,9 +204,32 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         RecalculateRequested?.Invoke();
     }
 
+    public void ResetCurrentModeParameters()
+    {
+        EnsureRuntimeGlobalParameters();
+
+        AdditionalConoscopicMode mode = _activeMode;
+        AdditionalConoscopicGlobalPhysicalParameters initialGlobalParameters = GetInitialGlobalParametersForMode(mode);
+        AdditionalConoscopicUserParameters initialParameters = GetInitialParametersForMode(mode);
+
+        _suppressParameterNotification = true;
+        try
+        {
+            SetRuntimeGlobalParametersForMode(mode, initialGlobalParameters);
+            ApplyGlobalParametersToControls(initialGlobalParameters);
+            ApplyInitialModeParametersToControls(mode, initialParameters);
+        }
+        finally
+        {
+            _suppressParameterNotification = false;
+        }
+
+        NotifyParametersChanged();
+    }
+
     private void RebuildVisualTree()
     {
-        EnsureGlobalParameterDefaults();
+        EnsureRuntimeGlobalParameters();
         _bindings.Clear();
         _polarizerSlider = null;
         _polarizerInput = null;
@@ -227,6 +265,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         _sectionM3.transform.SetSiblingIndex(4);
 
         ApplyFixedPanelLayout();
+        BindResetButton();
     }
 
     private void EnsureTabs()
@@ -384,6 +423,8 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private void AddParamRow(Transform parent, string key, string labelText, float value, float min, float max, string format)
     {
+        value = ResolveInitialControlValue(key, value);
+
         GameObject row = CreateParamRow(parent, "ParamRow_" + SanitizeName(labelText));
         SetupHorizontalLayout(row, 10f, TextAnchor.MiddleLeft, true, false);
         SetLayout(row, preferredHeight: RowHeight);
@@ -422,6 +463,43 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         CachePolarizerControl(labelText, slider, input);
         _bindings[key] = new ControlBinding(slider, input, format);
         PlaceSectionChild(row, RowHeight);
+    }
+
+    private float ResolveInitialControlValue(string key, float fallback)
+    {
+        switch (key)
+        {
+            case KeyWavelength:
+                return m1GlobalParameters.wavelengthNm;
+            case KeyThickness:
+                return m1GlobalParameters.thicknessMm;
+            case KeyPolarizer:
+                return m1GlobalParameters.polarizerAngleDeg;
+            case KeyAnalyzer:
+                return m1GlobalParameters.analyzerAngleDeg;
+            case KeyM1OpticTilt:
+                return m1InitialParameters.opticAxisTiltDeg;
+            case KeyM1OpticAzimuth:
+                return m1InitialParameters.opticAxisAzimuthDeg;
+            case KeyM1Aperture:
+                return m1InitialParameters.apertureRadius;
+            case KeyM2Voltage:
+                return m2InitialParameters.voltageV;
+            case KeyM2Alpha:
+                return m2InitialParameters.crystalAxisAngleDeg;
+            case KeyM2Theta:
+                return m2InitialParameters.thetaDeg;
+            case KeyM2Phi:
+                return m2InitialParameters.phiDeg;
+            case KeyM2Aperture:
+                return m2InitialParameters.apertureRadius;
+            case KeyM3Voltage:
+                return m3InitialParameters.voltageV;
+            case KeyM3Aperture:
+                return m3InitialParameters.apertureRadius;
+            default:
+                return fallback;
+        }
     }
 
     private GameObject CreateParamRow(Transform parent, string name)
@@ -702,9 +780,29 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         return button;
     }
 
+    private void BindResetButton()
+    {
+        if (resetButton == null)
+        {
+            GameObject resetObject = FindDirectChild(transform, "Reset");
+            if (resetObject != null)
+            {
+                resetButton = resetObject.GetComponent<Button>();
+            }
+        }
+
+        if (resetButton == null)
+        {
+            return;
+        }
+
+        resetButton.onClick.RemoveListener(ResetCurrentModeParameters);
+        resetButton.onClick.AddListener(ResetCurrentModeParameters);
+    }
+
     private void SetMode(AdditionalConoscopicMode mode)
     {
-        EnsureGlobalParameterDefaults();
+        EnsureRuntimeGlobalParameters();
         if (_hasInitialized)
         {
             SaveGlobalParametersForMode(_activeMode);
@@ -723,6 +821,52 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         ApplyFixedPanelLayout();
         ModeChanged?.Invoke(_activeMode);
         NotifyParametersChanged();
+    }
+
+    private void ApplyGlobalParametersToControls(AdditionalConoscopicGlobalPhysicalParameters parameters)
+    {
+        SetControlValueWithoutNotify(KeyWavelength, parameters.wavelengthNm);
+        SetControlValueWithoutNotify(KeyThickness, parameters.thicknessMm);
+        SetControlValueWithoutNotify(KeyPolarizer, parameters.polarizerAngleDeg);
+        SetControlValueWithoutNotify(KeyAnalyzer, parameters.analyzerAngleDeg);
+    }
+
+    private void ApplyInitialModeParametersToControls(
+        AdditionalConoscopicMode mode,
+        AdditionalConoscopicUserParameters parameters)
+    {
+        switch (mode)
+        {
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                SetControlValueWithoutNotify(KeyM2Voltage, parameters.voltageV);
+                SetControlValueWithoutNotify(KeyM2Alpha, parameters.crystalAxisAngleDeg);
+                SetControlValueWithoutNotify(KeyM2Theta, parameters.thetaDeg);
+                SetControlValueWithoutNotify(KeyM2Phi, parameters.phiDeg);
+                SetControlValueWithoutNotify(KeyM2Aperture, parameters.apertureRadius);
+                break;
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                SetControlValueWithoutNotify(KeyM3Voltage, parameters.voltageV);
+                SetControlValueWithoutNotify(KeyM3Aperture, parameters.apertureRadius);
+                break;
+            default:
+                SetControlValueWithoutNotify(KeyM1OpticTilt, parameters.opticAxisTiltDeg);
+                SetControlValueWithoutNotify(KeyM1OpticAzimuth, parameters.opticAxisAzimuthDeg);
+                SetControlValueWithoutNotify(KeyM1Aperture, parameters.apertureRadius);
+                break;
+        }
+    }
+
+    private AdditionalConoscopicUserParameters GetInitialParametersForMode(AdditionalConoscopicMode mode)
+    {
+        switch (mode)
+        {
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                return m2InitialParameters;
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                return m3InitialParameters;
+            default:
+                return m1InitialParameters;
+        }
     }
 
     private float ResolveActiveVoltage()
@@ -773,7 +917,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         ParametersChanged?.Invoke(GetUserParameters());
     }
 
-    private AdditionalConoscopicGlobalPhysicalParameters GetGlobalParametersForMode(AdditionalConoscopicMode mode)
+    private AdditionalConoscopicGlobalPhysicalParameters GetInitialGlobalParametersForMode(AdditionalConoscopicMode mode)
     {
         switch (mode)
         {
@@ -786,7 +930,21 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         }
     }
 
-    private void SetGlobalParametersForMode(
+    private AdditionalConoscopicGlobalPhysicalParameters GetRuntimeGlobalParametersForMode(AdditionalConoscopicMode mode)
+    {
+        EnsureRuntimeGlobalParameters();
+        switch (mode)
+        {
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                return _m2RuntimeGlobalParameters;
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                return _m3RuntimeGlobalParameters;
+            default:
+                return _m1RuntimeGlobalParameters;
+        }
+    }
+
+    private void SetRuntimeGlobalParametersForMode(
         AdditionalConoscopicMode mode,
         AdditionalConoscopicGlobalPhysicalParameters parameters)
     {
@@ -794,21 +952,22 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         switch (mode)
         {
             case AdditionalConoscopicMode.BiaxialVoltage:
-                m2GlobalParameters = parameters;
+                _m2RuntimeGlobalParameters = parameters;
                 break;
             case AdditionalConoscopicMode.UniaxialVoltage:
-                m3GlobalParameters = parameters;
+                _m3RuntimeGlobalParameters = parameters;
                 break;
             default:
-                m1GlobalParameters = parameters;
+                _m1RuntimeGlobalParameters = parameters;
                 break;
         }
     }
 
     private void SaveGlobalParametersForMode(AdditionalConoscopicMode mode)
     {
-        AdditionalConoscopicGlobalPhysicalParameters fallback = GetGlobalParametersForMode(mode);
-        SetGlobalParametersForMode(
+        EnsureRuntimeGlobalParameters();
+        AdditionalConoscopicGlobalPhysicalParameters fallback = GetRuntimeGlobalParametersForMode(mode);
+        SetRuntimeGlobalParametersForMode(
             mode,
             AdditionalConoscopicGlobalPhysicalParameters.Create(
                 GetControlValue(KeyWavelength, fallback.wavelengthNm),
@@ -819,14 +978,11 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private void RestoreGlobalParametersForMode(AdditionalConoscopicMode mode)
     {
-        AdditionalConoscopicGlobalPhysicalParameters parameters = GetGlobalParametersForMode(mode);
+        AdditionalConoscopicGlobalPhysicalParameters parameters = GetRuntimeGlobalParametersForMode(mode);
         _suppressParameterNotification = true;
         try
         {
-            SetControlValueWithoutNotify(KeyWavelength, parameters.wavelengthNm);
-            SetControlValueWithoutNotify(KeyThickness, parameters.thicknessMm);
-            SetControlValueWithoutNotify(KeyPolarizer, parameters.polarizerAngleDeg);
-            SetControlValueWithoutNotify(KeyAnalyzer, parameters.analyzerAngleDeg);
+            ApplyGlobalParametersToControls(parameters);
         }
         finally
         {
@@ -851,6 +1007,20 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         EnsureGlobalParameterDefaults(ref m1GlobalParameters, AdditionalConoscopicGlobalPhysicalParameters.StandardDefaults);
         EnsureGlobalParameterDefaults(ref m2GlobalParameters, AdditionalConoscopicGlobalPhysicalParameters.StandardDefaults);
         EnsureGlobalParameterDefaults(ref m3GlobalParameters, AdditionalConoscopicGlobalPhysicalParameters.UniaxialVoltageDefaults);
+    }
+
+    private void EnsureRuntimeGlobalParameters()
+    {
+        EnsureGlobalParameterDefaults();
+        if (_hasRuntimeGlobalParameters)
+        {
+            return;
+        }
+
+        _m1RuntimeGlobalParameters = m1GlobalParameters;
+        _m2RuntimeGlobalParameters = m2GlobalParameters;
+        _m3RuntimeGlobalParameters = m3GlobalParameters;
+        _hasRuntimeGlobalParameters = true;
     }
 
     private static void EnsureGlobalParameterDefaults(
@@ -1200,6 +1370,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private void OnValidate()
     {
         EnsureGlobalParameterDefaults();
+        if (!Application.isPlaying)
+        {
+            _hasRuntimeGlobalParameters = false;
+        }
     }
 #endif
 }

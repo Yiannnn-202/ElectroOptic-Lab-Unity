@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using ElectroOptics;
@@ -35,6 +36,7 @@ public static class ConoscopicJonesCoreTests
         TestAdditionalExperimentApiPresets();
         TestAdditionalExperimentVisualizationSettings();
         TestAdditionalExperimentUiModeGlobalParameters();
+        TestAdditionalExperimentUiResetCurrentModeParameters();
         TestAdditionalExperimentApiGpuLifecycle();
         TestGpuKtpBiaxialLifecycle();
         Debug.Log($"========== Conoscopic Jones Core Tests Done: {_passed} passed, {_failed} failed ==========");
@@ -647,6 +649,130 @@ public static class ConoscopicJonesCoreTests
         {
             Object.DestroyImmediate(go);
         }
+    }
+
+    private static void TestAdditionalExperimentUiResetCurrentModeParameters()
+    {
+        var go = new GameObject("AdditionalExperimentUi_Reset_Test", typeof(RectTransform));
+        try
+        {
+            var ui = go.AddComponent<AdditionalExperimentUiVisualController>();
+
+            SetUiPrivateField(
+                ui,
+                "m1GlobalParameters",
+                AdditionalConoscopicGlobalPhysicalParameters.Create(633f, 20f, 0f, 90f));
+            SetUiPrivateField(
+                ui,
+                "m2GlobalParameters",
+                AdditionalConoscopicGlobalPhysicalParameters.Create(532f, 2.55f, 0f, 90f));
+            SetUiPrivateField(
+                ui,
+                "m3GlobalParameters",
+                AdditionalConoscopicGlobalPhysicalParameters.Create(633f, 20f, 0f, 90f));
+
+            AdditionalConoscopicUserParameters m1Initial = AdditionalConoscopicUserParameters.Defaults;
+            m1Initial.opticAxisTiltDeg = 11f;
+            m1Initial.opticAxisAzimuthDeg = 22f;
+            m1Initial.apertureRadius = 0.66f;
+            SetUiPrivateField(ui, "m1InitialParameters", m1Initial);
+
+            AdditionalConoscopicUserParameters m2Initial = AdditionalConoscopicUserParameters.Defaults;
+            m2Initial.voltageV = 25f;
+            m2Initial.crystalAxisAngleDeg = 35f;
+            m2Initial.thetaDeg = 12f;
+            m2Initial.phiDeg = 48f;
+            m2Initial.apertureRadius = 0.72f;
+            SetUiPrivateField(ui, "m2InitialParameters", m2Initial);
+
+            AdditionalConoscopicUserParameters m3Initial = AdditionalConoscopicUserParameters.UniaxialVoltageDefaults;
+            m3Initial.voltageV = 40f;
+            m3Initial.apertureRadius = 0.81f;
+            SetUiPrivateField(ui, "m3InitialParameters", m3Initial);
+
+            int parameterNotifications = 0;
+            ui.ParametersChanged += _ => parameterNotifications++;
+
+            ui.ShowM1();
+            parameterNotifications = 0;
+            SetUiControlValueWithoutNotify(ui, "wavelength", 700f);
+            SetUiControlValueWithoutNotify(ui, "thickness", 8f);
+            SetUiControlValueWithoutNotify(ui, "m1.opticTilt", 30f);
+            SetUiControlValueWithoutNotify(ui, "m1.opticAzimuth", 180f);
+            SetUiControlValueWithoutNotify(ui, "m1.aperture", 0.2f);
+            ui.ResetCurrentModeParameters();
+            AdditionalConoscopicUserParameters m1 = ui.GetUserParameters();
+            AssertTrue("Additional UI reset M1 single notification", parameterNotifications == 1);
+            AssertClose("Additional UI reset M1 wavelength", m1.wavelengthNm, 633f, 1e-6f);
+            AssertClose("Additional UI reset M1 thickness", m1.thicknessMm, 20f, 1e-6f);
+            AssertClose("Additional UI reset M1 tilt", m1.opticAxisTiltDeg, 11f, 1e-6f);
+            AssertClose("Additional UI reset M1 azimuth", m1.opticAxisAzimuthDeg, 22f, 1e-6f);
+            AssertClose("Additional UI reset M1 aperture", m1.apertureRadius, 0.66f, 1e-6f);
+
+            ui.ShowM2();
+            parameterNotifications = 0;
+            SetUiControlValueWithoutNotify(ui, "wavelength", 710f);
+            SetUiControlValueWithoutNotify(ui, "thickness", 9f);
+            SetUiControlValueWithoutNotify(ui, "m2.voltage", 900f);
+            SetUiControlValueWithoutNotify(ui, "m2.alpha", 120f);
+            SetUiControlValueWithoutNotify(ui, "m2.theta", 55f);
+            SetUiControlValueWithoutNotify(ui, "m2.phi", 200f);
+            SetUiControlValueWithoutNotify(ui, "m2.aperture", 0.25f);
+            ui.ResetCurrentModeParameters();
+            AdditionalConoscopicUserParameters m2 = ui.GetUserParameters();
+            AssertTrue("Additional UI reset M2 single notification", parameterNotifications == 1);
+            AssertClose("Additional UI reset M2 wavelength", m2.wavelengthNm, 532f, 1e-6f);
+            AssertClose("Additional UI reset M2 thickness", m2.thicknessMm, 2.55f, 1e-6f);
+            AssertClose("Additional UI reset M2 voltage", m2.voltageV, 25f, 1e-6f);
+            AssertClose("Additional UI reset M2 alpha", m2.crystalAxisAngleDeg, 35f, 1e-6f);
+            AssertClose("Additional UI reset M2 theta", m2.thetaDeg, 12f, 1e-6f);
+            AssertClose("Additional UI reset M2 phi", m2.phiDeg, 48f, 1e-6f);
+            AssertClose("Additional UI reset M2 aperture", m2.apertureRadius, 0.72f, 1e-6f);
+
+            ui.ShowM3();
+            parameterNotifications = 0;
+            SetUiControlValueWithoutNotify(ui, "wavelength", 720f);
+            SetUiControlValueWithoutNotify(ui, "thickness", 10f);
+            SetUiControlValueWithoutNotify(ui, "m3.voltage", 950f);
+            SetUiControlValueWithoutNotify(ui, "m3.aperture", 0.3f);
+            ui.ResetCurrentModeParameters();
+            AdditionalConoscopicUserParameters m3 = ui.GetUserParameters();
+            AssertTrue("Additional UI reset M3 single notification", parameterNotifications == 1);
+            AssertClose("Additional UI reset M3 wavelength", m3.wavelengthNm, 633f, 1e-6f);
+            AssertClose("Additional UI reset M3 thickness", m3.thicknessMm, 20f, 1e-6f);
+            AssertClose("Additional UI reset M3 voltage", m3.voltageV, 40f, 1e-6f);
+            AssertClose("Additional UI reset M3 aperture", m3.apertureRadius, 0.81f, 1e-6f);
+
+            ui.ShowM1();
+            AdditionalConoscopicUserParameters restoredM1 = ui.GetUserParameters();
+            AssertClose("Additional UI reset keeps M1 cache", restoredM1.wavelengthNm, 633f, 1e-6f);
+            AssertClose("Additional UI reset keeps M1 aperture", restoredM1.apertureRadius, 0.66f, 1e-6f);
+        }
+        finally
+        {
+            Object.DestroyImmediate(go);
+        }
+    }
+
+    private static void SetUiPrivateField<T>(AdditionalExperimentUiVisualController ui, string fieldName, T value)
+    {
+        FieldInfo field = typeof(AdditionalExperimentUiVisualController).GetField(
+            fieldName,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        AssertTrue("Additional UI private field exists: " + fieldName, field != null);
+        field?.SetValue(ui, value);
+    }
+
+    private static void SetUiControlValueWithoutNotify(
+        AdditionalExperimentUiVisualController ui,
+        string key,
+        float value)
+    {
+        MethodInfo method = typeof(AdditionalExperimentUiVisualController).GetMethod(
+            "SetControlValueWithoutNotify",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        AssertTrue("Additional UI set control helper exists", method != null);
+        method?.Invoke(ui, new object[] { key, value });
     }
 
     private static void TestAdditionalExperimentApiGpuLifecycle()

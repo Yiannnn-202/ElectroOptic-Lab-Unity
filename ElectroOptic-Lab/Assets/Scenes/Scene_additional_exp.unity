@@ -5820,6 +5820,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   defaultMode: 0
   chineseFont: {fileID: 11400000, guid: e51917171fc617848a446063bf200535, type: 2}
+  resetButton: {fileID: 550442241}
   m1GlobalParameters:
     wavelengthNm: 633
     thicknessMm: 20
@@ -5835,6 +5836,42 @@ MonoBehaviour:
     thicknessMm: 20
     polarizerAngleDeg: 0
     analyzerAngleDeg: 90
+  m1InitialParameters:
+    wavelengthNm: 633
+    thicknessMm: 20
+    voltageV: 0
+    crystalAxisAngleDeg: 45
+    polarizerAngleDeg: 0
+    analyzerAngleDeg: 90
+    opticAxisTiltDeg: 0
+    opticAxisAzimuthDeg: 0
+    thetaDeg: 0
+    phiDeg: 0
+    apertureRadius: 1
+  m2InitialParameters:
+    wavelengthNm: 532
+    thicknessMm: 2.55
+    voltageV: 0
+    crystalAxisAngleDeg: 45
+    polarizerAngleDeg: 0
+    analyzerAngleDeg: 90
+    opticAxisTiltDeg: 0
+    opticAxisAzimuthDeg: 0
+    thetaDeg: 0
+    phiDeg: 0
+    apertureRadius: 1
+  m3InitialParameters:
+    wavelengthNm: 633
+    thicknessMm: 20
+    voltageV: 0
+    crystalAxisAngleDeg: 45
+    polarizerAngleDeg: 0
+    analyzerAngleDeg: 90
+    opticAxisTiltDeg: 0
+    opticAxisAzimuthDeg: 0
+    thetaDeg: 0
+    phiDeg: 0
+    apertureRadius: 1
 --- !u!114 &1382236312
 MonoBehaviour:
   m_ObjectHideFlags: 0
