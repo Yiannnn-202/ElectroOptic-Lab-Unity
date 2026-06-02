@@ -7,10 +7,11 @@ using ElectroOptics.DataTransfer;
 namespace ElectroOptics.UI.ScreenDisplay
 {
     /// <summary>
-    /// 统一光屏显示面板
+    /// 统一光屏显示面板（ExecuteAlways：Edit 模式下也创建 UI 层级，方便 Inspector 调参）
     /// 左下角固定面板，集成红点追踪和锥光干涉双图层显示，
     /// 根据晶体吸附状态自动切换模式，带淡入淡出过渡动画
     /// </summary>
+    [ExecuteAlways]
     public class UnifiedScreenPanel : MonoBehaviour
     {
         private const string LOG_PREFIX = "[UnifiedScreenPanel]";
@@ -34,6 +35,13 @@ namespace ElectroOptics.UI.ScreenDisplay
         [Header("过渡配置")]
         [Tooltip("淡入淡出时长（秒）")]
         [SerializeField] private float transitionDuration = 0.3f;
+
+        [Header("点击交互")]
+        [Tooltip("双击间隔阈值（秒）")]
+        [SerializeField] private float doubleClickInterval = 0.3f;
+
+        [Tooltip("双击后加载的目标场景名")]
+        [SerializeField] private string targetSceneName = "Scene_additional_exp";
 
         #endregion
 
@@ -82,13 +90,30 @@ namespace ElectroOptics.UI.ScreenDisplay
 
         #region Unity 生命周期
 
+        private void OnEnable()
+        {
+            // Edit 模式下自动构建 UI 层级，让 ScreenPanelInteraction 在 Inspector 中可见
+            if (!Application.isPlaying)
+            {
+                BuildVisualHierarchy();
+                Show();
+            }
+        }
+
         private void Start()
         {
-            Initialize();
+            if (Application.isPlaying)
+            {
+                // Play 模式：如果 Edit 模式还没构建，现在构建；否则复用已有层级
+                BuildVisualHierarchy();
+                InitializePlayMode();
+            }
         }
 
         private void Update()
         {
+            // Edit 模式不需要 play 逻辑
+            if (!Application.isPlaying) return;
             if (!_isInitialized) return;
 
             // 管理面板可见性：光屏闲置在桌面上时隐藏，吸附导轨/被选中时显示
@@ -126,7 +151,10 @@ namespace ElectroOptics.UI.ScreenDisplay
         {
             if (_panelObject != null)
             {
-                Destroy(_panelObject);
+                if (Application.isPlaying)
+                    Destroy(_panelObject);
+                else
+                    DestroyImmediate(_panelObject);
             }
         }
 
@@ -134,8 +162,95 @@ namespace ElectroOptics.UI.ScreenDisplay
 
         #region 初始化
 
-        private void Initialize()
+        /// <summary>
+        /// 构建 UI 可视化层级（Edit 和 Play 模式共用，带重复创建保护）
+        /// </summary>
+        private void BuildVisualHierarchy()
         {
+            // 防止重复创建（Edit 模式下 OnEnable 可能多次触发）
+            if (_panelObject != null) return;
+
+            EnsureEventSystem();
+            CreateCanvas();
+
+            // 检查 Canvas 下是否已有 panel（防止重复）
+            Transform existingPanel = _canvas.transform.Find("UnifiedScreenPanel");
+            if (existingPanel != null)
+            {
+                _panelObject = existingPanel.gameObject;
+                _panelRect = _panelObject.GetComponent<RectTransform>();
+                _panelGroup = _panelObject.GetComponent<CanvasGroup>();
+                // 恢复子对象引用
+                RestoreChildReferences();
+                // 同步 Inspector 参数到已有组件
+                SyncInspectorToComponents();
+                return;
+            }
+
+            CreatePanel();
+            CreateLayers();
+            CreateClickOverlay();
+
+            // Edit 模式下标记场景已修改（但避免每次 OnEnable 都标记）
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                UnityEditor.EditorUtility.SetDirty(this);
+            }
+#endif
+        }
+
+        /// <summary>
+        /// 恢复对已有子对象的引用（Edit 模式 undo/redo 或 reload 后）
+        /// </summary>
+        private void RestoreChildReferences()
+        {
+            if (_panelObject == null) return;
+
+            _conoscopicLayerObj = _panelObject.transform.Find("ConoscopicLayer")?.gameObject;
+            if (_conoscopicLayerObj != null)
+            {
+                _conoscopicLayerGroup = _conoscopicLayerObj.GetComponent<CanvasGroup>();
+                Transform content = _conoscopicLayerObj.transform.Find("Content");
+                if (content != null) _conoscopicLayerImage = content.GetComponent<RawImage>();
+            }
+
+            _directLayerObj = _panelObject.transform.Find("DirectLayer")?.gameObject;
+            if (_directLayerObj != null)
+            {
+                _directLayerGroup = _directLayerObj.GetComponent<CanvasGroup>();
+                Transform content = _directLayerObj.transform.Find("Content");
+                if (content != null) _directLayerImage = content.GetComponent<RawImage>();
+            }
+        }
+
+        /// <summary>
+        /// 将 Inspector 上的参数同步到已创建的 runtime 组件
+        /// </summary>
+        private void SyncInspectorToComponents()
+        {
+            if (_panelObject == null) return;
+
+            // 同步 ScreenPanelInteraction（在 ClickOverlay 上）
+            Transform clickOverlay = _panelObject.transform.Find("ClickOverlay");
+            if (clickOverlay != null)
+            {
+                var interaction = clickOverlay.GetComponent<ScreenPanelInteraction>();
+                if (interaction != null)
+                {
+                    interaction.doubleClickInterval = doubleClickInterval;
+                    interaction.targetSceneName = targetSceneName;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Play 模式专用初始化（数据提供者、纹理绑定、初始状态）
+        /// </summary>
+        private void InitializePlayMode()
+        {
+            if (_isInitialized) return;
+
             if (directScreenController == null)
             {
                 Debug.LogError($"{LOG_PREFIX} DirectScreenController 引用为空，自动切换禁用");
@@ -149,16 +264,16 @@ namespace ElectroOptics.UI.ScreenDisplay
             }
             _conoscopicDataProvider = new ConoscopicScreenDataProvider();
 
-            // 构建 UI
-            EnsureEventSystem();
-            CreateCanvas();
-            CreatePanel();
-            CreateLayers();
+            // 绑定纹理
+            BindTextures();
 
             // 初始状态：Direct 模式，面板隐藏（等待光屏吸附到导轨）
             SetModeImmediate(ScreenMode.Direct);
             Hide();
             _isVisible = false;
+
+            // 同步 Inspector 参数到组件
+            SyncInspectorToComponents();
 
             _isInitialized = true;
             Debug.Log($"{LOG_PREFIX} 初始化完成");
@@ -196,19 +311,23 @@ namespace ElectroOptics.UI.ScreenDisplay
             else
             {
                 _canvas = canvasObj.GetComponent<Canvas>();
+                // 确保 GraphicRaycaster 存在
+                if (canvasObj.GetComponent<GraphicRaycaster>() == null)
+                {
+                    canvasObj.AddComponent<GraphicRaycaster>();
+                }
             }
         }
 
         private void CreatePanel()
         {
-            // 面板根对象
             _panelObject = new GameObject("UnifiedScreenPanel");
             _panelObject.transform.SetParent(_canvas.transform, false);
 
             _panelRect = _panelObject.AddComponent<RectTransform>();
-            _panelRect.anchorMin = Vector2.zero; // 左下角
+            _panelRect.anchorMin = Vector2.zero;
             _panelRect.anchorMax = Vector2.zero;
-            _panelRect.pivot = Vector2.zero;     // 轴心在左下角
+            _panelRect.pivot = Vector2.zero;
             _panelRect.anchoredPosition = panelPosition;
             _panelRect.sizeDelta = panelSize;
 
@@ -240,7 +359,6 @@ namespace ElectroOptics.UI.ScreenDisplay
             conoscopicBg.color = Color.black;
             conoscopicBg.raycastTarget = false;
 
-            // 内容 RawImage（子对象，留边距）
             GameObject conoscopicContent = new GameObject("Content");
             conoscopicContent.transform.SetParent(_conoscopicLayerObj.transform, false);
             RectTransform ccRect = conoscopicContent.AddComponent<RectTransform>();
@@ -266,12 +384,10 @@ namespace ElectroOptics.UI.ScreenDisplay
             _directLayerGroup = _directLayerObj.AddComponent<CanvasGroup>();
             _directLayerGroup.alpha = 1f;
 
-            // 白色背景 Image
             Image directBg = _directLayerObj.AddComponent<Image>();
             directBg.color = Color.black;
             directBg.raycastTarget = false;
 
-            // 内容 RawImage（子对象，留边距）
             GameObject directContent = new GameObject("Content");
             directContent.transform.SetParent(_directLayerObj.transform, false);
             RectTransform dcRect = directContent.AddComponent<RectTransform>();
@@ -283,20 +399,38 @@ namespace ElectroOptics.UI.ScreenDisplay
             _directLayerImage = directContent.AddComponent<RawImage>();
             _directLayerImage.color = Color.white;
             _directLayerImage.raycastTarget = false;
+        }
 
-            // 绑定纹理
-            BindTextures();
+        private void CreateClickOverlay()
+        {
+            // 透明点击覆盖层 — 最顶层子物体
+            GameObject overlay = new GameObject("ClickOverlay");
+            overlay.transform.SetParent(_panelObject.transform, false);
+
+            RectTransform rect = overlay.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            Image image = overlay.AddComponent<Image>();
+            image.color = new Color(0, 0, 0, 0);
+            image.raycastTarget = true;
+
+            var interaction = overlay.AddComponent<ScreenPanelInteraction>();
+            interaction.doubleClickInterval = doubleClickInterval;
+            interaction.targetSceneName = targetSceneName;
+
+            Debug.Log($"{LOG_PREFIX} 点击覆盖层已创建");
         }
 
         private void BindTextures()
         {
-            // 绑定红点追踪纹理（Texture2D 就地修改，只需绑定一次）
             if (_directDataProvider != null && _directDataProvider.IsAvailable)
             {
                 _directLayerImage.texture = _directDataProvider.GetTexture();
             }
 
-            // 绑定锥光干涉纹理
             if (_conoscopicDataProvider != null && _conoscopicDataProvider.IsAvailable)
             {
                 _conoscopicLayerImage.texture = _conoscopicDataProvider.GetTexture();
@@ -311,7 +445,6 @@ namespace ElectroOptics.UI.ScreenDisplay
         {
             if (AreConoscopicRequiredComponentsOnRail())
             {
-                // 还需要确保锥光渲染器可用
                 if (_conoscopicDataProvider != null && _conoscopicDataProvider.IsAvailable)
                 {
                     return ScreenMode.Conoscopic;
@@ -417,18 +550,12 @@ namespace ElectroOptics.UI.ScreenDisplay
 
         #region 模式切换
 
-        /// <summary>
-        /// 切换到指定模式（带过渡动画）
-        /// </summary>
         public void SwitchToMode(ScreenMode mode)
         {
             if (mode == CurrentMode || IsTransitioning) return;
             StartCoroutine(SwitchModeWithTransition(mode));
         }
 
-        /// <summary>
-        /// 切换到指定模式（立即切换，无动画）
-        /// </summary>
         public void SwitchToModeImmediate(ScreenMode mode)
         {
             SetModeImmediate(mode);
@@ -444,11 +571,9 @@ namespace ElectroOptics.UI.ScreenDisplay
             CanvasGroup targetLayer = (newMode == ScreenMode.Conoscopic) ? _conoscopicLayerGroup : _directLayerGroup;
             CanvasGroup currentLayer = (newMode == ScreenMode.Conoscopic) ? _directLayerGroup : _conoscopicLayerGroup;
 
-            // 预渲染目标纹理
             if (newMode == ScreenMode.Conoscopic && _conoscopicDataProvider != null)
             {
                 _conoscopicDataProvider.PreRender();
-                // 确保纹理已绑定
                 if (_conoscopicDataProvider.IsAvailable)
                 {
                     _conoscopicLayerImage.texture = _conoscopicDataProvider.GetTexture();
@@ -463,17 +588,13 @@ namespace ElectroOptics.UI.ScreenDisplay
                 }
             }
 
-            // 等待 GPU 完成渲染
             yield return new WaitForEndOfFrame();
 
-            // 激活目标图层（alpha=0）
             targetLayer.gameObject.SetActive(true);
             targetLayer.alpha = 0f;
 
-            // 并行淡入淡出
             yield return CanvasGroupTweener.CrossFade(currentLayer, targetLayer, transitionDuration);
 
-            // 隐藏原图层
             currentLayer.gameObject.SetActive(false);
 
             CurrentMode = newMode;
@@ -482,7 +603,6 @@ namespace ElectroOptics.UI.ScreenDisplay
 
         private void SetModeImmediate(ScreenMode mode)
         {
-            // 确保纹理已绑定
             BindTextures();
 
             if (mode == ScreenMode.Direct)
@@ -507,9 +627,6 @@ namespace ElectroOptics.UI.ScreenDisplay
 
         #region 公共方法
 
-        /// <summary>
-        /// 面板淡入淡出协程
-        /// </summary>
         private IEnumerator FadePanel(bool show)
         {
             _isFading = true;
@@ -529,9 +646,6 @@ namespace ElectroOptics.UI.ScreenDisplay
             _isFading = false;
         }
 
-        /// <summary>
-        /// 显示面板（立即）
-        /// </summary>
         public void Show()
         {
             if (_panelObject != null)
@@ -542,9 +656,6 @@ namespace ElectroOptics.UI.ScreenDisplay
             }
         }
 
-        /// <summary>
-        /// 隐藏面板（立即）
-        /// </summary>
         public void Hide()
         {
             if (_panelObject != null)
@@ -555,9 +666,6 @@ namespace ElectroOptics.UI.ScreenDisplay
             }
         }
 
-        /// <summary>
-        /// 设置面板位置
-        /// </summary>
         public void SetPosition(Vector2 anchoredPosition)
         {
             if (_panelRect != null)
@@ -566,9 +674,6 @@ namespace ElectroOptics.UI.ScreenDisplay
             }
         }
 
-        /// <summary>
-        /// 设置面板尺寸
-        /// </summary>
         public void SetSize(Vector2 size)
         {
             if (_panelRect != null)
@@ -582,6 +687,24 @@ namespace ElectroOptics.UI.ScreenDisplay
         #region 编辑器调试
 
 #if UNITY_EDITOR
+        [ContextMenu("强制显示面板（测试点击）")]
+        private void DebugForceShow()
+        {
+            if (!Application.isPlaying)
+            {
+                Debug.Log($"{LOG_PREFIX} 请在 Play 模式下使用此菜单");
+                return;
+            }
+            if (_panelObject == null)
+            {
+                Debug.LogError($"{LOG_PREFIX} 面板尚未创建，请先运行 Initialize");
+                return;
+            }
+            Show();
+            _isVisible = true;
+            Debug.Log($"{LOG_PREFIX} 面板已强制显示，现在可以测试点击交互");
+        }
+
         [ContextMenu("切换到 Direct 模式")]
         private void DebugSwitchToDirect()
         {

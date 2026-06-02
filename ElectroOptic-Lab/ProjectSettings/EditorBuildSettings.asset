@@ -32,4 +32,7 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/Scene7_Report.unity
     guid: adc0e017dc1c07c4386df652666dc056
+  - enabled: 1
+    path: Assets/Scenes/Scene_additional_exp.unity
+    guid: fb4bee5ceb41d984bbd2bb9b3c9ae086
   m_configObjects: {}
