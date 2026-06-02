@@ -1264,9 +1264,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   doubleClickInterval: 0.3
   targetSceneName: Scene_additional_exp
-  outlineColor: {r: 1, g: 0.85, b: 0.2, a: 1}
-  outlineWidth: 4
-  distanceFromCamera: 5
 --- !u!114 &242051251
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1505,6 +1502,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a5702dbe32e4c24485196cdf383a22c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!4 &304207091 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -1295944591177504305, guid: 3449e16809236f64194cae24c796056c, type: 3}
+  m_PrefabInstance: {fileID: 832750236}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &308149085 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: b4e9ab2a09e3e404a9f51fba902130c4, type: 3}
@@ -7242,7 +7244,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1112803632
 Transform:
   m_ObjectHideFlags: 0
@@ -7806,7 +7808,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: 90
   detectionRadius: 0.5
-  snapYOffset: -0.05
+  snapYOffset: -0.03
   isSelected: 0
   isOnRail: 0
 --- !u!65 &1175531791
@@ -25276,9 +25278,6 @@ MonoBehaviour:
   transitionDuration: 0.3
   doubleClickInterval: 0.3
   targetSceneName: Scene_additional_exp
-  outlineColor: {r: 1, g: 0.85, b: 0.2, a: 1}
-  outlineWidth: 4
-  outlineDistance: 5
 --- !u!4 &1931840620
 Transform:
   m_ObjectHideFlags: 0
@@ -25518,6 +25517,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1975395316}
   - component: {fileID: 1975395315}
+  - component: {fileID: 1975395317}
   m_Layer: 0
   m_Name: CrystalInitializer
   m_TagString: Untagged
@@ -25580,6 +25580,25 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1975395317
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1975395314}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 247a26e3638a2064daa7c758a6077c18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  polarizerTransform: {fileID: 304207091}
+  analyzerTransform: {fileID: 2051351190}
+  conoscopicRenderer: {fileID: 0}
+  polarizerAngleOffset: 0
+  analyzerAngleOffset: 0
+  enableKeyboardTest: 1
+  logAngleChanges: 0
 --- !u!1 &1979775607
 GameObject:
   m_ObjectHideFlags: 0
@@ -25725,6 +25744,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a5702dbe32e4c24485196cdf383a22c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!4 &2051351190 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -1295944591177504305, guid: 3449e16809236f64194cae24c796056c, type: 3}
+  m_PrefabInstance: {fileID: 1895794403}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &2066139360
 GameObject:
   m_ObjectHideFlags: 0
