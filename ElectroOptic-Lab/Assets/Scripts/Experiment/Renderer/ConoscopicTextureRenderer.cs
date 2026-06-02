@@ -74,6 +74,9 @@ namespace ElectroOptics.Experiment.Renderer
         private Vector2 _initialMelatopeOffset = DEFAULT_INITIAL_MELATOPE_OFFSET;
         private Color _laserColor = Color.red;
 
+        private float _polarizerAngleDeg = 0f;
+        private float _analyzerAngleDeg = 90f;
+
         private bool _isInitialized;
         private Scene2BiaxialDisplayMode _lastActiveBiaxialDisplayMode = Scene2BiaxialDisplayMode.RawJones;
 
@@ -286,6 +289,15 @@ namespace ElectroOptics.Experiment.Renderer
 
             UploadDisplayMappingProperties();
             Graphics.Blit(_jonesIntensityTexture, _renderTexture, _jonesMaterial, RED_BLACK_MAPPING_PASS);
+
+#if UNITY_EDITOR
+            if (Time.frameCount % 60 == 0)
+            {
+                Debug.Log($"[ConoscopicTextureRenderer] Shader angles — " +
+                          $"polarizer={_polarizerAngleDeg:F1}°, analyzer={_analyzerAngleDeg:F1}°, " +
+                          $"displayMode={_lastActiveBiaxialDisplayMode}");
+            }
+#endif
         }
 
         private void UploadJonesShaderProperties()
@@ -336,8 +348,8 @@ namespace ElectroOptics.Experiment.Renderer
             _jonesMaterial.SetFloat("_ScreenHalfSizeM", screenHalfSizeM);
             _jonesMaterial.SetFloat("_InitialIntensity", 1f);
             _jonesMaterial.SetFloat("_PhaseAntiAliasStrength", _phaseAntiAliasStrength);
-            _jonesMaterial.SetFloat("_PolarizerAngleRad", 0f);
-            _jonesMaterial.SetFloat("_AnalyzerAngleRad", 90f * Mathf.Deg2Rad);
+            _jonesMaterial.SetFloat("_PolarizerAngleRad", _polarizerAngleDeg * Mathf.Deg2Rad);
+            _jonesMaterial.SetFloat("_AnalyzerAngleRad", _analyzerAngleDeg * Mathf.Deg2Rad);
             _jonesMaterial.SetFloat("_CrystalAxisAngleRad", ResolveCrystalAxisAngleDeg(activeMode) * Mathf.Deg2Rad);
             _jonesMaterial.SetFloat("_OpticAxisTiltRad", Mathf.Acos(Mathf.Clamp(opticAxisView.z, -1f, 1f)));
             _jonesMaterial.SetFloat("_OpticAxisAzimuthRad", Mathf.Atan2(opticAxisView.y, opticAxisView.x));
@@ -723,6 +735,16 @@ namespace ElectroOptics.Experiment.Renderer
         public void SetLaserColor(Color color)
         {
             _laserColor = color == default ? Color.red : color;
+        }
+
+        public void SetPolarizerAngleDeg(float degrees)
+        {
+            _polarizerAngleDeg = Mathf.Repeat(degrees, 360f);
+        }
+
+        public void SetAnalyzerAngleDeg(float degrees)
+        {
+            _analyzerAngleDeg = Mathf.Repeat(degrees, 360f);
         }
 
         private void OnDestroy()

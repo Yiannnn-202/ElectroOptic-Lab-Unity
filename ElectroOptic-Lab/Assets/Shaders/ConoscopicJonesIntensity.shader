@@ -289,24 +289,49 @@ Shader "ElectroOptics/ConoscopicJonesIntensity"
                     return false;
                 }
 
-                float halfSize = _ScreenHalfSizeM / max(_ScreenDistanceM, 1e-6);
-                float3 rayView = normalize(float3(p.x * halfSize, p.y * halfSize, 1.0));
+                // --- Compute biaxial eigen system and phase delta ---
                 float3 rayPrincipal = normalize(mul(rayDir, (float3x3)_WorldToPrincipalMatrix));
-                float n1;
-                float n2;
+                float n1, n2;
                 if (!SolveBiaxialFresnel(rayPrincipal, indices, n1, n2))
                 {
                     return false;
                 }
 
                 float wavelength = max(_WavelengthM, 1e-12);
-                float pathLength = _ThicknessM / max(rayView.z, 0.05);
-                float gamma = 6.28318530718 * pathLength * abs(n1 - n2) / wavelength * _PhaseScale;
-                float gammaWidth = max(fwidth(gamma), 0.0001);
-                float visibility = exp2((-0.75 * gammaWidth * gammaWidth) / max(_RingSharpness, 0.0001));
-                float ringPattern = 0.5 - 0.5 * cos(gamma) * saturate(visibility);
-                float crossPattern = GetBiaxialExtinctionPattern(rayView, halfSize, p);
-                intensity = saturate(crossPattern * ringPattern);
+                float pathFactor = 1.0 / max(abs(rayDir.z), 0.05);
+                float delta = 6.28318530718 * _ThicknessM * abs(n1 - n2) * pathFactor / wavelength * _PhaseScale;
+
+                // Eigen directions in view space (same as TryGetBiaxialEigenSystem)
+                float3 tangentU;
+                if (abs(rayPrincipal.z) < 0.9)
+                    tangentU = normalize(cross(float3(0.0, 0.0, 1.0), rayPrincipal));
+                else
+                    tangentU = normalize(cross(float3(0.0, 1.0, 0.0), rayPrincipal));
+                float3 tangentV = normalize(cross(rayPrincipal, tangentU));
+                float3 weightVec = 1.0 / max(indices * indices, 1e-6);
+                float m00 = WeightedDot(tangentU, tangentU, weightVec);
+                float m01 = WeightedDot(tangentU, tangentV, weightVec);
+                float m11 = WeightedDot(tangentV, tangentV, weightVec);
+                float2 eigen2 = SmallestEigenVector2(m00, m01, m11);
+                float3 eigenPrincipal = normalize(tangentU * eigen2.x + tangentV * eigen2.y);
+                float3x3 principalToView = transpose((float3x3)_WorldToPrincipalMatrix);
+                float3 eigenA = SafeNormalizeOnWavefront(mul(eigenPrincipal, principalToView), rayDir, CrystalReferenceAxis());
+                float3 eigenB = normalize(cross(rayDir, eigenA));
+
+                // --- Jones intensity with actual polarizer/analyzer angles ---
+                float3 polarizer = AngleVector(_PolarizerAngleRad, rayDir);
+                float3 analyzer  = AngleVector(_AnalyzerAngleRad, rayDir);
+                float aAmp = dot(polarizer, eigenA);
+                float bAmp = dot(polarizer, eigenB);
+                float aAna = dot(analyzer, eigenA);
+                float bAna = dot(analyzer, eigenB);
+                float aTerm = aAna * aAmp;
+                float bTerm = bAna * bAmp;
+                float phaseWidth = fwidth(delta) * _PhaseAntiAliasStrength;
+                float visibility = _PhaseAntiAliasStrength > 0.0
+                    ? exp(-0.5 * phaseWidth * phaseWidth)
+                    : 1.0;
+                intensity = saturate(_InitialIntensity * (aTerm*aTerm + bTerm*bTerm + 2.0 * aTerm * bTerm * cos(delta) * visibility));
                 intensity = smoothstep(_BlackCutoff, 1.0, intensity);
                 intensity = pow(intensity, 1.0 / max(_DisplayGamma, 0.0001));
                 return true;
