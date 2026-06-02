@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Globalization;
 using TMPro;
 using UnityEngine;
@@ -8,17 +10,17 @@ using UnityEngine.UI;
 using UnityEditor;
 #endif
 
+public enum AdditionalConoscopicMode
+{
+    Uniaxial = 0,
+    BiaxialVoltage = 1,
+    UniaxialVoltage = 2
+}
+
 [ExecuteAlways]
 public class AdditionalExperimentUiVisualController : MonoBehaviour
 {
-    private enum Mode
-    {
-        M1 = 0,
-        M2 = 1,
-        M3 = 2
-    }
-
-    [SerializeField] private Mode defaultMode = Mode.M2;
+    [SerializeField] private AdditionalConoscopicMode defaultMode = AdditionalConoscopicMode.BiaxialVoltage;
     [SerializeField] private TMP_FontAsset chineseFont;
 
     private const float SectionSpacing = 10f;
@@ -43,6 +45,20 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private const string PolarizerAngleLabel = "起偏器角度 (°)";
     private const string AnalyzerAngleLabel = "检偏器角度 (°)";
     private const string AngleFormat = "{0:0}";
+    private const string KeyWavelength = "wavelength";
+    private const string KeyThickness = "thickness";
+    private const string KeyPolarizer = "polarizer";
+    private const string KeyAnalyzer = "analyzer";
+    private const string KeyM1OpticTilt = "m1.opticTilt";
+    private const string KeyM1OpticAzimuth = "m1.opticAzimuth";
+    private const string KeyM1Aperture = "m1.aperture";
+    private const string KeyM2Voltage = "m2.voltage";
+    private const string KeyM2Alpha = "m2.alpha";
+    private const string KeyM2Theta = "m2.theta";
+    private const string KeyM2Phi = "m2.phi";
+    private const string KeyM2Aperture = "m2.aperture";
+    private const string KeyM3Voltage = "m3.voltage";
+    private const string KeyM3Aperture = "m3.aperture";
 
     private readonly Color _panelColor = new Color(0.42f, 0.42f, 0.42f, 0.45f);
     private readonly Color _selectedTabColor = new Color(0.92f, 0.92f, 0.92f, 1f);
@@ -55,13 +71,20 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private GameObject _sectionM1;
     private GameObject _sectionM2;
     private GameObject _sectionM3;
-    private Mode _activeMode;
+    private AdditionalConoscopicMode _activeMode;
     private bool _hasInitialized;
     private float _nextSectionY;
     private Slider _polarizerSlider;
     private TMP_InputField _polarizerInput;
     private Slider _analyzerSlider;
     private TMP_InputField _analyzerInput;
+    private readonly Dictionary<string, ControlBinding> _bindings = new Dictionary<string, ControlBinding>();
+
+    public event Action<AdditionalConoscopicMode> ModeChanged;
+    public event Action<AdditionalConoscopicUserParameters> ParametersChanged;
+    public event Action RecalculateRequested;
+
+    public AdditionalConoscopicMode ActiveMode => _activeMode;
 
     private void OnEnable()
     {
@@ -83,21 +106,50 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     public void ShowM1()
     {
-        SetMode(Mode.M1);
+        SetMode(AdditionalConoscopicMode.Uniaxial);
     }
 
     public void ShowM2()
     {
-        SetMode(Mode.M2);
+        SetMode(AdditionalConoscopicMode.BiaxialVoltage);
     }
 
     public void ShowM3()
     {
-        SetMode(Mode.M3);
+        SetMode(AdditionalConoscopicMode.UniaxialVoltage);
+    }
+
+    public AdditionalConoscopicUserParameters GetUserParameters()
+    {
+        return new AdditionalConoscopicUserParameters
+        {
+            wavelengthNm = GetControlValue(KeyWavelength, 532f),
+            thicknessMm = GetControlValue(KeyThickness, 2.5f),
+            voltageV = ResolveActiveVoltage(),
+            crystalAxisAngleDeg = GetControlValue(KeyM2Alpha, 45f),
+            polarizerAngleDeg = GetControlValue(KeyPolarizer, 0f),
+            analyzerAngleDeg = GetControlValue(KeyAnalyzer, 90f),
+            opticAxisTiltDeg = GetControlValue(KeyM1OpticTilt, 0f),
+            opticAxisAzimuthDeg = GetControlValue(KeyM1OpticAzimuth, 0f),
+            thetaDeg = GetControlValue(KeyM2Theta, 0f),
+            phiDeg = GetControlValue(KeyM2Phi, 0f),
+            apertureRadius = ResolveActiveAperture()
+        };
+    }
+
+    public void RequestRecalculate()
+    {
+        RecalculateRequested?.Invoke();
     }
 
     private void RebuildVisualTree()
     {
+        _bindings.Clear();
+        _polarizerSlider = null;
+        _polarizerInput = null;
+        _analyzerSlider = null;
+        _analyzerInput = null;
+
         ConfigureFixedRoot();
 
         _tabGroup = transform.Find("TabGroup");
@@ -212,10 +264,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     {
         BeginFixedSection();
         AddHeader(parent, "全局物理参数");
-        AddParamRow(parent, "波长 (nm)", 532f, 400f, 800f, "{0:0}");
-        AddParamRow(parent, "晶体厚度 (mm)", 2.5f, 0.1f, 60f, "{0:0.00}");
-        AddParamRow(parent, PolarizerAngleLabel, 0f, 0f, 180f, AngleFormat);
-        AddParamRow(parent, AnalyzerAngleLabel, 90f, 0f, 180f, AngleFormat);
+        AddParamRow(parent, KeyWavelength, "波长 (nm)", 532f, 400f, 800f, "{0:0}");
+        AddParamRow(parent, KeyThickness, "晶体厚度 (mm)", 2.5f, 0.1f, 60f, "{0:0.00}");
+        AddParamRow(parent, KeyPolarizer, PolarizerAngleLabel, 0f, 0f, 180f, AngleFormat);
+        AddParamRow(parent, KeyAnalyzer, AnalyzerAngleLabel, 90f, 0f, 180f, AngleFormat);
         AddActionRow(parent);
     }
 
@@ -224,10 +276,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         BeginFixedSection();
         AddHeader(parent, "单轴晶体参数 (M1)");
         AddInfoRow(parent, "晶体", "LiNbO3");
-        AddParamRow(parent, "光轴倾角 θ (°)", 0f, 0f, 45f, "{0:0}");
+        AddParamRow(parent, KeyM1OpticTilt, "光轴倾角 θ (°)", 0f, 0f, 45f, "{0:0}");
         AddSubHeader(parent, "高级参数");
-        AddParamRow(parent, "光轴方位 φ (°)", 0f, 0f, 360f, "{0:0}");
-        AddParamRow(parent, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
+        AddParamRow(parent, KeyM1OpticAzimuth, "光轴方位 φ (°)", 0f, 0f, 360f, "{0:0}");
+        AddParamRow(parent, KeyM1Aperture, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
     }
 
     private void BuildM2Section(Transform parent)
@@ -235,12 +287,12 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         BeginFixedSection();
         AddHeader(parent, "双轴晶体特有参数 (M2)");
         AddInfoRow(parent, "晶体", "KTP");
-        AddParamRow(parent, "电压 (V)", 0f, 0f, 1000f, "{0:0}");
-        AddParamRow(parent, "晶片旋转角 α (°)", 45f, 0f, 180f, "{0:0}");
+        AddParamRow(parent, KeyM2Voltage, "电压 (V)", 0f, 0f, 1000f, "{0:0}");
+        AddParamRow(parent, KeyM2Alpha, "晶片旋转角 α (°)", 45f, 0f, 180f, "{0:0}");
         AddSubHeader(parent, "高级参数");
-        AddParamRow(parent, "样品倾角 θ (°)", 0f, 0f, 90f, "{0:0}");
-        AddParamRow(parent, "样品方位角 φ (°)", 0f, 0f, 360f, "{0:0}");
-        AddParamRow(parent, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
+        AddParamRow(parent, KeyM2Theta, "样品倾角 θ (°)", 0f, 0f, 90f, "{0:0}");
+        AddParamRow(parent, KeyM2Phi, "样品方位角 φ (°)", 0f, 0f, 360f, "{0:0}");
+        AddParamRow(parent, KeyM2Aperture, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
     }
 
     private void BuildM3Section(Transform parent)
@@ -248,9 +300,9 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         BeginFixedSection();
         AddHeader(parent, "单轴电压调制参数 (M3)");
         AddInfoRow(parent, "晶体", "LiNbO3");
-        AddParamRow(parent, "电压 (V)", 0f, 0f, 1000f, "{0:0}");
+        AddParamRow(parent, KeyM3Voltage, "电压 (V)", 0f, 0f, 1000f, "{0:0}");
         AddSubHeader(parent, "高级参数");
-        AddParamRow(parent, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
+        AddParamRow(parent, KeyM3Aperture, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
     }
 
     private void AddHeader(Transform parent, string text)
@@ -282,7 +334,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         PlaceSectionChild(row, RowHeight);
     }
 
-    private void AddParamRow(Transform parent, string labelText, float value, float min, float max, string format)
+    private void AddParamRow(Transform parent, string key, string labelText, float value, float min, float max, string format)
     {
         GameObject row = CreateParamRow(parent, "ParamRow_" + SanitizeName(labelText));
         SetupHorizontalLayout(row, 10f, TextAnchor.MiddleLeft, true, false);
@@ -320,6 +372,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         SetLayout(input.gameObject, preferredWidth: InputWidth, preferredHeight: 30f);
         BindSliderAndInput(slider, input, min, max, format);
         CachePolarizerControl(labelText, slider, input);
+        _bindings[key] = new ControlBinding(slider, input);
         PlaceSectionChild(row, RowHeight);
     }
 
@@ -497,6 +550,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         slider.onValueChanged.AddListener(newValue =>
         {
             input.SetTextWithoutNotify(FormatValue(newValue, format));
+            NotifyParametersChanged();
         });
 
         input.onValueChanged.AddListener(rawValue =>
@@ -504,6 +558,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             if (TryParseFloat(rawValue, out float parsedValue))
             {
                 slider.SetValueWithoutNotify(Mathf.Clamp(parsedValue, min, max));
+                NotifyParametersChanged();
             }
         });
 
@@ -518,6 +573,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             float clampedInputValue = Mathf.Clamp(parsedValue, min, max);
             slider.value = clampedInputValue;
             input.SetTextWithoutNotify(FormatValue(clampedInputValue, format));
+            NotifyParametersChanged();
         });
     }
 
@@ -588,18 +644,63 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         return button;
     }
 
-    private void SetMode(Mode mode)
+    private void SetMode(AdditionalConoscopicMode mode)
     {
         _activeMode = mode;
         if (_sectionGlobal != null) _sectionGlobal.SetActive(true);
-        if (_sectionM1 != null) _sectionM1.SetActive(mode == Mode.M1);
-        if (_sectionM2 != null) _sectionM2.SetActive(mode == Mode.M2);
-        if (_sectionM3 != null) _sectionM3.SetActive(mode == Mode.M3);
+        if (_sectionM1 != null) _sectionM1.SetActive(mode == AdditionalConoscopicMode.Uniaxial);
+        if (_sectionM2 != null) _sectionM2.SetActive(mode == AdditionalConoscopicMode.BiaxialVoltage);
+        if (_sectionM3 != null) _sectionM3.SetActive(mode == AdditionalConoscopicMode.UniaxialVoltage);
 
-        UpdateTabVisual("Tab_M1", mode == Mode.M1);
-        UpdateTabVisual("Tab_M2", mode == Mode.M2);
-        UpdateTabVisual("Tab_M3", mode == Mode.M3);
+        UpdateTabVisual("Tab_M1", mode == AdditionalConoscopicMode.Uniaxial);
+        UpdateTabVisual("Tab_M2", mode == AdditionalConoscopicMode.BiaxialVoltage);
+        UpdateTabVisual("Tab_M3", mode == AdditionalConoscopicMode.UniaxialVoltage);
         ApplyFixedPanelLayout();
+        ModeChanged?.Invoke(_activeMode);
+        NotifyParametersChanged();
+    }
+
+    private float ResolveActiveVoltage()
+    {
+        switch (_activeMode)
+        {
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                return GetControlValue(KeyM2Voltage, 0f);
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                return GetControlValue(KeyM3Voltage, 0f);
+            default:
+                return 0f;
+        }
+    }
+
+    private float ResolveActiveAperture()
+    {
+        switch (_activeMode)
+        {
+            case AdditionalConoscopicMode.Uniaxial:
+                return GetControlValue(KeyM1Aperture, 1f);
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                return GetControlValue(KeyM2Aperture, 1f);
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                return GetControlValue(KeyM3Aperture, 1f);
+            default:
+                return 1f;
+        }
+    }
+
+    private float GetControlValue(string key, float fallback)
+    {
+        if (!_bindings.TryGetValue(key, out ControlBinding binding) || binding.Slider == null)
+        {
+            return fallback;
+        }
+
+        return binding.Slider.value;
+    }
+
+    private void NotifyParametersChanged()
+    {
+        ParametersChanged?.Invoke(GetUserParameters());
     }
 
     private void UpdateTabVisual(string tabName, bool selected)
@@ -797,7 +898,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         for (int i = 0; i < section.childCount; i++)
         {
             RectTransform child = section.GetChild(i) as RectTransform;
-            if (child == null)
+            if (child == null || !child.gameObject.activeSelf)
             {
                 continue;
             }
@@ -894,10 +995,16 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         {
             GameObject child = parent.GetChild(i).gameObject;
 #if UNITY_EDITOR
-            Object.DestroyImmediate(child);
-            continue;
+            if (!Application.isPlaying)
+            {
+                UnityEngine.Object.DestroyImmediate(child);
+            }
+            else
 #endif
-            Object.Destroy(child);
+            {
+                child.SetActive(false);
+                UnityEngine.Object.Destroy(child);
+            }
         }
     }
 
@@ -910,5 +1017,17 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             .Replace("（", string.Empty)
             .Replace("）", string.Empty)
             .Replace("°", "deg");
+    }
+
+    private struct ControlBinding
+    {
+        public readonly Slider Slider;
+        public readonly TMP_InputField Input;
+
+        public ControlBinding(Slider slider, TMP_InputField input)
+        {
+            Slider = slider;
+            Input = input;
+        }
     }
 }
