@@ -1,3 +1,4 @@
+using ElectroOptics;
 using ElectroOptics.ConoscopicAnalysis;
 using UnityEngine;
 
@@ -32,6 +33,17 @@ public sealed class AdditionalConoscopicVisualizationSettings : MonoBehaviour
 
     [Header("Mode Overrides")]
     [SerializeField] private bool useM3SmoothPreset = true;
+    [SerializeField] private bool useM3ProfilePhysicalDefaults = true;
+    [SerializeField] [Range(MinPresetResolution, MaxPresetResolution)] private int m3Resolution = 256;
+    [SerializeField] [Range(ConoscopicJonesParameters.MinRenderSupersampleFactor, ConoscopicJonesParameters.MaxRenderSupersampleFactor)] private int m3RenderSupersampleFactor = 2;
+    [SerializeField] private float m3WavelengthNm = 633f;
+    [SerializeField] private float m3ThicknessMm = 20f;
+    [SerializeField] private float m3ScreenDistanceM = 0.35f;
+    [SerializeField] private float m3ScreenHalfSizeM = 0.08f;
+    [SerializeField] private float m3CrystalAxisAngleDeg = 45f;
+    [SerializeField] private float m3PhaseScale = 0.05f;
+    [SerializeField] private float m3PhaseAntiAliasStrength = 3f;
+    [SerializeField] private float m3HeightScale = 0.12f;
 
     public int Resolution
     {
@@ -185,6 +197,14 @@ public sealed class AdditionalConoscopicVisualizationSettings : MonoBehaviour
         set => useM3SmoothPreset = value;
     }
 
+    public bool UseM3ProfilePhysicalDefaults
+    {
+        get => useM3ProfilePhysicalDefaults;
+        set => useM3ProfilePhysicalDefaults = value;
+    }
+
+    public float M3HeightScale => m3HeightScale;
+
     public void ApplyTo(ConoscopicJonesParameters parameters)
     {
         if (parameters == null)
@@ -205,6 +225,45 @@ public sealed class AdditionalConoscopicVisualizationSettings : MonoBehaviour
         parameters.blackCutoff = blackCutoff;
         parameters.displayGamma = displayGamma;
         parameters.initialMelatopeOffset = Vector2.zero;
+    }
+
+    public void ApplyM3SmoothPresetTo(ConoscopicJonesParameters parameters, CrystalProfile profile)
+    {
+        if (parameters == null)
+        {
+            return;
+        }
+
+        ClampValues();
+        parameters.resolution = m3Resolution;
+        parameters.renderSupersampleFactor = m3RenderSupersampleFactor;
+        parameters.wavelengthNm = ResolveProfileFloat(
+            profile != null ? profile.defaultWavelength_nm : double.NaN,
+            m3WavelengthNm,
+            useM3ProfilePhysicalDefaults);
+        parameters.thicknessMm = ResolveProfileFloat(
+            profile != null ? profile.defaultLength_mm : double.NaN,
+            m3ThicknessMm,
+            useM3ProfilePhysicalDefaults);
+        parameters.screenDistanceM = m3ScreenDistanceM;
+        parameters.screenHalfSizeM = m3ScreenHalfSizeM;
+        parameters.crystalAxisAngleDeg = m3CrystalAxisAngleDeg;
+        parameters.phaseScale = m3PhaseScale;
+        parameters.phaseAntiAliasStrength = m3PhaseAntiAliasStrength;
+    }
+
+    public float ResolveHeightScale(ConoscopicJonesParameters parameters)
+    {
+        ClampValues();
+        if (useM3SmoothPreset
+            && parameters != null
+            && parameters.uniaxialEoView
+            && parameters.biaxialDisplayMode == ConoscopicBiaxialDisplayMode.RawJones)
+        {
+            return m3HeightScale;
+        }
+
+        return heightScale;
     }
 
     private void ClampValues()
@@ -253,6 +312,50 @@ public sealed class AdditionalConoscopicVisualizationSettings : MonoBehaviour
         outputTextureSize = Mathf.Clamp(outputTextureSize, MinOutputTextureSize, MaxOutputTextureSize);
         surfaceSize = Mathf.Max(0.1f, surfaceSize);
         heightScale = Mathf.Max(0.05f, heightScale);
+        m3Resolution = Mathf.Clamp(m3Resolution, MinPresetResolution, MaxPresetResolution);
+        m3RenderSupersampleFactor = Mathf.Clamp(
+            m3RenderSupersampleFactor,
+            ConoscopicJonesParameters.MinRenderSupersampleFactor,
+            ConoscopicJonesParameters.MaxRenderSupersampleFactor);
+        m3WavelengthNm = Mathf.Clamp(
+            m3WavelengthNm,
+            ConoscopicJonesParameters.MinWavelengthNm,
+            ConoscopicJonesParameters.MaxWavelengthNm);
+        m3ThicknessMm = Mathf.Clamp(
+            m3ThicknessMm,
+            ConoscopicJonesParameters.MinThicknessMm,
+            ConoscopicJonesParameters.MaxThicknessMm);
+        m3ScreenDistanceM = Mathf.Clamp(
+            m3ScreenDistanceM,
+            ConoscopicJonesParameters.MinScreenDistanceM,
+            ConoscopicJonesParameters.MaxScreenDistanceM);
+        m3ScreenHalfSizeM = Mathf.Clamp(
+            m3ScreenHalfSizeM,
+            ConoscopicJonesParameters.MinScreenHalfSizeM,
+            ConoscopicJonesParameters.MaxScreenHalfSizeM);
+        m3CrystalAxisAngleDeg = Mathf.Clamp(m3CrystalAxisAngleDeg, 0f, 180f);
+        m3PhaseScale = Mathf.Clamp(
+            m3PhaseScale,
+            ConoscopicJonesParameters.MinPhaseScale,
+            ConoscopicJonesParameters.MaxPhaseScale);
+        m3PhaseAntiAliasStrength = Mathf.Clamp(
+            m3PhaseAntiAliasStrength,
+            ConoscopicJonesParameters.MinPhaseAntiAliasStrength,
+            ConoscopicJonesParameters.MaxPhaseAntiAliasStrength);
+        m3HeightScale = Mathf.Max(0.05f, m3HeightScale);
+    }
+
+    private static float ResolveProfileFloat(double profileValue, float fallback, bool preferProfile)
+    {
+        if (preferProfile
+            && !double.IsNaN(profileValue)
+            && !double.IsInfinity(profileValue)
+            && profileValue > 0.0)
+        {
+            return (float)profileValue;
+        }
+
+        return fallback;
     }
 
 #if UNITY_EDITOR

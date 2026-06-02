@@ -493,6 +493,12 @@ public static class ConoscopicJonesCoreTests
             AssertTrue("Additional M3 fixed axis", !m3.uniaxialEoUsePerturbedAxis);
             AssertTrue("Additional M3 keeps eigen path available", !m3.forceUniaxial);
             AssertClose("Additional M3 voltage conversion", m3.electricFieldStrength, 50000000f, 0.5f);
+            AssertClose("Additional M3 wavelength", m3.wavelengthNm, (float)liNbO3.defaultWavelength_nm, 1e-4f);
+            AssertClose("Additional M3 thickness", m3.thicknessMm, (float)liNbO3.defaultLength_mm, 1e-4f);
+            AssertClose("Additional M3 screen distance", m3.screenDistanceM, 0.35f, 1e-6f);
+            AssertClose("Additional M3 screen half size", m3.screenHalfSizeM, 0.08f, 1e-6f);
+            AssertClose("Additional M3 alpha", m3.crystalAxisAngleDeg, 45f, 1e-6f);
+            AssertTrue("Additional M3 resolution", m3.resolution == 256);
             AssertClose("Additional M3 phase scale", m3.phaseScale, EoSmoothPhaseScale, 1e-6f);
             AssertClose("Additional M3 AA", m3.phaseAntiAliasStrength, EoSmoothAntiAliasStrength, 1e-6f);
             AssertTrue("Additional M3 supersample", m3.renderSupersampleFactor == EoSmoothSupersampleFactor);
@@ -553,7 +559,12 @@ public static class ConoscopicJonesCoreTests
             AssertClose("Additional settings M2 screen half size", m2.screenHalfSizeM, 0.12f, 1e-6f);
 
             ConoscopicJonesParameters m3Smooth = api.BuildParametersForMode(AdditionalConoscopicMode.UniaxialVoltage, user);
-            AssertClose("Additional settings M3 screen distance", m3Smooth.screenDistanceM, 1.2f, 1e-6f);
+            AssertTrue("Additional settings M3 smooth resolution", m3Smooth.resolution == 256);
+            AssertClose("Additional settings M3 smooth wavelength", m3Smooth.wavelengthNm, 633f, 1e-6f);
+            AssertClose("Additional settings M3 smooth thickness", m3Smooth.thicknessMm, 20f, 1e-6f);
+            AssertClose("Additional settings M3 smooth screen distance", m3Smooth.screenDistanceM, 0.35f, 1e-6f);
+            AssertClose("Additional settings M3 smooth screen half size", m3Smooth.screenHalfSizeM, 0.08f, 1e-6f);
+            AssertClose("Additional settings M3 smooth alpha", m3Smooth.crystalAxisAngleDeg, 45f, 1e-6f);
             AssertTrue("Additional settings M3 smooth supersample", m3Smooth.renderSupersampleFactor == EoSmoothSupersampleFactor);
             AssertClose("Additional settings M3 smooth phase scale", m3Smooth.phaseScale, EoSmoothPhaseScale, 1e-6f);
             AssertClose("Additional settings M3 smooth AA", m3Smooth.phaseAntiAliasStrength, EoSmoothAntiAliasStrength, 1e-6f);
@@ -572,6 +583,12 @@ public static class ConoscopicJonesCoreTests
             AssertClose("Additional surface size setting", surfaceView.EffectiveSurfaceSize, 7f, 1e-6f);
             AssertClose("Additional surface height setting", surfaceView.EffectiveHeightScale, 2.4f, 1e-6f);
             AssertTrue("Additional surface normalize setting", surfaceView.EffectiveNormalizeDisplayIntensity);
+            settings.UseM3SmoothPreset = true;
+            AssertClose(
+                "Additional surface M3 height setting",
+                surfaceView.ResolveEffectiveHeightScale(m3Smooth),
+                0.12f,
+                1e-6f);
         }
         finally
         {

@@ -43,6 +43,13 @@ public sealed class AdditionalConoscopicSurfaceView : MonoBehaviour
         ? visualizationSettings.NormalizeDisplayIntensity
         : normalizeDisplayIntensity;
 
+    public float ResolveEffectiveHeightScale(ConoscopicJonesParameters parameters)
+    {
+        return visualizationSettings != null
+            ? visualizationSettings.ResolveHeightScale(parameters)
+            : heightScale;
+    }
+
     private void Awake()
     {
         EnsureComponents();
@@ -270,7 +277,7 @@ public sealed class AdditionalConoscopicSurfaceView : MonoBehaviour
         bool normalizeDisplay = EffectiveNormalizeDisplayIntensity && displayRange > 0.00001f;
         bool smoothRawJonesDisplay = ShouldSmoothRawJonesDisplay(result.ParametersSnapshot);
         float targetSurfaceSize = EffectiveSurfaceSize;
-        float targetHeightScale = EffectiveHeightScale;
+        float targetHeightScale = ResolveEffectiveHeightScale(result.ParametersSnapshot);
         float[] displayValues = new float[pixels.Length];
 
         for (int i = 0; i < pixels.Length; i++)

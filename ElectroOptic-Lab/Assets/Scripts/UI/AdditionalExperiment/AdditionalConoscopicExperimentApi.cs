@@ -43,6 +43,10 @@ public sealed class AdditionalConoscopicExperimentApi : MonoBehaviour
     private const float EoSmoothPhaseScale = 0.05f;
     private const float EoSmoothPhaseAntiAliasStrength = 3f;
     private const int EoSmoothSupersampleFactor = 2;
+    private const int EoSmoothResolution = 256;
+    private const float EoSmoothScreenDistanceM = 0.35f;
+    private const float EoSmoothScreenHalfSizeM = 0.08f;
+    private const float EoSmoothCrystalAxisAngleDeg = 45f;
 
     [Header("Core")]
     [SerializeField] private ConoscopicJonesGpuCore core;
@@ -279,17 +283,45 @@ public sealed class AdditionalConoscopicExperimentApi : MonoBehaviour
         parameters.uniaxialEoUsePerturbedAxis = false;
         parameters.forceUniaxial = false;
         parameters.electricFieldStrength = VoltageToField(userParameters.voltageV);
-        parameters.crystalAxisAngleDeg = 0f;
+        parameters.crystalAxisAngleDeg = EoSmoothCrystalAxisAngleDeg;
         parameters.opticAxisTiltDeg = 0f;
         parameters.opticAxisAzimuthDeg = 0f;
         parameters.paperThetaDeg = 0f;
         parameters.paperPhiDeg = 0f;
-        if (visualizationSettings == null || visualizationSettings.UseM3SmoothPreset)
+
+        if (visualizationSettings != null)
         {
-            parameters.renderSupersampleFactor = EoSmoothSupersampleFactor;
-            parameters.phaseScale = EoSmoothPhaseScale;
-            parameters.phaseAntiAliasStrength = EoSmoothPhaseAntiAliasStrength;
+            if (visualizationSettings.UseM3SmoothPreset)
+            {
+                visualizationSettings.ApplyM3SmoothPresetTo(parameters, liNbO3Profile);
+            }
+
+            return;
         }
+
+        ApplyFallbackM3SmoothPreset(parameters);
+    }
+
+    private void ApplyFallbackM3SmoothPreset(ConoscopicJonesParameters parameters)
+    {
+        parameters.resolution = EoSmoothResolution;
+        parameters.renderSupersampleFactor = EoSmoothSupersampleFactor;
+        parameters.screenDistanceM = EoSmoothScreenDistanceM;
+        parameters.screenHalfSizeM = EoSmoothScreenHalfSizeM;
+        parameters.crystalAxisAngleDeg = EoSmoothCrystalAxisAngleDeg;
+        parameters.phaseScale = EoSmoothPhaseScale;
+        parameters.phaseAntiAliasStrength = EoSmoothPhaseAntiAliasStrength;
+
+        if (liNbO3Profile != null)
+        {
+            parameters.wavelengthNm = SafePositive((float)liNbO3Profile.defaultWavelength_nm, parameters.wavelengthNm);
+            parameters.thicknessMm = SafePositive((float)liNbO3Profile.defaultLength_mm, parameters.thicknessMm);
+        }
+    }
+
+    private static float SafePositive(float value, float fallback)
+    {
+        return float.IsNaN(value) || float.IsInfinity(value) || value <= 0f ? fallback : value;
     }
 
 #if UNITY_EDITOR
