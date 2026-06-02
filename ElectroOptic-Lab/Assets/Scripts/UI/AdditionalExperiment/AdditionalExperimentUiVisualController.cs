@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Globalization;
 using TMPro;
 using UnityEngine;
@@ -8,18 +10,62 @@ using UnityEngine.UI;
 using UnityEditor;
 #endif
 
+public enum AdditionalConoscopicMode
+{
+    Uniaxial = 0,
+    BiaxialVoltage = 1,
+    UniaxialVoltage = 2
+}
+
+[Serializable]
+public struct AdditionalConoscopicGlobalPhysicalParameters
+{
+    public float wavelengthNm;
+    public float thicknessMm;
+    public float polarizerAngleDeg;
+    public float analyzerAngleDeg;
+
+    public static AdditionalConoscopicGlobalPhysicalParameters StandardDefaults => Create(532f, 2.5f, 0f, 90f);
+    public static AdditionalConoscopicGlobalPhysicalParameters UniaxialVoltageDefaults => Create(633f, 20f, 0f, 90f);
+
+    public static AdditionalConoscopicGlobalPhysicalParameters Create(
+        float wavelengthNm,
+        float thicknessMm,
+        float polarizerAngleDeg,
+        float analyzerAngleDeg)
+    {
+        var parameters = new AdditionalConoscopicGlobalPhysicalParameters
+        {
+            wavelengthNm = wavelengthNm,
+            thicknessMm = thicknessMm,
+            polarizerAngleDeg = polarizerAngleDeg,
+            analyzerAngleDeg = analyzerAngleDeg
+        };
+        parameters.Clamp();
+        return parameters;
+    }
+
+    public void Clamp()
+    {
+        wavelengthNm = Mathf.Clamp(wavelengthNm, 400f, 800f);
+        thicknessMm = Mathf.Clamp(thicknessMm, 0.1f, 60f);
+        polarizerAngleDeg = Mathf.Clamp(polarizerAngleDeg, 0f, 180f);
+        analyzerAngleDeg = Mathf.Clamp(analyzerAngleDeg, 0f, 180f);
+    }
+}
+
 [ExecuteAlways]
 public class AdditionalExperimentUiVisualController : MonoBehaviour
 {
-    private enum Mode
-    {
-        M1 = 0,
-        M2 = 1,
-        M3 = 2
-    }
-
-    [SerializeField] private Mode defaultMode = Mode.M2;
+    [SerializeField] private AdditionalConoscopicMode defaultMode = AdditionalConoscopicMode.BiaxialVoltage;
     [SerializeField] private TMP_FontAsset chineseFont;
+    [SerializeField] private Button resetButton;
+    [SerializeField] private AdditionalConoscopicGlobalPhysicalParameters m1GlobalParameters = AdditionalConoscopicGlobalPhysicalParameters.StandardDefaults;
+    [SerializeField] private AdditionalConoscopicGlobalPhysicalParameters m2GlobalParameters = AdditionalConoscopicGlobalPhysicalParameters.StandardDefaults;
+    [SerializeField] private AdditionalConoscopicGlobalPhysicalParameters m3GlobalParameters = AdditionalConoscopicGlobalPhysicalParameters.UniaxialVoltageDefaults;
+    [SerializeField] private AdditionalConoscopicUserParameters m1InitialParameters = AdditionalConoscopicUserParameters.Defaults;
+    [SerializeField] private AdditionalConoscopicUserParameters m2InitialParameters = AdditionalConoscopicUserParameters.Defaults;
+    [SerializeField] private AdditionalConoscopicUserParameters m3InitialParameters = AdditionalConoscopicUserParameters.UniaxialVoltageDefaults;
 
     private const float SectionSpacing = 10f;
     private const float RowHeight = 38f;
@@ -43,6 +89,20 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private const string PolarizerAngleLabel = "起偏器角度 (°)";
     private const string AnalyzerAngleLabel = "检偏器角度 (°)";
     private const string AngleFormat = "{0:0}";
+    private const string KeyWavelength = "wavelength";
+    private const string KeyThickness = "thickness";
+    private const string KeyPolarizer = "polarizer";
+    private const string KeyAnalyzer = "analyzer";
+    private const string KeyM1OpticTilt = "m1.opticTilt";
+    private const string KeyM1OpticAzimuth = "m1.opticAzimuth";
+    private const string KeyM1Aperture = "m1.aperture";
+    private const string KeyM2Voltage = "m2.voltage";
+    private const string KeyM2Alpha = "m2.alpha";
+    private const string KeyM2Theta = "m2.theta";
+    private const string KeyM2Phi = "m2.phi";
+    private const string KeyM2Aperture = "m2.aperture";
+    private const string KeyM3Voltage = "m3.voltage";
+    private const string KeyM3Aperture = "m3.aperture";
 
     private readonly Color _panelColor = new Color(0.42f, 0.42f, 0.42f, 0.45f);
     private readonly Color _selectedTabColor = new Color(0.92f, 0.92f, 0.92f, 1f);
@@ -55,13 +115,25 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private GameObject _sectionM1;
     private GameObject _sectionM2;
     private GameObject _sectionM3;
-    private Mode _activeMode;
+    private AdditionalConoscopicMode _activeMode;
     private bool _hasInitialized;
     private float _nextSectionY;
     private Slider _polarizerSlider;
     private TMP_InputField _polarizerInput;
     private Slider _analyzerSlider;
     private TMP_InputField _analyzerInput;
+    private bool _suppressParameterNotification;
+    private bool _hasRuntimeGlobalParameters;
+    private AdditionalConoscopicGlobalPhysicalParameters _m1RuntimeGlobalParameters;
+    private AdditionalConoscopicGlobalPhysicalParameters _m2RuntimeGlobalParameters;
+    private AdditionalConoscopicGlobalPhysicalParameters _m3RuntimeGlobalParameters;
+    private readonly Dictionary<string, ControlBinding> _bindings = new Dictionary<string, ControlBinding>();
+
+    public event Action<AdditionalConoscopicMode> ModeChanged;
+    public event Action<AdditionalConoscopicUserParameters> ParametersChanged;
+    public event Action RecalculateRequested;
+
+    public AdditionalConoscopicMode ActiveMode => _activeMode;
 
     private void OnEnable()
     {
@@ -78,26 +150,92 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private void OnDisable()
     {
+        if (_hasInitialized)
+        {
+            SaveGlobalParametersForMode(_activeMode);
+        }
+
+        if (resetButton != null)
+        {
+            resetButton.onClick.RemoveListener(ResetCurrentModeParameters);
+        }
+
         _hasInitialized = false;
+        _hasRuntimeGlobalParameters = false;
     }
 
     public void ShowM1()
     {
-        SetMode(Mode.M1);
+        SetMode(AdditionalConoscopicMode.Uniaxial);
     }
 
     public void ShowM2()
     {
-        SetMode(Mode.M2);
+        SetMode(AdditionalConoscopicMode.BiaxialVoltage);
     }
 
     public void ShowM3()
     {
-        SetMode(Mode.M3);
+        SetMode(AdditionalConoscopicMode.UniaxialVoltage);
+    }
+
+    public AdditionalConoscopicUserParameters GetUserParameters()
+    {
+        EnsureRuntimeGlobalParameters();
+        AdditionalConoscopicGlobalPhysicalParameters fallback = GetRuntimeGlobalParametersForMode(_activeMode);
+        return new AdditionalConoscopicUserParameters
+        {
+            wavelengthNm = GetControlValue(KeyWavelength, fallback.wavelengthNm),
+            thicknessMm = GetControlValue(KeyThickness, fallback.thicknessMm),
+            voltageV = ResolveActiveVoltage(),
+            crystalAxisAngleDeg = GetControlValue(KeyM2Alpha, 45f),
+            polarizerAngleDeg = GetControlValue(KeyPolarizer, fallback.polarizerAngleDeg),
+            analyzerAngleDeg = GetControlValue(KeyAnalyzer, fallback.analyzerAngleDeg),
+            opticAxisTiltDeg = GetControlValue(KeyM1OpticTilt, 0f),
+            opticAxisAzimuthDeg = GetControlValue(KeyM1OpticAzimuth, 0f),
+            thetaDeg = GetControlValue(KeyM2Theta, 0f),
+            phiDeg = GetControlValue(KeyM2Phi, 0f),
+            apertureRadius = ResolveActiveAperture()
+        };
+    }
+
+    public void RequestRecalculate()
+    {
+        RecalculateRequested?.Invoke();
+    }
+
+    public void ResetCurrentModeParameters()
+    {
+        EnsureRuntimeGlobalParameters();
+
+        AdditionalConoscopicMode mode = _activeMode;
+        AdditionalConoscopicGlobalPhysicalParameters initialGlobalParameters = GetInitialGlobalParametersForMode(mode);
+        AdditionalConoscopicUserParameters initialParameters = GetInitialParametersForMode(mode);
+
+        _suppressParameterNotification = true;
+        try
+        {
+            SetRuntimeGlobalParametersForMode(mode, initialGlobalParameters);
+            ApplyGlobalParametersToControls(initialGlobalParameters);
+            ApplyInitialModeParametersToControls(mode, initialParameters);
+        }
+        finally
+        {
+            _suppressParameterNotification = false;
+        }
+
+        NotifyParametersChanged();
     }
 
     private void RebuildVisualTree()
     {
+        EnsureRuntimeGlobalParameters();
+        _bindings.Clear();
+        _polarizerSlider = null;
+        _polarizerInput = null;
+        _analyzerSlider = null;
+        _analyzerInput = null;
+
         ConfigureFixedRoot();
 
         _tabGroup = transform.Find("TabGroup");
@@ -127,6 +265,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         _sectionM3.transform.SetSiblingIndex(4);
 
         ApplyFixedPanelLayout();
+        BindResetButton();
     }
 
     private void EnsureTabs()
@@ -212,10 +351,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     {
         BeginFixedSection();
         AddHeader(parent, "全局物理参数");
-        AddParamRow(parent, "波长 (nm)", 532f, 400f, 800f, "{0:0}");
-        AddParamRow(parent, "晶体厚度 (mm)", 2.5f, 0.1f, 60f, "{0:0.00}");
-        AddParamRow(parent, PolarizerAngleLabel, 0f, 0f, 180f, AngleFormat);
-        AddParamRow(parent, AnalyzerAngleLabel, 90f, 0f, 180f, AngleFormat);
+        AddParamRow(parent, KeyWavelength, "波长 (nm)", 532f, 400f, 800f, "{0:0}");
+        AddParamRow(parent, KeyThickness, "晶体厚度 (mm)", 2.5f, 0.1f, 60f, "{0:0.00}");
+        AddParamRow(parent, KeyPolarizer, PolarizerAngleLabel, 0f, 0f, 180f, AngleFormat);
+        AddParamRow(parent, KeyAnalyzer, AnalyzerAngleLabel, 90f, 0f, 180f, AngleFormat);
         AddActionRow(parent);
     }
 
@@ -224,10 +363,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         BeginFixedSection();
         AddHeader(parent, "单轴晶体参数 (M1)");
         AddInfoRow(parent, "晶体", "LiNbO3");
-        AddParamRow(parent, "光轴倾角 θ (°)", 0f, 0f, 45f, "{0:0}");
+        AddParamRow(parent, KeyM1OpticTilt, "光轴倾角 θ (°)", 0f, 0f, 45f, "{0:0}");
         AddSubHeader(parent, "高级参数");
-        AddParamRow(parent, "光轴方位 φ (°)", 0f, 0f, 360f, "{0:0}");
-        AddParamRow(parent, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
+        AddParamRow(parent, KeyM1OpticAzimuth, "光轴方位 φ (°)", 0f, 0f, 360f, "{0:0}");
+        AddParamRow(parent, KeyM1Aperture, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
     }
 
     private void BuildM2Section(Transform parent)
@@ -235,12 +374,12 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         BeginFixedSection();
         AddHeader(parent, "双轴晶体特有参数 (M2)");
         AddInfoRow(parent, "晶体", "KTP");
-        AddParamRow(parent, "电压 (V)", 0f, 0f, 1000f, "{0:0}");
-        AddParamRow(parent, "晶片旋转角 α (°)", 45f, 0f, 180f, "{0:0}");
+        AddParamRow(parent, KeyM2Voltage, "电压 (V)", 0f, 0f, 1000f, "{0:0}");
+        AddParamRow(parent, KeyM2Alpha, "晶片旋转角 α (°)", 45f, 0f, 180f, "{0:0}");
         AddSubHeader(parent, "高级参数");
-        AddParamRow(parent, "样品倾角 θ (°)", 0f, 0f, 90f, "{0:0}");
-        AddParamRow(parent, "样品方位角 φ (°)", 0f, 0f, 360f, "{0:0}");
-        AddParamRow(parent, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
+        AddParamRow(parent, KeyM2Theta, "样品倾角 θ (°)", 0f, 0f, 90f, "{0:0}");
+        AddParamRow(parent, KeyM2Phi, "样品方位角 φ (°)", 0f, 0f, 360f, "{0:0}");
+        AddParamRow(parent, KeyM2Aperture, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
     }
 
     private void BuildM3Section(Transform parent)
@@ -248,9 +387,9 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         BeginFixedSection();
         AddHeader(parent, "单轴电压调制参数 (M3)");
         AddInfoRow(parent, "晶体", "LiNbO3");
-        AddParamRow(parent, "电压 (V)", 0f, 0f, 1000f, "{0:0}");
+        AddParamRow(parent, KeyM3Voltage, "电压 (V)", 0f, 0f, 1000f, "{0:0}");
         AddSubHeader(parent, "高级参数");
-        AddParamRow(parent, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
+        AddParamRow(parent, KeyM3Aperture, "通光孔径", 1f, 0.05f, 1f, "{0:0.00}");
     }
 
     private void AddHeader(Transform parent, string text)
@@ -282,8 +421,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         PlaceSectionChild(row, RowHeight);
     }
 
-    private void AddParamRow(Transform parent, string labelText, float value, float min, float max, string format)
+    private void AddParamRow(Transform parent, string key, string labelText, float value, float min, float max, string format)
     {
+        value = ResolveInitialControlValue(key, value);
+
         GameObject row = CreateParamRow(parent, "ParamRow_" + SanitizeName(labelText));
         SetupHorizontalLayout(row, 10f, TextAnchor.MiddleLeft, true, false);
         SetLayout(row, preferredHeight: RowHeight);
@@ -320,7 +461,45 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         SetLayout(input.gameObject, preferredWidth: InputWidth, preferredHeight: 30f);
         BindSliderAndInput(slider, input, min, max, format);
         CachePolarizerControl(labelText, slider, input);
+        _bindings[key] = new ControlBinding(slider, input, format);
         PlaceSectionChild(row, RowHeight);
+    }
+
+    private float ResolveInitialControlValue(string key, float fallback)
+    {
+        switch (key)
+        {
+            case KeyWavelength:
+                return m1GlobalParameters.wavelengthNm;
+            case KeyThickness:
+                return m1GlobalParameters.thicknessMm;
+            case KeyPolarizer:
+                return m1GlobalParameters.polarizerAngleDeg;
+            case KeyAnalyzer:
+                return m1GlobalParameters.analyzerAngleDeg;
+            case KeyM1OpticTilt:
+                return m1InitialParameters.opticAxisTiltDeg;
+            case KeyM1OpticAzimuth:
+                return m1InitialParameters.opticAxisAzimuthDeg;
+            case KeyM1Aperture:
+                return m1InitialParameters.apertureRadius;
+            case KeyM2Voltage:
+                return m2InitialParameters.voltageV;
+            case KeyM2Alpha:
+                return m2InitialParameters.crystalAxisAngleDeg;
+            case KeyM2Theta:
+                return m2InitialParameters.thetaDeg;
+            case KeyM2Phi:
+                return m2InitialParameters.phiDeg;
+            case KeyM2Aperture:
+                return m2InitialParameters.apertureRadius;
+            case KeyM3Voltage:
+                return m3InitialParameters.voltageV;
+            case KeyM3Aperture:
+                return m3InitialParameters.apertureRadius;
+            default:
+                return fallback;
+        }
     }
 
     private GameObject CreateParamRow(Transform parent, string name)
@@ -497,6 +676,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         slider.onValueChanged.AddListener(newValue =>
         {
             input.SetTextWithoutNotify(FormatValue(newValue, format));
+            NotifyParametersChanged();
         });
 
         input.onValueChanged.AddListener(rawValue =>
@@ -504,6 +684,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             if (TryParseFloat(rawValue, out float parsedValue))
             {
                 slider.SetValueWithoutNotify(Mathf.Clamp(parsedValue, min, max));
+                NotifyParametersChanged();
             }
         });
 
@@ -518,6 +699,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             float clampedInputValue = Mathf.Clamp(parsedValue, min, max);
             slider.value = clampedInputValue;
             input.SetTextWithoutNotify(FormatValue(clampedInputValue, format));
+            NotifyParametersChanged();
         });
     }
 
@@ -539,8 +721,18 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private void SetOrthogonalPolarization()
     {
-        SetSliderInputPair(_polarizerSlider, _polarizerInput, 0f, AngleFormat);
-        SetSliderInputPair(_analyzerSlider, _analyzerInput, 90f, AngleFormat);
+        _suppressParameterNotification = true;
+        try
+        {
+            SetSliderInputPair(_polarizerSlider, _polarizerInput, 0f, AngleFormat);
+            SetSliderInputPair(_analyzerSlider, _analyzerInput, 90f, AngleFormat);
+        }
+        finally
+        {
+            _suppressParameterNotification = false;
+        }
+
+        NotifyParametersChanged();
     }
 
     private static void SetSliderInputPair(Slider slider, TMP_InputField input, float value, string format)
@@ -588,18 +780,260 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         return button;
     }
 
-    private void SetMode(Mode mode)
+    private void BindResetButton()
     {
-        _activeMode = mode;
-        if (_sectionGlobal != null) _sectionGlobal.SetActive(true);
-        if (_sectionM1 != null) _sectionM1.SetActive(mode == Mode.M1);
-        if (_sectionM2 != null) _sectionM2.SetActive(mode == Mode.M2);
-        if (_sectionM3 != null) _sectionM3.SetActive(mode == Mode.M3);
+        if (resetButton == null)
+        {
+            GameObject resetObject = FindDirectChild(transform, "Reset");
+            if (resetObject != null)
+            {
+                resetButton = resetObject.GetComponent<Button>();
+            }
+        }
 
-        UpdateTabVisual("Tab_M1", mode == Mode.M1);
-        UpdateTabVisual("Tab_M2", mode == Mode.M2);
-        UpdateTabVisual("Tab_M3", mode == Mode.M3);
+        if (resetButton == null)
+        {
+            return;
+        }
+
+        resetButton.onClick.RemoveListener(ResetCurrentModeParameters);
+        resetButton.onClick.AddListener(ResetCurrentModeParameters);
+    }
+
+    private void SetMode(AdditionalConoscopicMode mode)
+    {
+        EnsureRuntimeGlobalParameters();
+        if (_hasInitialized)
+        {
+            SaveGlobalParametersForMode(_activeMode);
+        }
+
+        _activeMode = mode;
+        RestoreGlobalParametersForMode(mode);
+        if (_sectionGlobal != null) _sectionGlobal.SetActive(true);
+        if (_sectionM1 != null) _sectionM1.SetActive(mode == AdditionalConoscopicMode.Uniaxial);
+        if (_sectionM2 != null) _sectionM2.SetActive(mode == AdditionalConoscopicMode.BiaxialVoltage);
+        if (_sectionM3 != null) _sectionM3.SetActive(mode == AdditionalConoscopicMode.UniaxialVoltage);
+
+        UpdateTabVisual("Tab_M1", mode == AdditionalConoscopicMode.Uniaxial);
+        UpdateTabVisual("Tab_M2", mode == AdditionalConoscopicMode.BiaxialVoltage);
+        UpdateTabVisual("Tab_M3", mode == AdditionalConoscopicMode.UniaxialVoltage);
         ApplyFixedPanelLayout();
+        ModeChanged?.Invoke(_activeMode);
+        NotifyParametersChanged();
+    }
+
+    private void ApplyGlobalParametersToControls(AdditionalConoscopicGlobalPhysicalParameters parameters)
+    {
+        SetControlValueWithoutNotify(KeyWavelength, parameters.wavelengthNm);
+        SetControlValueWithoutNotify(KeyThickness, parameters.thicknessMm);
+        SetControlValueWithoutNotify(KeyPolarizer, parameters.polarizerAngleDeg);
+        SetControlValueWithoutNotify(KeyAnalyzer, parameters.analyzerAngleDeg);
+    }
+
+    private void ApplyInitialModeParametersToControls(
+        AdditionalConoscopicMode mode,
+        AdditionalConoscopicUserParameters parameters)
+    {
+        switch (mode)
+        {
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                SetControlValueWithoutNotify(KeyM2Voltage, parameters.voltageV);
+                SetControlValueWithoutNotify(KeyM2Alpha, parameters.crystalAxisAngleDeg);
+                SetControlValueWithoutNotify(KeyM2Theta, parameters.thetaDeg);
+                SetControlValueWithoutNotify(KeyM2Phi, parameters.phiDeg);
+                SetControlValueWithoutNotify(KeyM2Aperture, parameters.apertureRadius);
+                break;
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                SetControlValueWithoutNotify(KeyM3Voltage, parameters.voltageV);
+                SetControlValueWithoutNotify(KeyM3Aperture, parameters.apertureRadius);
+                break;
+            default:
+                SetControlValueWithoutNotify(KeyM1OpticTilt, parameters.opticAxisTiltDeg);
+                SetControlValueWithoutNotify(KeyM1OpticAzimuth, parameters.opticAxisAzimuthDeg);
+                SetControlValueWithoutNotify(KeyM1Aperture, parameters.apertureRadius);
+                break;
+        }
+    }
+
+    private AdditionalConoscopicUserParameters GetInitialParametersForMode(AdditionalConoscopicMode mode)
+    {
+        switch (mode)
+        {
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                return m2InitialParameters;
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                return m3InitialParameters;
+            default:
+                return m1InitialParameters;
+        }
+    }
+
+    private float ResolveActiveVoltage()
+    {
+        switch (_activeMode)
+        {
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                return GetControlValue(KeyM2Voltage, 0f);
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                return GetControlValue(KeyM3Voltage, 0f);
+            default:
+                return 0f;
+        }
+    }
+
+    private float ResolveActiveAperture()
+    {
+        switch (_activeMode)
+        {
+            case AdditionalConoscopicMode.Uniaxial:
+                return GetControlValue(KeyM1Aperture, 1f);
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                return GetControlValue(KeyM2Aperture, 1f);
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                return GetControlValue(KeyM3Aperture, 1f);
+            default:
+                return 1f;
+        }
+    }
+
+    private float GetControlValue(string key, float fallback)
+    {
+        if (!_bindings.TryGetValue(key, out ControlBinding binding) || binding.Slider == null)
+        {
+            return fallback;
+        }
+
+        return binding.Slider.value;
+    }
+
+    private void NotifyParametersChanged()
+    {
+        if (_suppressParameterNotification)
+        {
+            return;
+        }
+
+        ParametersChanged?.Invoke(GetUserParameters());
+    }
+
+    private AdditionalConoscopicGlobalPhysicalParameters GetInitialGlobalParametersForMode(AdditionalConoscopicMode mode)
+    {
+        switch (mode)
+        {
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                return m2GlobalParameters;
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                return m3GlobalParameters;
+            default:
+                return m1GlobalParameters;
+        }
+    }
+
+    private AdditionalConoscopicGlobalPhysicalParameters GetRuntimeGlobalParametersForMode(AdditionalConoscopicMode mode)
+    {
+        EnsureRuntimeGlobalParameters();
+        switch (mode)
+        {
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                return _m2RuntimeGlobalParameters;
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                return _m3RuntimeGlobalParameters;
+            default:
+                return _m1RuntimeGlobalParameters;
+        }
+    }
+
+    private void SetRuntimeGlobalParametersForMode(
+        AdditionalConoscopicMode mode,
+        AdditionalConoscopicGlobalPhysicalParameters parameters)
+    {
+        parameters.Clamp();
+        switch (mode)
+        {
+            case AdditionalConoscopicMode.BiaxialVoltage:
+                _m2RuntimeGlobalParameters = parameters;
+                break;
+            case AdditionalConoscopicMode.UniaxialVoltage:
+                _m3RuntimeGlobalParameters = parameters;
+                break;
+            default:
+                _m1RuntimeGlobalParameters = parameters;
+                break;
+        }
+    }
+
+    private void SaveGlobalParametersForMode(AdditionalConoscopicMode mode)
+    {
+        EnsureRuntimeGlobalParameters();
+        AdditionalConoscopicGlobalPhysicalParameters fallback = GetRuntimeGlobalParametersForMode(mode);
+        SetRuntimeGlobalParametersForMode(
+            mode,
+            AdditionalConoscopicGlobalPhysicalParameters.Create(
+                GetControlValue(KeyWavelength, fallback.wavelengthNm),
+                GetControlValue(KeyThickness, fallback.thicknessMm),
+                GetControlValue(KeyPolarizer, fallback.polarizerAngleDeg),
+                GetControlValue(KeyAnalyzer, fallback.analyzerAngleDeg)));
+    }
+
+    private void RestoreGlobalParametersForMode(AdditionalConoscopicMode mode)
+    {
+        AdditionalConoscopicGlobalPhysicalParameters parameters = GetRuntimeGlobalParametersForMode(mode);
+        _suppressParameterNotification = true;
+        try
+        {
+            ApplyGlobalParametersToControls(parameters);
+        }
+        finally
+        {
+            _suppressParameterNotification = false;
+        }
+    }
+
+    private void SetControlValueWithoutNotify(string key, float value)
+    {
+        if (!_bindings.TryGetValue(key, out ControlBinding binding) || binding.Slider == null || binding.Input == null)
+        {
+            return;
+        }
+
+        float clampedValue = Mathf.Clamp(value, binding.Slider.minValue, binding.Slider.maxValue);
+        binding.Slider.SetValueWithoutNotify(clampedValue);
+        binding.Input.SetTextWithoutNotify(FormatValue(clampedValue, binding.Format));
+    }
+
+    private void EnsureGlobalParameterDefaults()
+    {
+        EnsureGlobalParameterDefaults(ref m1GlobalParameters, AdditionalConoscopicGlobalPhysicalParameters.StandardDefaults);
+        EnsureGlobalParameterDefaults(ref m2GlobalParameters, AdditionalConoscopicGlobalPhysicalParameters.StandardDefaults);
+        EnsureGlobalParameterDefaults(ref m3GlobalParameters, AdditionalConoscopicGlobalPhysicalParameters.UniaxialVoltageDefaults);
+    }
+
+    private void EnsureRuntimeGlobalParameters()
+    {
+        EnsureGlobalParameterDefaults();
+        if (_hasRuntimeGlobalParameters)
+        {
+            return;
+        }
+
+        _m1RuntimeGlobalParameters = m1GlobalParameters;
+        _m2RuntimeGlobalParameters = m2GlobalParameters;
+        _m3RuntimeGlobalParameters = m3GlobalParameters;
+        _hasRuntimeGlobalParameters = true;
+    }
+
+    private static void EnsureGlobalParameterDefaults(
+        ref AdditionalConoscopicGlobalPhysicalParameters parameters,
+        AdditionalConoscopicGlobalPhysicalParameters fallback)
+    {
+        if (parameters.wavelengthNm <= 0f || parameters.thicknessMm <= 0f)
+        {
+            parameters = fallback;
+            return;
+        }
+
+        parameters.Clamp();
     }
 
     private void UpdateTabVisual(string tabName, bool selected)
@@ -797,7 +1231,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         for (int i = 0; i < section.childCount; i++)
         {
             RectTransform child = section.GetChild(i) as RectTransform;
-            if (child == null)
+            if (child == null || !child.gameObject.activeSelf)
             {
                 continue;
             }
@@ -894,10 +1328,16 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         {
             GameObject child = parent.GetChild(i).gameObject;
 #if UNITY_EDITOR
-            Object.DestroyImmediate(child);
-            continue;
+            if (!Application.isPlaying)
+            {
+                UnityEngine.Object.DestroyImmediate(child);
+            }
+            else
 #endif
-            Object.Destroy(child);
+            {
+                child.SetActive(false);
+                UnityEngine.Object.Destroy(child);
+            }
         }
     }
 
@@ -911,4 +1351,29 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             .Replace("）", string.Empty)
             .Replace("°", "deg");
     }
+
+    private struct ControlBinding
+    {
+        public readonly Slider Slider;
+        public readonly TMP_InputField Input;
+        public readonly string Format;
+
+        public ControlBinding(Slider slider, TMP_InputField input, string format)
+        {
+            Slider = slider;
+            Input = input;
+            Format = format;
+        }
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        EnsureGlobalParameterDefaults();
+        if (!Application.isPlaying)
+        {
+            _hasRuntimeGlobalParameters = false;
+        }
+    }
+#endif
 }
