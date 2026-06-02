@@ -272,6 +272,10 @@ public sealed class AdditionalConoscopicExperimentApi : MonoBehaviour
         parameters.opticAxisAzimuthDeg = userParameters.phiDeg;
         parameters.paperThetaDeg = userParameters.thetaDeg;
         parameters.paperPhiDeg = userParameters.phiDeg;
+        if (visualizationSettings != null)
+        {
+            visualizationSettings.ApplyM2ScreenOverrideTo(parameters);
+        }
     }
 
     private void ApplyUniaxialVoltagePreset(
@@ -293,7 +297,7 @@ public sealed class AdditionalConoscopicExperimentApi : MonoBehaviour
         {
             if (visualizationSettings.UseM3SmoothPreset)
             {
-                visualizationSettings.ApplyM3SmoothPresetTo(parameters, liNbO3Profile);
+                visualizationSettings.ApplyM3SmoothPresetTo(parameters);
             }
 
             return;
@@ -311,17 +315,6 @@ public sealed class AdditionalConoscopicExperimentApi : MonoBehaviour
         parameters.crystalAxisAngleDeg = EoSmoothCrystalAxisAngleDeg;
         parameters.phaseScale = EoSmoothPhaseScale;
         parameters.phaseAntiAliasStrength = EoSmoothPhaseAntiAliasStrength;
-
-        if (liNbO3Profile != null)
-        {
-            parameters.wavelengthNm = SafePositive((float)liNbO3Profile.defaultWavelength_nm, parameters.wavelengthNm);
-            parameters.thicknessMm = SafePositive((float)liNbO3Profile.defaultLength_mm, parameters.thicknessMm);
-        }
-    }
-
-    private static float SafePositive(float value, float fallback)
-    {
-        return float.IsNaN(value) || float.IsInfinity(value) || value <= 0f ? fallback : value;
     }
 
 #if UNITY_EDITOR

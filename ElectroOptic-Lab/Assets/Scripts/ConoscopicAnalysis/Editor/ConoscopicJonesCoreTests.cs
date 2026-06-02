@@ -34,6 +34,7 @@ public static class ConoscopicJonesCoreTests
         TestEoSmoothPresetParameters();
         TestAdditionalExperimentApiPresets();
         TestAdditionalExperimentVisualizationSettings();
+        TestAdditionalExperimentUiModeGlobalParameters();
         TestAdditionalExperimentApiGpuLifecycle();
         TestGpuKtpBiaxialLifecycle();
         Debug.Log($"========== Conoscopic Jones Core Tests Done: {_passed} passed, {_failed} failed ==========");
@@ -461,6 +462,8 @@ public static class ConoscopicJonesCoreTests
 
             var user = AdditionalConoscopicUserParameters.Defaults;
             user.voltageV = 1000f;
+            user.wavelengthNm = 587f;
+            user.thicknessMm = 7.5f;
             user.crystalAxisAngleDeg = 37f;
             user.thetaDeg = 12f;
             user.phiDeg = 25f;
@@ -493,8 +496,8 @@ public static class ConoscopicJonesCoreTests
             AssertTrue("Additional M3 fixed axis", !m3.uniaxialEoUsePerturbedAxis);
             AssertTrue("Additional M3 keeps eigen path available", !m3.forceUniaxial);
             AssertClose("Additional M3 voltage conversion", m3.electricFieldStrength, 50000000f, 0.5f);
-            AssertClose("Additional M3 wavelength", m3.wavelengthNm, (float)liNbO3.defaultWavelength_nm, 1e-4f);
-            AssertClose("Additional M3 thickness", m3.thicknessMm, (float)liNbO3.defaultLength_mm, 1e-4f);
+            AssertClose("Additional M3 keeps user wavelength", m3.wavelengthNm, user.wavelengthNm, 1e-4f);
+            AssertClose("Additional M3 keeps user thickness", m3.thicknessMm, user.thicknessMm, 1e-4f);
             AssertClose("Additional M3 screen distance", m3.screenDistanceM, 0.35f, 1e-6f);
             AssertClose("Additional M3 screen half size", m3.screenHalfSizeM, 0.08f, 1e-6f);
             AssertClose("Additional M3 alpha", m3.crystalAxisAngleDeg, 45f, 1e-6f);
@@ -523,6 +526,8 @@ public static class ConoscopicJonesCoreTests
             settings.RenderSupersampleFactor = 3;
             settings.ScreenDistanceM = 1.2f;
             settings.ScreenHalfSizeM = 0.12f;
+            settings.M2ScreenDistanceM = 0.42f;
+            settings.M2ScreenHalfSizeM = 0.06f;
             settings.InitialIntensity = 0.8f;
             settings.PhaseScale = 0.22f;
             settings.PhaseAntiAliasStrength = 2.4f;
@@ -541,6 +546,8 @@ public static class ConoscopicJonesCoreTests
 
             var user = AdditionalConoscopicUserParameters.Defaults;
             user.voltageV = 1000f;
+            user.wavelengthNm = 587f;
+            user.thicknessMm = 7.5f;
 
             ConoscopicJonesParameters m1 = api.BuildParametersForMode(AdditionalConoscopicMode.Uniaxial, user);
             AssertTrue("Additional settings M1 resolution", m1.resolution == 64);
@@ -555,13 +562,19 @@ public static class ConoscopicJonesCoreTests
             AssertClose("Additional settings M1 display gamma", m1.displayGamma, 1.4f, 1e-6f);
 
             ConoscopicJonesParameters m2 = api.BuildParametersForMode(AdditionalConoscopicMode.BiaxialVoltage, user);
-            AssertClose("Additional settings M2 screen distance", m2.screenDistanceM, 1.2f, 1e-6f);
-            AssertClose("Additional settings M2 screen half size", m2.screenHalfSizeM, 0.12f, 1e-6f);
+            AssertClose("Additional settings M2 screen distance override", m2.screenDistanceM, 0.42f, 1e-6f);
+            AssertClose("Additional settings M2 screen half size override", m2.screenHalfSizeM, 0.06f, 1e-6f);
+
+            settings.UseM2ScreenOverride = false;
+            ConoscopicJonesParameters m2Shared = api.BuildParametersForMode(AdditionalConoscopicMode.BiaxialVoltage, user);
+            AssertClose("Additional settings M2 shared screen distance", m2Shared.screenDistanceM, 1.2f, 1e-6f);
+            AssertClose("Additional settings M2 shared screen half size", m2Shared.screenHalfSizeM, 0.12f, 1e-6f);
+            settings.UseM2ScreenOverride = true;
 
             ConoscopicJonesParameters m3Smooth = api.BuildParametersForMode(AdditionalConoscopicMode.UniaxialVoltage, user);
             AssertTrue("Additional settings M3 smooth resolution", m3Smooth.resolution == 256);
-            AssertClose("Additional settings M3 smooth wavelength", m3Smooth.wavelengthNm, 633f, 1e-6f);
-            AssertClose("Additional settings M3 smooth thickness", m3Smooth.thicknessMm, 20f, 1e-6f);
+            AssertClose("Additional settings M3 smooth keeps user wavelength", m3Smooth.wavelengthNm, user.wavelengthNm, 1e-6f);
+            AssertClose("Additional settings M3 smooth keeps user thickness", m3Smooth.thicknessMm, user.thicknessMm, 1e-6f);
             AssertClose("Additional settings M3 smooth screen distance", m3Smooth.screenDistanceM, 0.35f, 1e-6f);
             AssertClose("Additional settings M3 smooth screen half size", m3Smooth.screenHalfSizeM, 0.08f, 1e-6f);
             AssertClose("Additional settings M3 smooth alpha", m3Smooth.crystalAxisAngleDeg, 45f, 1e-6f);
@@ -572,6 +585,8 @@ public static class ConoscopicJonesCoreTests
             settings.UseM3SmoothPreset = false;
             ConoscopicJonesParameters m3Custom = api.BuildParametersForMode(AdditionalConoscopicMode.UniaxialVoltage, user);
             AssertTrue("Additional settings M3 custom supersample", m3Custom.renderSupersampleFactor == 3);
+            AssertClose("Additional settings M3 custom keeps user wavelength", m3Custom.wavelengthNm, user.wavelengthNm, 1e-6f);
+            AssertClose("Additional settings M3 custom keeps user thickness", m3Custom.thicknessMm, user.thicknessMm, 1e-6f);
             AssertClose("Additional settings M3 custom phase scale", m3Custom.phaseScale, 0.22f, 1e-6f);
             AssertClose("Additional settings M3 custom AA", m3Custom.phaseAntiAliasStrength, 2.4f, 1e-6f);
 
@@ -602,6 +617,34 @@ public static class ConoscopicJonesCoreTests
                 Object.DestroyImmediate(generatedCamera.gameObject);
             }
 
+            Object.DestroyImmediate(go);
+        }
+    }
+
+    private static void TestAdditionalExperimentUiModeGlobalParameters()
+    {
+        var go = new GameObject("AdditionalExperimentUi_ModeGlobals_Test", typeof(RectTransform));
+        try
+        {
+            var ui = go.AddComponent<AdditionalExperimentUiVisualController>();
+
+            ui.ShowM1();
+            AdditionalConoscopicUserParameters m1 = ui.GetUserParameters();
+            AssertClose("Additional UI M1 wavelength", m1.wavelengthNm, 532f, 1e-6f);
+            AssertClose("Additional UI M1 thickness", m1.thicknessMm, 2.5f, 1e-6f);
+
+            ui.ShowM3();
+            AdditionalConoscopicUserParameters m3 = ui.GetUserParameters();
+            AssertClose("Additional UI M3 wavelength", m3.wavelengthNm, 633f, 1e-6f);
+            AssertClose("Additional UI M3 thickness", m3.thicknessMm, 20f, 1e-6f);
+
+            ui.ShowM2();
+            AdditionalConoscopicUserParameters m2 = ui.GetUserParameters();
+            AssertClose("Additional UI M2 wavelength", m2.wavelengthNm, 532f, 1e-6f);
+            AssertClose("Additional UI M2 thickness", m2.thicknessMm, 2.5f, 1e-6f);
+        }
+        finally
+        {
             Object.DestroyImmediate(go);
         }
     }
