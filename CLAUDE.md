@@ -19,7 +19,9 @@ All paths below are relative to the **ElectroOptic-Lab/** project directory.
 
 ## Build and Run
 
-This is a Unity project - open in Unity Editor (2022.3.62f2c1 or compatible) and build/run through Unity's standard build system. The main scene is `ElectroOptic-Lab/Assets/Scenes/Scene2.The Lab.unity`.
+This is a Unity project — open in Unity Editor (2022.3.62f2c1 or compatible) and use Unity's standard Play mode and Build Settings. The main scene is `ElectroOptic-Lab/Assets/Scenes/Scene2.The Lab.unity`.
+
+**Testing**: There is no headless build or CI pipeline. All tests are Editor-only, invoked via the **ElectroOptics/Tests/** menu in the Unity top menu bar. See the [Testing](#testing) section for the full menu list.
 
 ## Development Principle
 
@@ -170,15 +172,23 @@ Both pipelines bind to `CrystalPhysicalCore` to apply crystal configs and read p
 
 ### Testing
 
-Editor tests (run via Unity Test Runner or menu commands):
-- **OscilloscopeCalcTests.cs** (`Scripts/Oscilloscope/Editor/`): Tests for VpiCalculator and WaveformCalculator. Run via menu **ElectroOptics/Tests/Run Oscilloscope Calc Tests**. Covers extinction, frequency doubling, same-frequency modulation, compensator phase, and array-reuse validation.
-- **ConoscopicIntensityCoreTests.cs** (`Scripts/ConoscopicAnalysis/Editor/`): Tests for ConoscopicIntensityCalculator against known analytic results.
-- **ConoscopicJonesCoreTests.cs** (`Scripts/ConoscopicAnalysis/Editor/`): Tests for ConoscopicJonesCpuReference against ConoscopicJonesGpuCore.
-- **PowerReadoutCalculatorTests.cs** (`Scripts/Power/Editor/`): Tests for PowerReadoutCalculator transmission and alignment efficiency math.
-- **LiNbO3PowerReadoutVpiTests.cs** (`Scripts/Power/Editor/`): Tests for LiNbO3 Vπ calculation against expected values.
-- **DirectPolarizationRetarderTests.cs** (`Scripts/ConoscopicAnalysis/Editor/`): Tests for `CrystalRetarderPhysics` Stokes-based polarization calculations. Run via menu **ElectroOptics/Tests/Run Direct Polarization Retarder Tests**. Covers polarizer transmission, retarder between crossed polarizers (half-wave/quarter-wave), elliptical Stokes through analyzer, direct center-ray path factor, uniaxial retarder rotation matrix, and profile retarder eigen systems.
+All tests are **Editor tests** — run via Unity's top menu bar (no headless/CI test runner). There is no CI pipeline; tests are manually invoked in the Editor.
 
-Editor-only visualization builders also exist in `ConoscopicAnalysis/Editor/` for constructing test scenes programmatically.
+| Menu Path | File | What It Tests |
+|-----------|------|---------------|
+| **ElectroOptics/Tests/Run Oscilloscope Calc Tests** | `OscilloscopeCalcTests.cs` | VpiCalculator, WaveformCalculator — extinction, frequency doubling, same-frequency modulation, compensator phase, array reuse |
+| **ElectroOptics/Tests/Run Direct Polarization Retarder Tests** | `DirectPolarizationRetarderTests.cs` | CrystalRetarderPhysics Stokes-based polarization — polarizer transmission, half/quarter-wave retarder, elliptical Stokes through analyzer, direct center-ray path factor, uniaxial retarder rotation matrix, profile retarder eigen systems |
+| **ElectroOptics/Tests/Run Conoscopic Jones Core Tests** | `ConoscopicJonesCoreTests.cs` | ConoscopicJonesCpuReference vs ConoscopicJonesGpuCore |
+| **ElectroOptics/Tests/Run Conoscopic Intensity Core Tests** | `ConoscopicIntensityCoreTests.cs` | ConoscopicIntensityCalculator against known analytic results |
+| **ElectroOptics/Tests/Run Power Readout Calc Tests** | `PowerReadoutCalculatorTests.cs` | PowerReadoutCalculator transmission and alignment efficiency math |
+| **ElectroOptics/Tests/Run LiNbO3 Power Readout Vpi Test** | `LiNbO3PowerReadoutVpiTests.cs` | LiNbO3 Vπ calculation against expected values |
+
+**Editor-only scene builders** (also under `ElectroOptics/Tests/` menu):
+- **Create/Repair Conoscopic Jones Visualization Scene** — Builds/fixes the GPU Jones pipeline test scene
+- **Create/Repair Conoscopic Intensity Visualization Scene** — Builds/fixes the CPU intensity pipeline test scene
+
+**One-shot editor tool** (already executed, kept for reference):
+- **ElectroOptics/Refactor Scene2-Preview UI** — Restructured Scene2-preview layout from horizontal ScrollView to four side-by-side panels
 
 ### Rotate Stand System
 
@@ -222,7 +232,7 @@ Located in `Scripts/UI/VoltageSwitch/`:
 - **RecordManager.cs**: Data recording table — records voltage/power pairs to table cells, supports delete and clear
 - **KnobAdjuster.cs** (Scripts/ViewButton/): Hold-down UI knob that rotates a target 3D knob model
 - **SceneLoad.cs** (Scripts/Buttons/): Button-based scene loading (used in main menu and navigation)
-- **ExperimentNavigator.cs** (Scripts/Buttons/): Static class for experiment scene navigation flow — sets a target destination scene, loads the crystal preview scene, then auto-navigates to the target after crystal selection. Used by main menu buttons.
+- **ExperimentNavigator.cs** (Scripts/Buttons/): Static class for experiment scene navigation flow. Implements a **two-step navigation pattern**: (1) sets a target destination scene name via `SetTargetScene()`, (2) loads the crystal preview scene (`Scene2-preview`), where after the user selects a crystal, the preview scene auto-loads the stored target scene. This decouples crystal selection from any specific experiment scene — main menu buttons only need to know their destination, not the preview step.
 - **OpenQuizButton.cs** (Scripts/Buttons/): Opens `quiz.html` from `StreamingAssets/QuizWeb/` via system default browser (`Application.OpenURL`).
 - **ReturnToLab.cs** (Scripts/Buttons/): Simple scene loader back to `Scene2.The Lab`.
 - **OpenReportButton.cs** (Scripts/Report/): Opens `report.html` from `StreamingAssets/ReportWeb/` via system default browser.
@@ -261,7 +271,8 @@ Main scenes in `Assets/Scenes/`:
 - **Scene1.intro.unity**: Introduction / tutorial
 - **Scene2-preview.unity**: Crystal selection preview scene (CrystalCardSelector)
 - **Scene2.The Lab.unity**: Primary lab scene (main experiment area with rail system, laser, crystal, screen, oscilloscope)
-- **Scene4_UIRebuild 1.unity**: Rebuild oscilloscope scene with waveform rendering, voltage/status UI, and key-point recording (Scene4OscilloscopeDispatcher)
+- **Scene3_UIRebuild.unity**: Data analysis scene — nonlinear curve fitting on recorded voltage/power data using MathNet.Numerics, XCharts scatter+fit rendering, Vπ extraction from fitted extrema. Orchestrated by `UIStateManager.cs` (Scripts/Scene3_UIRebuild/)
+- **Scene4_UIRebuild 1.unity**: Oscilloscope scene with waveform rendering, voltage/status UI, and key-point recording (Scene4OscilloscopeDispatcher)
 - **Scene5.History Records.unity**: History records / data log viewer
 - **Scene6_Quiz.unity**: Quiz/exercise scene
 - **Scene7_Report.unity**: Experiment report generation and export
@@ -272,8 +283,8 @@ Editor-built test/visualization scenes (created by ConoscopicAnalysis/Editor/ sc
 
 Work-in-progress / legacy scenes (not production):
 - SceneTest.unity, SceneTest2.unity, test.unity
-- Scene3.Exp1.unity, Scene3_UIRebuild.unity (earlier experiment UI prototypes)
-- Scene4.Exp1 1.unity (earlier experiment UI prototype)
+- Scene3.Exp1.unity (earlier experiment UI prototype)
+- Scene4.Exp1 1.unity (earlier oscilloscope UI prototype)
 
 ### Deprecated Code (not referenced in any scene)
 
