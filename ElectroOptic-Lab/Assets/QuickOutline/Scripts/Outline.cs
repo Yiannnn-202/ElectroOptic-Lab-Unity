@@ -16,6 +16,12 @@ using UnityEngine;
 public class Outline : MonoBehaviour {
   private static HashSet<Mesh> registeredMeshes = new HashSet<Mesh>();
 
+  [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+  private static void ResetStaticState()
+  {
+      registeredMeshes.Clear();
+  }
+
   public enum Mode {
     OutlineAll,
     OutlineVisible,
@@ -86,9 +92,19 @@ public class Outline : MonoBehaviour {
     // Cache renderers
     renderers = GetComponentsInChildren<Renderer>();
 
-    // Instantiate outline materials
-    outlineMaskMaterial = Instantiate(Resources.Load<Material>(@"Materials/OutlineMask"));
-    outlineFillMaterial = Instantiate(Resources.Load<Material>(@"Materials/OutlineFill"));
+    // Instantiate outline materials (with fallback for runtime scene loads)
+    var maskMat = Resources.Load<Material>(@"Materials/OutlineMask");
+    var fillMat = Resources.Load<Material>(@"Materials/OutlineFill");
+
+    if (maskMat == null || fillMat == null)
+    {
+        Debug.LogWarning($"[Outline] Failed to load outline materials via Resources. Outline disabled on {gameObject.name}.");
+        enabled = false;
+        return;
+    }
+
+    outlineMaskMaterial = Instantiate(maskMat);
+    outlineFillMaterial = Instantiate(fillMat);
 
     outlineMaskMaterial.name = "OutlineMask (Instance)";
     outlineFillMaterial.name = "OutlineFill (Instance)";
@@ -170,10 +186,14 @@ public class Outline : MonoBehaviour {
         continue;
       }
 
-      // Serialize smooth normals
-      var smoothNormals = SmoothNormals(meshFilter.sharedMesh);
+      var mesh = meshFilter.sharedMesh;
+      if (mesh == null || !mesh.isReadable)
+          continue;
 
-      bakeKeys.Add(meshFilter.sharedMesh);
+      // Serialize smooth normals
+      var smoothNormals = SmoothNormals(mesh);
+
+      bakeKeys.Add(mesh);
       bakeValues.Add(new ListVector3() { data = smoothNormals });
     }
   }
@@ -188,18 +208,25 @@ public class Outline : MonoBehaviour {
         continue;
       }
 
+      var mesh = meshFilter.sharedMesh;
+      if (mesh == null || !mesh.isReadable)
+      {
+          Debug.LogWarning($"[Outline] Skipping non-readable mesh '{mesh?.name}' on '{meshFilter.name}'. Enable Read/Write in the model import settings.");
+          continue;
+      }
+
       // Retrieve or generate smooth normals
-      var index = bakeKeys.IndexOf(meshFilter.sharedMesh);
-      var smoothNormals = (index >= 0) ? bakeValues[index].data : SmoothNormals(meshFilter.sharedMesh);
+      var index = bakeKeys.IndexOf(mesh);
+      var smoothNormals = (index >= 0) ? bakeValues[index].data : SmoothNormals(mesh);
 
       // Store smooth normals in UV3
-      meshFilter.sharedMesh.SetUVs(3, smoothNormals);
+      mesh.SetUVs(3, smoothNormals);
 
       // Combine submeshes
       var renderer = meshFilter.GetComponent<Renderer>();
 
       if (renderer != null) {
-        CombineSubmeshes(meshFilter.sharedMesh, renderer.sharedMaterials);
+        CombineSubmeshes(mesh, renderer.sharedMaterials);
       }
     }
 
@@ -211,11 +238,18 @@ public class Outline : MonoBehaviour {
         continue;
       }
 
+      var skinnedMesh = skinnedMeshRenderer.sharedMesh;
+      if (skinnedMesh == null || !skinnedMesh.isReadable)
+      {
+          Debug.LogWarning($"[Outline] Skipping non-readable skinned mesh '{skinnedMesh?.name}' on '{skinnedMeshRenderer.name}'. Enable Read/Write in the model import settings.");
+          continue;
+      }
+
       // Clear UV3
-      skinnedMeshRenderer.sharedMesh.uv4 = new Vector2[skinnedMeshRenderer.sharedMesh.vertexCount];
+      skinnedMesh.uv4 = new Vector2[skinnedMesh.vertexCount];
 
       // Combine submeshes
-      CombineSubmeshes(skinnedMeshRenderer.sharedMesh, skinnedMeshRenderer.sharedMaterials);
+      CombineSubmeshes(skinnedMesh, skinnedMeshRenderer.sharedMaterials);
     }
   }
 

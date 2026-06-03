@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class RecordManager : MonoBehaviour, IVoltageSource
 {
@@ -111,6 +112,11 @@ public class RecordManager : MonoBehaviour, IVoltageSource
 
     void Update()
     {
+        // Only process input when this component is in the active scene.
+        // Prevents background-scene components from responding to global input.
+        if (gameObject.scene != SceneManager.GetActiveScene())
+            return;
+
         if (isMouseHolding || Input.GetKey(KeyCode.R))
         {
             float dir = 0f;
@@ -321,14 +327,20 @@ public class RecordManager : MonoBehaviour, IVoltageSource
             return configuredSource;
         }
 
-        MonoBehaviour[] behaviours = FindObjectsOfType<MonoBehaviour>();
-        foreach (MonoBehaviour behaviour in behaviours)
+        // Only search the active scene — additive mode keeps other scenes loaded in background.
+        // FindObjectsOfType would pick up disabled PowerReadoutController from a suspended Scene2,
+        // whose CurrentDisplayPower is always 0, zeroing out the power meter.
+        Scene activeScene = SceneManager.GetActiveScene();
+        foreach (GameObject rootObj in activeScene.GetRootGameObjects())
         {
-            if (behaviour == this) continue;
-            if (behaviour is IPowerReadoutSource source)
+            foreach (MonoBehaviour behaviour in rootObj.GetComponentsInChildren<MonoBehaviour>(true))
             {
-                powerReadoutSourceBehaviour = behaviour;
-                return source;
+                if (behaviour == null || behaviour == this) continue;
+                if (behaviour is IPowerReadoutSource source)
+                {
+                    powerReadoutSourceBehaviour = behaviour;
+                    return source;
+                }
             }
         }
 

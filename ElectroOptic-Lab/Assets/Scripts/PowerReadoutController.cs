@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// 光功率计读数控制 (方案 A：完全独立版)
@@ -59,6 +60,14 @@ public class PowerReadoutController : MonoBehaviour, IPowerReadoutSource
 
     void Update()
     {
+        // Only process input when this component is in the active scene.
+        // Prevents background-scene components from responding to global input.
+        if (gameObject.scene != SceneManager.GetActiveScene())
+        {
+            showWindow = false;
+            return;
+        }
+
         int currentRecState = (receiverController != null) ? receiverController.CurrentState : 0;
 
         // 窗口是否显示，现在 100% 只看接收器的脸色，跟晶体毫无关系
@@ -164,14 +173,17 @@ public class PowerReadoutController : MonoBehaviour, IPowerReadoutSource
             return configuredSource;
         }
 
-        MonoBehaviour[] behaviours = FindObjectsOfType<MonoBehaviour>();
-        foreach (MonoBehaviour behaviour in behaviours)
+        Scene activeScene = SceneManager.GetActiveScene();
+        foreach (GameObject rootObj in activeScene.GetRootGameObjects())
         {
-            if (behaviour == this) continue;
-            if (behaviour is IVoltageSource source)
+            foreach (MonoBehaviour behaviour in rootObj.GetComponentsInChildren<MonoBehaviour>(true))
             {
-                voltageSourceBehaviour = behaviour;
-                return source;
+                if (behaviour == null || behaviour == this) continue;
+                if (behaviour is IVoltageSource source)
+                {
+                    voltageSourceBehaviour = behaviour;
+                    return source;
+                }
             }
         }
 
@@ -192,6 +204,8 @@ public class PowerReadoutController : MonoBehaviour, IPowerReadoutSource
     void OnGUI()
     {
         if (!showWindow) return;
+        // Extra safety: never render IMGUI overlay from a background scene
+        if (gameObject.scene != SceneManager.GetActiveScene()) return;
 
         Rect rect = new Rect(Screen.width / 2 - windowSize.x / 2, Screen.height / 2 - windowSize.y / 2, windowSize.x, windowSize.y);
         GUI.Box(rect, "光功率计读数");

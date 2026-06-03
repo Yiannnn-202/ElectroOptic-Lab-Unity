@@ -21,12 +21,21 @@ public class PolarizerDialWindow : MonoBehaviour
 
     [Header("画面边距")]
     [Tooltip("画面与窗口边框的距离（上下左右，像素）")]
-    public RectOffset dialPadding = new RectOffset(10, 10, 35, 10);
+    public RectOffset dialPadding;
 
     private GameObject _windowObj;
     private CanvasGroup _windowGroup;
     private bool _windowVisible;
     private Coroutine _fadeCoroutine;
+
+    private void Awake()
+    {
+        // RectOffset is a UnityEngine.Object; field initializers run in the
+        // MonoBehaviour constructor before deserialization completes, causing
+        // "set_left is not allowed" errors during domain reload.
+        if (dialPadding == null)
+            dialPadding = new RectOffset(10, 10, 35, 10);
+    }
 
     private void OnEnable()
     {

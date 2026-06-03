@@ -222,7 +222,7 @@ public class UIStateManager : MonoBehaviour
             lastCalculatedV = fitCurveMinV - fitCurveMaxV;
             hasValidFit = true;
 
-            double plotMinX = scanStart - 20;
+            double plotMinX = 0;
             double plotMaxX = scanEnd + 20;
 
             // ===== 预创建所有空序列 =====

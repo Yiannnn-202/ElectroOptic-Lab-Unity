@@ -33,6 +33,17 @@ public class SceneLoad: MonoBehaviour
         SceneManager.LoadScene("Scene2.The Lab");
     }
 
+    /// <summary>
+    /// 返回主实验室，保留 Scene2 的状态（前提是 Scene2 未被卸载）
+    /// 适用于从 Scene3/Scene4 返回 —— 如果 Scene2 还活着则恢复，
+    /// 否则回退到正常加载
+    /// </summary>
+    public void Onclick_Btn_ReturnToLabPreserveState()
+    {
+        string currentScene = SceneManager.GetActiveScene().name;
+        Scene2AdditionalSceneNavigator.ReturnFromAdditionalExperiment(currentScene);
+    }
+
     public void Onclick_Btn_LoadScene_05()
     {
         SceneManager.LoadScene(4);

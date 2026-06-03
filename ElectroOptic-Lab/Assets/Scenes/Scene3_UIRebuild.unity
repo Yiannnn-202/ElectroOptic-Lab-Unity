@@ -8264,7 +8264,7 @@ MonoBehaviour:
       m_OnZero: 1
       m_StartExtendLength: 0
       m_EndExtendLength: 0
-      m_ShowArrow: 0
+      m_ShowArrow: 1
       m_Arrow:
         m_Width: 10
         m_Height: 15
@@ -8594,7 +8594,7 @@ MonoBehaviour:
       m_OnZero: 1
       m_StartExtendLength: 0
       m_EndExtendLength: 0
-      m_ShowArrow: 0
+      m_ShowArrow: 1
       m_Arrow:
         m_Width: 10
         m_Height: 15
@@ -26273,8 +26273,8 @@ RectTransform:
   - {fileID: 1516583120}
   - {fileID: 1994611100}
   - {fileID: 540342636}
-  - {fileID: 1408241024}
   - {fileID: 1535032113}
+  - {fileID: 1408241024}
   m_Father: {fileID: 828342277}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}

@@ -1,6 +1,7 @@
 using TMPro;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 using ElectroOptics.DataTransfer;
@@ -32,6 +33,7 @@ namespace ElectroOptics.Oscilloscope
 
         [Header("Voltage Hold-Repeat")]
         [SerializeField] private float holdStartDelay = 0.35f;
+        [SerializeField] private float voltageStepSize = 0.5f;
         [SerializeField] private float voltageChangeRate = 30f;
         [SerializeField] private int sampleCount = 1024;
         [SerializeField] private float displayPeriods = 2f;
@@ -77,8 +79,8 @@ namespace ElectroOptics.Oscilloscope
         [SerializeField] private Button resetVoltageButton;
         [SerializeField] private RectTransform ch1Block;
         [SerializeField] private RectTransform ch2Block;
-        [SerializeField] private TextMeshProUGUI[] keyPointVoltageTexts = new TextMeshProUGUI[4];
-        [SerializeField] private TextMeshProUGUI[] keyPointLabelTexts = new TextMeshProUGUI[4];
+        [SerializeField] private TextMeshProUGUI[] keyPointVoltageTexts = new TextMeshProUGUI[2];
+        [SerializeField] private TextMeshProUGUI[] keyPointLabelTexts = new TextMeshProUGUI[2];
 
         private OscilloscopeCore _core;
         private OscilloscopeWaveformGraphic _ch1Graphic;
@@ -90,6 +92,11 @@ namespace ElectroOptics.Oscilloscope
 
         private float _holdTimer;
         private int _holdDirection; // 0=none, -1=A, +1=D
+
+        private bool _isACConnected;
+        private Button _modulationToggleButton;
+        private static readonly Color AcConnectedColor = new Color(0.07f, 0.73f, 0.07f, 1f);
+        private static readonly Color AcDisconnectedColor = new Color(0.85f, 0.15f, 0.15f, 1f);
 
         private void Awake()
         {
@@ -114,6 +121,7 @@ namespace ElectroOptics.Oscilloscope
             EnsureWaveformGraphics();
             InitializeCore();
             BindButtons();
+            SetupModulationToggle();
             ClearRecords();
             ApplyVoltage(initialVdc);
             UpdateStaticUi();
@@ -131,7 +139,7 @@ namespace ElectroOptics.Oscilloscope
                 if (_holdDirection != (int)wanted)
                 {
                     // First frame: single step, then start accumulating
-                    ApplyVoltage(_currentVdc + wanted);
+                    ApplyVoltage(_currentVdc + wanted * voltageStepSize);
                     _holdDirection = (int)wanted;
                     _holdTimer = 0f;
                 }
@@ -163,6 +171,8 @@ namespace ElectroOptics.Oscilloscope
                 clearButton.onClick.RemoveListener(ClearRecords);
             if (resetVoltageButton != null)
                 resetVoltageButton.onClick.RemoveListener(ResetVoltage);
+            if (_modulationToggleButton != null)
+                _modulationToggleButton.onClick.RemoveListener(ToggleACConnection);
         }
 
         private void DisableLegacyRecordManager()
@@ -230,8 +240,9 @@ namespace ElectroOptics.Oscilloscope
         {
             _currentVdc = vdc;
 
+            float effectiveModulation = _isACConnected ? modulationAmplitude : 0f;
             if (_core != null)
-                _core.SetVoltages(_currentVdc, modulationAmplitude);
+                _core.SetVoltages(_currentVdc, effectiveModulation);
 
             UpdateVoltageText();
         }
@@ -388,10 +399,46 @@ namespace ElectroOptics.Oscilloscope
                 voltageText.text = $"{_currentVdc:F0}V";
         }
 
+        private void SetupModulationToggle()
+        {
+            if (modulationStatusText == null) return;
+
+            _modulationToggleButton = modulationStatusText.GetComponent<Button>();
+            if (_modulationToggleButton == null)
+                _modulationToggleButton = modulationStatusText.gameObject.AddComponent<Button>();
+
+            _modulationToggleButton.onClick.RemoveListener(ToggleACConnection);
+            _modulationToggleButton.onClick.AddListener(ToggleACConnection);
+
+            UpdateModulationStatusUI();
+        }
+
+        private void ToggleACConnection()
+        {
+            _isACConnected = !_isACConnected;
+            UpdateModulationStatusUI();
+            ApplyVoltage(_currentVdc);
+        }
+
+        private void UpdateModulationStatusUI()
+        {
+            if (modulationStatusText == null) return;
+
+            if (_isACConnected)
+            {
+                modulationStatusText.text = "已接入";
+                modulationStatusText.color = AcConnectedColor;
+            }
+            else
+            {
+                modulationStatusText.text = "点击接入交流电压";
+                modulationStatusText.color = AcDisconnectedColor;
+            }
+        }
+
         private void UpdateStaticUi()
         {
-            if (modulationStatusText != null)
-                modulationStatusText.text = "已接入";
+            UpdateModulationStatusUI();
         }
 
         private Color _statusNormalColor;
@@ -449,10 +496,8 @@ namespace ElectroOptics.Oscilloscope
         {
             switch (index)
             {
-                case 0: return "对应：U0";
-                case 1: return "对应：U0+Uπ";
-                case 2: return "对应：U0+2Uπ";
-                case 3: return "对应：";
+                case 0: return "对应：U<sub>0</sub>";
+                case 1: return "对应：U<sub>0</sub>+V<sub>π</sub>";
                 default: return "对应：";
             }
         }
@@ -544,7 +589,7 @@ namespace ElectroOptics.Oscilloscope
             if (ch2Block == null)
                 ch2Block = FindComponent<RectTransform>(dataCanvas, "MainArea", "RightDisplayPanel", "WavePanel", "WaveContentArea", "CH2Block");
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 2; i++)
                 AutoBindCard(dataCanvas, i);
         }
 
@@ -573,10 +618,26 @@ namespace ElectroOptics.Oscilloscope
 
         private Transform FindRoot(string name)
         {
-            foreach (GameObject obj in FindObjectsByType<GameObject>(FindObjectsSortMode.None))
+            // Only search the active scene — additive mode keeps Scene2 alive in background
+            Scene activeScene = SceneManager.GetActiveScene();
+            foreach (GameObject obj in activeScene.GetRootGameObjects())
             {
-                if (CleanName(obj.name) == name)
-                    return obj.transform;
+                Transform found = FindInHierarchy(obj.transform, name);
+                if (found != null)
+                    return found;
+            }
+            return null;
+        }
+
+        private Transform FindInHierarchy(Transform root, string name)
+        {
+            if (CleanName(root.name) == name)
+                return root;
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform found = FindInHierarchy(root.GetChild(i), name);
+                if (found != null)
+                    return found;
             }
             return null;
         }

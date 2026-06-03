@@ -85,6 +85,7 @@ namespace ElectroOptics.UI.CrystalSelector
         /// 加载目标场景
         /// 优先使用 CrystalSelectionData.TargetSceneName（由 ExperimentNavigator 设定），
         /// 未设置时 fallback 到 Inspector 配置的 targetSceneName
+        /// 当 Scene2 还活着时使用 additive 模式加载以保持 Scene2 状态
         /// </summary>
         private void LoadTargetScene()
         {
@@ -102,7 +103,16 @@ namespace ElectroOptics.UI.CrystalSelector
 
             try
             {
-                SceneManager.LoadScene(destination);
+                // Keep Scene2 alive if it's loaded (additive experiment flow)
+                Scene labScene = SceneManager.GetSceneByName(Scene2AdditionalSceneNavigator.LabSceneName);
+                if (labScene.isLoaded)
+                {
+                    Scene2AdditionalSceneNavigator.GoToExperimentFromPreviewAdditive(destination);
+                }
+                else
+                {
+                    SceneManager.LoadScene(destination);
+                }
             }
             catch (System.Exception e)
             {

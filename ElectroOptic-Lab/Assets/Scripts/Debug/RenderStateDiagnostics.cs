@@ -5,13 +5,53 @@ using UnityEngine.Rendering.PostProcessing;
 /// <summary>
 /// 渲染状态诊断工具。挂载到 Scene2.The Lab 的 MainCamera 上，
 /// 分别在直接打开和从 preview 跳转时观察 Console 输出，对比差异。
+/// 同时强制 PostProcessLayer 在场景加载后正确初始化。
 /// </summary>
 public class RenderStateDiagnostics : MonoBehaviour
 {
     private void Start()
     {
         // 延迟一帧确保所有初始化完成
+        Invoke(nameof(InitializePostProcessing), 0.05f);
         Invoke(nameof(DumpRenderState), 0.1f);
+    }
+
+    /// <summary>
+    /// 强制 PostProcessLayer 重新初始化其内部渲染目标。
+    /// Unity built-in RP 在运行时加载场景时，PostProcessLayer
+    /// 的内部 RT 和 CommandBuffer 可能会失效，导致 HDR+Bloom
+    /// 渲染异常（影响 Outline 等透明物体的后处理效果）。
+    /// 通过 toggle enabled 来触发完全重建。
+    /// </summary>
+    private void InitializePostProcessing()
+    {
+        var cam = GetComponent<Camera>();
+        var ppLayer = GetComponent<PostProcessLayer>();
+
+        if (ppLayer == null || cam == null) return;
+
+        // Toggle HDR on the camera to force complete pipeline reinit
+        bool hdr = cam.allowHDR;
+        cam.allowHDR = false;
+        cam.allowHDR = hdr;
+
+        // Toggle PostProcessLayer to recreate internal RTs and command buffers
+        ppLayer.enabled = false;
+        ppLayer.enabled = true;
+
+        // Also ensure the Global Volume is fully active
+        var globalVolume = GameObject.Find("Global Volume");
+        if (globalVolume != null)
+        {
+            var vol = globalVolume.GetComponent<PostProcessVolume>();
+            if (vol != null)
+            {
+                vol.enabled = false;
+                vol.enabled = true;
+            }
+        }
+
+        Debug.Log("[RenderStateDiagnostics] Post-processing reinitialized for runtime scene load.");
     }
 
     private void DumpRenderState()
