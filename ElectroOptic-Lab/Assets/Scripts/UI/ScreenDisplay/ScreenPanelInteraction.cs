@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.SceneManagement;
 
 namespace ElectroOptics.UI.ScreenDisplay
 {
@@ -40,15 +39,15 @@ namespace ElectroOptics.UI.ScreenDisplay
             string scenePath = $"Assets/Scenes/{targetSceneName}.unity";
             Debug.Log($"[ScreenPanelInteraction] 双击触发，加载场景: {targetSceneName}");
 
-            if (Application.isEditor)
+            if (Application.isPlaying)
+            {
+                global::Scene2AdditionalSceneNavigator.OpenAdditionalExperiment(targetSceneName);
+            }
+            else
             {
 #if UNITY_EDITOR
                 UnityEditor.SceneManagement.EditorSceneManager.LoadScene(scenePath);
 #endif
-            }
-            else
-            {
-                SceneManager.LoadScene(targetSceneName);
             }
         }
     }
