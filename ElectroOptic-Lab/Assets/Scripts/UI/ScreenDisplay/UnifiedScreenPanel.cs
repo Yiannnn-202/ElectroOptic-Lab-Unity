@@ -235,12 +235,7 @@ namespace ElectroOptics.UI.ScreenDisplay
             Transform clickOverlay = _panelObject.transform.Find("ClickOverlay");
             if (clickOverlay != null)
             {
-                var interaction = clickOverlay.GetComponent<ScreenPanelInteraction>();
-                if (interaction != null)
-                {
-                    interaction.doubleClickInterval = doubleClickInterval;
-                    interaction.targetSceneName = targetSceneName;
-                }
+                ConfigureClickOverlay(clickOverlay.gameObject);
             }
         }
 
@@ -417,11 +412,29 @@ namespace ElectroOptics.UI.ScreenDisplay
             image.color = new Color(0, 0, 0, 0);
             image.raycastTarget = true;
 
-            var interaction = overlay.AddComponent<ScreenPanelInteraction>();
+            ConfigureClickOverlay(overlay);
+
+            Debug.Log($"{LOG_PREFIX} 点击覆盖层已创建");
+        }
+
+        private void ConfigureClickOverlay(GameObject overlay)
+        {
+            if (overlay == null) return;
+
+            var interaction = overlay.GetComponent<ScreenPanelInteraction>();
+            if (interaction == null)
+            {
+                interaction = overlay.AddComponent<ScreenPanelInteraction>();
+            }
             interaction.doubleClickInterval = doubleClickInterval;
             interaction.targetSceneName = targetSceneName;
 
-            Debug.Log($"{LOG_PREFIX} 点击覆盖层已创建");
+            var outline = overlay.GetComponent<UIOutline>();
+            if (outline == null)
+            {
+                outline = overlay.AddComponent<UIOutline>();
+            }
+            outline.IsHighlighted = false;
         }
 
         private void BindTextures()
