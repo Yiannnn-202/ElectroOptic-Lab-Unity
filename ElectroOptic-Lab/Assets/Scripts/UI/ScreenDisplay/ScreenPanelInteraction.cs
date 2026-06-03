@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.SceneManagement;
 
 namespace ElectroOptics.UI.ScreenDisplay
 {
@@ -8,7 +7,7 @@ namespace ElectroOptics.UI.ScreenDisplay
     /// 统一光屏面板的点击交互组件
     /// 挂在 ClickOverlay 子物体上（透明覆盖层），双击加载附加实验场景
     /// </summary>
-    public class ScreenPanelInteraction : MonoBehaviour, IPointerClickHandler
+    public class ScreenPanelInteraction : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
     {
         [Header("双击配置")]
         [Tooltip("双击间隔阈值（秒）")]
@@ -19,6 +18,7 @@ namespace ElectroOptics.UI.ScreenDisplay
         public string targetSceneName = "Scene_additional_exp";
 
         private float _lastClickTime;
+        private UIOutline _uiOutline;
 
         public void OnPointerClick(PointerEventData eventData)
         {
@@ -35,21 +35,55 @@ namespace ElectroOptics.UI.ScreenDisplay
             }
         }
 
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            SetHighlight(true);
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            SetHighlight(false);
+        }
+
+        private void OnDisable()
+        {
+            SetHighlight(false);
+        }
+
         private void OnDoubleClick()
         {
             string scenePath = $"Assets/Scenes/{targetSceneName}.unity";
             Debug.Log($"[ScreenPanelInteraction] 双击触发，加载场景: {targetSceneName}");
 
-            if (Application.isEditor)
+            if (Application.isPlaying)
+            {
+                global::Scene2AdditionalSceneNavigator.OpenAdditionalExperiment(targetSceneName);
+            }
+            else
             {
 #if UNITY_EDITOR
                 UnityEditor.SceneManagement.EditorSceneManager.LoadScene(scenePath);
 #endif
             }
-            else
+        }
+
+        private void SetHighlight(bool highlighted)
+        {
+            UIOutline outline = GetOutline();
+            if (outline != null)
             {
-                SceneManager.LoadScene(targetSceneName);
+                outline.IsHighlighted = highlighted;
             }
+        }
+
+        private UIOutline GetOutline()
+        {
+            if (_uiOutline == null)
+            {
+                _uiOutline = GetComponent<UIOutline>();
+            }
+
+            return _uiOutline;
         }
     }
 }
