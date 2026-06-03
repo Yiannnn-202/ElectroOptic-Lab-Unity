@@ -24,17 +24,45 @@ public static class LiNbO3PowerReadoutVpiTests
         try
         {
             CrystalPhysicalCore core = probeObject.AddComponent<CrystalPhysicalCore>();
-            float sensitivity = ComputeSensitivity(core, profile);
+            CrystalWorkingGeometry scene3Geometry = CrystalWorkingGeometry.ResolveOscilloscope(
+                profile,
+                ModulationMode.Transverse,
+                ElectricFieldAxis.Z_Axis,
+                Vector3.up);
+            CrystalWorkingGeometry scene4Geometry = CrystalWorkingGeometry.ResolveOscilloscope(
+                profile,
+                ModulationMode.Transverse,
+                ElectricFieldAxis.Z_Axis,
+                Vector3.forward);
+
+            float sensitivity = ComputeSensitivity(core, profile, scene3Geometry);
+            float scene4Sensitivity = ComputeSensitivity(core, profile, scene4Geometry);
             double expectedVpi = VpiCalculator.Calculate(
                 profile.defaultWavelength_nm,
                 profile.defaultLength_mm,
                 profile.defaultThickness_mm,
                 sensitivity,
-                ModulationMode.Transverse);
+                scene3Geometry.ModulationMode);
+            double scene4Vpi = VpiCalculator.Calculate(
+                profile.defaultWavelength_nm,
+                profile.defaultLength_mm,
+                profile.defaultThickness_mm,
+                scene4Sensitivity,
+                scene4Geometry.ModulationMode);
 
             if (double.IsNaN(expectedVpi) || double.IsInfinity(expectedVpi) || expectedVpi <= 0.0)
             {
                 Debug.LogError($"[LiNbO3PowerReadoutVpiTests] Invalid expected Vpi. sensitivity={sensitivity:E6}, Vpi={expectedVpi}");
+                return;
+            }
+
+            double geometryVpiDiff = System.Math.Abs(expectedVpi - scene4Vpi);
+            if (double.IsNaN(scene4Vpi) || double.IsInfinity(scene4Vpi) || geometryVpiDiff > 1e-6)
+            {
+                Debug.LogError(
+                    "[LiNbO3PowerReadoutVpiTests] Scene3/Scene4 geometry Vpi mismatch. " +
+                    $"scene3Sensitivity={sensitivity:E6}, scene4Sensitivity={scene4Sensitivity:E6}, " +
+                    $"scene3Vpi={expectedVpi:F6}, scene4Vpi={scene4Vpi:F6}, diff={geometryVpiDiff:E6}");
                 return;
             }
 
@@ -68,15 +96,15 @@ public static class LiNbO3PowerReadoutVpiTests
         }
     }
 
-    private static float ComputeSensitivity(CrystalPhysicalCore core, CrystalProfile profile)
+    private static float ComputeSensitivity(CrystalPhysicalCore core, CrystalProfile profile, CrystalWorkingGeometry geometry)
     {
         var config = new CrystalConfig
         {
             profile = profile,
             crystalRotation = Quaternion.identity,
-            localEField = Vector3.forward,
-            probeFieldDirection = Vector3.forward,
-            worldLightDirection = Vector3.forward
+            localEField = geometry.LocalEFieldDirection,
+            probeFieldDirection = geometry.ProbeFieldDirection,
+            worldLightDirection = geometry.WorldLightDirection
         };
 
         core.ApplyConfig(config);
