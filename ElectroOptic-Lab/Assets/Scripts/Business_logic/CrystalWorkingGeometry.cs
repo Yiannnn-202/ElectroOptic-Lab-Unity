@@ -53,13 +53,23 @@ namespace ElectroOptics
             }
 
             Vector3 axis = AxisToVector(requestedFieldAxis);
+            Vector3 lightDirection = NormalizeOrFallback(requestedWorldLightDirection, Vector3.forward);
+            bool overridesRequestedGeometry = false;
+
+            if (requestedMode == ModulationMode.Transverse)
+            {
+                Vector3 transverseLight = ResolveTransverseLightDirection(requestedFieldAxis, axis, lightDirection);
+                overridesRequestedGeometry = !ApproximatelySameDirection(lightDirection, transverseLight);
+                lightDirection = transverseLight;
+            }
+
             return new CrystalWorkingGeometry
             {
-                WorldLightDirection = NormalizeOrFallback(requestedWorldLightDirection, Vector3.forward),
+                WorldLightDirection = lightDirection,
                 LocalEFieldDirection = axis,
                 ProbeFieldDirection = axis,
                 ModulationMode = requestedMode,
-                OverridesRequestedGeometry = false
+                OverridesRequestedGeometry = overridesRequestedGeometry
             };
         }
 
@@ -84,6 +94,37 @@ namespace ElectroOptics
         private static Vector3 NormalizeOrFallback(Vector3 vector, Vector3 fallback)
         {
             return vector.sqrMagnitude > 0.000001f ? vector.normalized : fallback;
+        }
+
+        private static Vector3 ResolveTransverseLightDirection(
+            ElectricFieldAxis fieldAxis,
+            Vector3 electricFieldDirection,
+            Vector3 requestedLightDirection)
+        {
+            if (fieldAxis == ElectricFieldAxis.Z_Axis)
+            {
+                return Vector3.up;
+            }
+
+            return IsParallel(requestedLightDirection, electricFieldDirection)
+                ? ChoosePerpendicularDirection(electricFieldDirection)
+                : requestedLightDirection;
+        }
+
+        private static bool IsParallel(Vector3 a, Vector3 b)
+        {
+            return Mathf.Abs(Vector3.Dot(a.normalized, b.normalized)) > 0.999f;
+        }
+
+        private static bool ApproximatelySameDirection(Vector3 a, Vector3 b)
+        {
+            return Vector3.SqrMagnitude(a.normalized - b.normalized) < 0.000001f;
+        }
+
+        private static Vector3 ChoosePerpendicularDirection(Vector3 axis)
+        {
+            if (!IsParallel(axis, Vector3.forward)) return Vector3.forward;
+            return Vector3.up;
         }
     }
 }

@@ -47,6 +47,11 @@ public class Scene3CrystalBridge : MonoBehaviour
 
         // 创建物理核心
         _core = gameObject.AddComponent<CrystalPhysicalCore>();
+        CrystalWorkingGeometry geometry = CrystalWorkingGeometry.ResolveOscilloscope(
+            profile,
+            modulationMode,
+            fieldAxis,
+            worldLightDirection);
 
         // ======== 晶体参数打印 ========
         Debug.Log("[Bridge] ======== Crystal Vpi Calculation ========");
@@ -54,10 +59,12 @@ public class Scene3CrystalBridge : MonoBehaviour
         Debug.Log($"[Bridge] Wavelength: {profile.defaultWavelength_nm} nm");
         Debug.Log($"[Bridge] Dimensions: L={profile.defaultLength_mm} mm, d={profile.defaultThickness_mm} mm");
         Debug.Log($"[Bridge] Refractive indices: nx={profile.n_x}, ny={profile.n_y}, nz={profile.n_z}");
-        Debug.Log($"[Bridge] E-field axis: {fieldAxis}, Light direction: {worldLightDirection}, Mode: {modulationMode}");
+        Debug.Log($"[Bridge] Requested E-field axis: {fieldAxis}, requestedLight={worldLightDirection}, requestedMode={modulationMode}");
+        Debug.Log($"[Bridge] Effective geometry: E={geometry.LocalEFieldDirection}, k={geometry.WorldLightDirection}, " +
+                  $"probe={geometry.ProbeFieldDirection}, mode={geometry.ModulationMode}, overrides={geometry.OverridesRequestedGeometry}");
 
         // 计算灵敏度
-        float sensitivity = ComputeSensitivity(profile);
+        float sensitivity = ComputeSensitivity(profile, geometry);
         Debug.Log($"[Bridge] DLL Sensitivity S_eff = {sensitivity:E6} (1/V)");
 
         if (Mathf.Approximately(sensitivity, 0f))
@@ -71,7 +78,7 @@ public class Scene3CrystalBridge : MonoBehaviour
             profile.defaultLength_mm,
             profile.defaultThickness_mm,
             sensitivity,
-            modulationMode);
+            geometry.ModulationMode);
 
         if (double.IsInfinity(vPi) || double.IsNaN(vPi) || vPi <= 0)
         {
@@ -86,31 +93,18 @@ public class Scene3CrystalBridge : MonoBehaviour
         Debug.Log("[Bridge] ========================================");
     }
 
-    private float ComputeSensitivity(CrystalProfile profile)
+    private float ComputeSensitivity(CrystalProfile profile, CrystalWorkingGeometry geometry)
     {
-        Vector3 axisVec = AxisToVector(fieldAxis);
-
         var config = new CrystalConfig
         {
             profile = profile,
             crystalRotation = Quaternion.identity,
-            localEField = axisVec,
-            probeFieldDirection = axisVec,
-            worldLightDirection = worldLightDirection.normalized
+            localEField = geometry.LocalEFieldDirection,
+            probeFieldDirection = geometry.ProbeFieldDirection,
+            worldLightDirection = geometry.WorldLightDirection
         };
 
         _core.ApplyConfig(config);
         return _core.Sensitivity;
-    }
-
-    private static Vector3 AxisToVector(ElectricFieldAxis axis)
-    {
-        switch (axis)
-        {
-            case ElectricFieldAxis.X_Axis: return Vector3.right;
-            case ElectricFieldAxis.Y_Axis: return Vector3.up;
-            case ElectricFieldAxis.Z_Axis:
-            default: return Vector3.forward;
-        }
     }
 }

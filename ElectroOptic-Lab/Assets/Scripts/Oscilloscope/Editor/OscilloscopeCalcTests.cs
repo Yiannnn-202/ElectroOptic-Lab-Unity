@@ -28,6 +28,10 @@ public static class OscilloscopeCalcTests
         Test_Vpi_ZeroSensitivity();
         Test_Vpi_NegativeSensitivityUsesMagnitude();
         Test_Vpi_InvalidSensitivity();
+        Test_Geometry_LiNbO3TransverseZUsesYLight();
+        Test_Geometry_KtpSpecialCase();
+        Test_Geometry_TransverseRejectsParallelLight();
+        Test_Geometry_Scene3AndScene4RequestsMatch();
 
         // WaveformCalculator 测试
         Test_Extinction();
@@ -100,6 +104,98 @@ public static class OscilloscopeCalcTests
             double.IsPositiveInfinity(VpiCalculator.Calculate(633.0, 20.0, 1.0, double.PositiveInfinity, ModulationMode.Transverse)));
         AssertTrue("Vpi_TinySensitivity Infinity",
             double.IsPositiveInfinity(VpiCalculator.Calculate(633.0, 20.0, 1.0, -1e-25, ModulationMode.Transverse)));
+    }
+
+    static void Test_Geometry_LiNbO3TransverseZUsesYLight()
+    {
+        CrystalProfile profile = MakeProfile("LiNbO3");
+        try
+        {
+            CrystalWorkingGeometry geometry = CrystalWorkingGeometry.ResolveOscilloscope(
+                profile,
+                ModulationMode.Transverse,
+                ElectricFieldAxis.Z_Axis,
+                Vector3.forward);
+
+            AssertVectorClose("Geometry LiNbO3 Transverse Z uses k=Y", geometry.WorldLightDirection, Vector3.up, 1e-6f);
+            AssertVectorClose("Geometry LiNbO3 Transverse Z uses E=Z", geometry.LocalEFieldDirection, Vector3.forward, 1e-6f);
+            AssertVectorClose("Geometry LiNbO3 Transverse Z uses probe=Z", geometry.ProbeFieldDirection, Vector3.forward, 1e-6f);
+            AssertTrue("Geometry LiNbO3 Transverse Z mode remains Transverse", geometry.ModulationMode == ModulationMode.Transverse);
+            AssertTrue("Geometry LiNbO3 Transverse Z overrides requested k=Z", geometry.OverridesRequestedGeometry);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(profile);
+        }
+    }
+
+    static void Test_Geometry_KtpSpecialCase()
+    {
+        CrystalProfile profile = MakeProfile("KTP");
+        try
+        {
+            CrystalWorkingGeometry geometry = CrystalWorkingGeometry.ResolveOscilloscope(
+                profile,
+                ModulationMode.Longitudinal,
+                ElectricFieldAxis.X_Axis,
+                Vector3.forward);
+
+            AssertVectorClose("Geometry KTP special k=Y", geometry.WorldLightDirection, Vector3.up, 1e-6f);
+            AssertVectorClose("Geometry KTP special E=Z", geometry.LocalEFieldDirection, Vector3.forward, 1e-6f);
+            AssertTrue("Geometry KTP special mode Transverse", geometry.ModulationMode == ModulationMode.Transverse);
+            AssertTrue("Geometry KTP special overrides requested geometry", geometry.OverridesRequestedGeometry);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(profile);
+        }
+    }
+
+    static void Test_Geometry_TransverseRejectsParallelLight()
+    {
+        CrystalProfile profile = MakeProfile("LiNbO3");
+        try
+        {
+            CrystalWorkingGeometry geometry = CrystalWorkingGeometry.ResolveOscilloscope(
+                profile,
+                ModulationMode.Transverse,
+                ElectricFieldAxis.X_Axis,
+                Vector3.right);
+
+            AssertVectorClose("Geometry Transverse X avoids parallel k", geometry.WorldLightDirection, Vector3.forward, 1e-6f);
+            AssertVectorClose("Geometry Transverse X keeps E=X", geometry.LocalEFieldDirection, Vector3.right, 1e-6f);
+            AssertTrue("Geometry Transverse X override marks parallel fix", geometry.OverridesRequestedGeometry);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(profile);
+        }
+    }
+
+    static void Test_Geometry_Scene3AndScene4RequestsMatch()
+    {
+        CrystalProfile profile = MakeProfile("LiNbO3");
+        try
+        {
+            CrystalWorkingGeometry scene3Geometry = CrystalWorkingGeometry.ResolveOscilloscope(
+                profile,
+                ModulationMode.Transverse,
+                ElectricFieldAxis.Z_Axis,
+                Vector3.up);
+            CrystalWorkingGeometry scene4Geometry = CrystalWorkingGeometry.ResolveOscilloscope(
+                profile,
+                ModulationMode.Transverse,
+                ElectricFieldAxis.Z_Axis,
+                Vector3.forward);
+
+            AssertVectorClose("Geometry Scene3/Scene4 k match", scene4Geometry.WorldLightDirection, scene3Geometry.WorldLightDirection, 1e-6f);
+            AssertVectorClose("Geometry Scene3/Scene4 E match", scene4Geometry.LocalEFieldDirection, scene3Geometry.LocalEFieldDirection, 1e-6f);
+            AssertTrue("Geometry Scene3/Scene4 mode match", scene4Geometry.ModulationMode == scene3Geometry.ModulationMode);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(profile);
+        }
     }
 
     static void Test_Extinction()
@@ -250,6 +346,13 @@ public static class OscilloscopeCalcTests
         return result;
     }
 
+    static CrystalProfile MakeProfile(string crystalName)
+    {
+        CrystalProfile profile = ScriptableObject.CreateInstance<CrystalProfile>();
+        profile.crystalName = crystalName;
+        return profile;
+    }
+
     /// <summary>
     /// 统计数组的零交叉次数（信号穿过零点或均值的次数）
     /// </summary>
@@ -291,6 +394,21 @@ public static class OscilloscopeCalcTests
         {
             _failed++;
             Debug.LogError($"  <color=red>[FAIL]</color> {name} (actual={actual:G6}, expected={expected:G6}, diff={diff:G4})");
+        }
+    }
+
+    static void AssertVectorClose(string name, Vector3 actual, Vector3 expected, float tolerance)
+    {
+        float diff = Vector3.Distance(actual, expected);
+        if (diff <= tolerance)
+        {
+            _passed++;
+            Debug.Log($"  <color=green>[PASS]</color> {name} (actual={actual}, expected={expected})");
+        }
+        else
+        {
+            _failed++;
+            Debug.LogError($"  <color=red>[FAIL]</color> {name} (actual={actual}, expected={expected}, diff={diff:G4})");
         }
     }
 
