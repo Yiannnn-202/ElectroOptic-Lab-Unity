@@ -62,7 +62,17 @@ public class ClickAreaFocus : MonoBehaviour
         Debug.Log("触发第二次双击：切换场景");
         if (!string.IsNullOrEmpty(targetSceneName))
         {
-            SceneManager.LoadScene(targetSceneName);
+            // 如果 Scene2 还活着，用 additive 模式加载以保留 Scene2 状态
+            // （与 Scene_additional_exp 跳转机制相同）
+            Scene labScene = SceneManager.GetSceneByName(Scene2AdditionalSceneNavigator.LabSceneName);
+            if (labScene.isLoaded)
+            {
+                Scene2AdditionalSceneNavigator.OpenAdditionalExperiment(targetSceneName);
+            }
+            else
+            {
+                SceneManager.LoadScene(targetSceneName);
+            }
         }
         else
         {

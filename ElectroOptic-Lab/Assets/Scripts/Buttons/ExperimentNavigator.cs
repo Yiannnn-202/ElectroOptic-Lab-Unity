@@ -25,9 +25,19 @@ public static class ExperimentNavigator
     /// <param name="targetSceneName">目标实验场景名称</param>
     public static void SetDestinationAndGoToPreview(string targetSceneName)
     {
-        CrystalSelectionData.TargetSceneName = targetSceneName;
-        Debug.Log($"[ExperimentNavigator] 设定目标场景: {targetSceneName}, 进入晶体选择预览");
-        SceneManager.LoadScene(PreviewSceneName);
+        // When Scene2 is loaded, use additive loading to keep it alive.
+        // Otherwise fall back to single-scene mode (e.g. from main menu).
+        Scene labScene = SceneManager.GetSceneByName(Scene2AdditionalSceneNavigator.LabSceneName);
+        if (labScene.isLoaded)
+        {
+            Scene2AdditionalSceneNavigator.GoToPreviewAdditive(PreviewSceneName, targetSceneName);
+        }
+        else
+        {
+            CrystalSelectionData.TargetSceneName = targetSceneName;
+            Debug.Log($"[ExperimentNavigator] 设定目标场景: {targetSceneName}, 进入晶体选择预览");
+            SceneManager.LoadScene(PreviewSceneName);
+        }
     }
 
     /// <summary>
@@ -41,8 +51,17 @@ public static class ExperimentNavigator
             ? CrystalSelectionData.TargetSceneName
             : DefaultLabSceneName;
 
-        Debug.Log($"[ExperimentNavigator] 加载目标场景: {targetScene}");
-        SceneManager.LoadScene(targetScene);
+        // When Scene2 is loaded, load target additively and unload preview
+        Scene labScene = SceneManager.GetSceneByName(Scene2AdditionalSceneNavigator.LabSceneName);
+        if (labScene.isLoaded)
+        {
+            Scene2AdditionalSceneNavigator.GoToExperimentFromPreviewAdditive(targetScene);
+        }
+        else
+        {
+            Debug.Log($"[ExperimentNavigator] 加载目标场景: {targetScene}");
+            SceneManager.LoadScene(targetScene);
+        }
     }
 
     /// <summary>

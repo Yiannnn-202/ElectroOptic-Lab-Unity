@@ -490,7 +490,17 @@ namespace ElectroOptics.UI.CrystalSelector
 
             string dest = CrystalSelectionData.HasTargetScene
                 ? CrystalSelectionData.TargetSceneName : _targetSceneName;
-            SceneManager.LoadScene(dest);
+
+            // Keep Scene2 alive if it's loaded (additive experiment flow)
+            Scene labScene = SceneManager.GetSceneByName(Scene2AdditionalSceneNavigator.LabSceneName);
+            if (labScene.isLoaded)
+            {
+                Scene2AdditionalSceneNavigator.GoToExperimentFromPreviewAdditive(dest);
+            }
+            else
+            {
+                SceneManager.LoadScene(dest);
+            }
         }
 
         private void ResetFields()
