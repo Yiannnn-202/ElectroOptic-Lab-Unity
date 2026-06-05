@@ -45,15 +45,15 @@ namespace ElectroOptics.UI.CrystalSelector
         /// </summary>
         public void OnCardClick()
         {
-            // 取消其他卡片选中
+            // 取消其他卡片选中，选中当前卡片（视觉高亮）
             CrystalCardSelector.DeselectAll();
-
-            // 选中当前卡片
             _currentlySelected = this;
             if (_cardImage != null)
                 _cardImage.color = new Color(0.5f, 0.5f, 0.58f, 1f);
 
-            Debug.Log("[CustomCrystalCard] 已选中自定义晶体，请点击「选择」按钮确认");
+            // 直接打开自定义晶体参数面板
+            Debug.Log("[CustomCrystalCard] 已选中自定义晶体，打开参数面板");
+            CustomCrystalPanel.Show(targetSceneName);
         }
 
         /// <summary>

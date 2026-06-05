@@ -90,18 +90,14 @@ namespace ElectroOptics.UI.CrystalSelector
                 return;
             }
 
-            // 2. 取消其他卡片选中
+            // 2. 取消其他卡片选中，选中当前卡片（视觉高亮）
             DeselectAll();
-
-            // 3. 选中当前卡片（视觉高亮）
             _currentlySelected = this;
             if (_cardImage != null)
                 _cardImage.color = new Color(0.8f, 0.8f, 0.8f, 1f);
 
-            string profileName = !string.IsNullOrEmpty(crystalProfile.crystalName)
-                ? crystalProfile.crystalName
-                : displayName;
-            Debug.Log($"[CrystalCardSelector] 已选中晶体: {profileName}，请点击「选择」按钮确认");
+            // 3. 直接执行选择并跳转场景
+            ExecuteSelection();
         }
 
         #endregion
