@@ -241,7 +241,7 @@ public class UIStateManager : MonoBehaviour
             globalLineSerie.lineType = LineType.Smooth;
             globalLineSerie.symbol.show = false;
             globalLineSerie.lineStyle.color = new Color32(135, 206, 235, 255);
-            globalLineSerie.lineStyle.width = 1f;
+            globalLineSerie.lineStyle.width = 2f;
             globalLineSerie.animation.enable = false;
 
             // Series 2 + i*2: 每个数据点的X轴垂线, Series 3 + i*2: Y轴垂线

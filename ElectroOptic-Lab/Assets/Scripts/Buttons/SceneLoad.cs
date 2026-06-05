@@ -81,4 +81,12 @@ public class SceneLoad: MonoBehaviour
         const string scene3 = "Scene3_UIRebuild";
         ExperimentNavigator.SetDestinationAndGoToPreview(scene3);
     }
+
+    /// <summary>
+    /// Scene2-preview 中「选择」按钮：确认当前选中的晶体卡片并跳转场景
+    /// </summary>
+    public void OnClick_Btn_ConfirmSelection()
+    {
+        ElectroOptics.UI.CrystalSelector.CrystalCardSelector.ConfirmSelection();
+    }
 }
