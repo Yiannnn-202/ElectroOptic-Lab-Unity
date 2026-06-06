@@ -7823,7 +7823,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: 90
   detectionRadius: 0.5
-  snapYOffset: -0.03
+  snapYOffset: 0.01
   isSelected: 0
   isOnRail: 0
 --- !u!65 &1175531791
@@ -25013,7 +25013,7 @@ MonoBehaviour:
   moveSpeed: 2
   snapRotationY: 90
   detectionRadius: 0.5
-  snapYOffset: -0.05
+  snapYOffset: -0.03
   isSelected: 0
   isOnRail: 0
 --- !u!65 &1895794406
