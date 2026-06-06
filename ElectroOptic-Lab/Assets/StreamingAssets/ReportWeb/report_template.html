@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>晶体电光效应虚拟实验报告</title>
+  <link rel="stylesheet" href="./report.css">
+</head>
+<body>
+  <div class="toolbar">
+    <button id="editToggle" class="tool-btn" title="编辑报告">&#9998;</button>
+    <button id="exportBtn" class="tool-btn" title="导出 HTML">&#128190;</button>
+    <button id="pdfBtn" class="tool-btn" title="导出 PDF">&#128196;</button>
+  </div>
+  <main class="page">
+    <header class="cover">
+      <h1>晶体电光效应虚拟实验报告</h1>
+      <p class="subtitle">Electro-Optic Effect Virtual Experiment Report</p>
+      <div class="meta-grid">
+        <div><strong>实验环境</strong><span>晶体电光效应虚拟仿真实验平台</span></div>
+        <div><strong>实验晶体</strong><span>填入具体晶体</span></div>
+        <div><strong>报告类型</strong><span>虚拟仿真实验报告</span></div>
+      </div>
+    </header>
+
+    <section>
+      <h2>一、实验目的</h2>
+      <ol>
+        <li>掌握晶体线性电光效应（普克尔效应）的核心原理，理解电光调制对光传播特性的调控机制。</li>
+        <li>观测正交偏振光路下，输出光强随外加驱动电压的变化规律，明确电光调制的传输特性。</li>
+        <li>分别采用极值法与交流调制法测量晶体的半波电压，对比两种方法的测量精度、优缺点及适用场景。</li>
+        <li>完成电光调制的光通信演示实验，验证电光效应在光信号传输中的工程应用，加深对光纤通信核心技术的理解。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>二、实验背景与意义</h2>
+      <p>电光效应是光电子技术的核心物理效应之一，其中线性电光效应因响应速度快、调制带宽大、功耗低的优势，成为现代光通信、激光雷达、量子信息等领域的核心技术基础。电光调制器作为光通信系统的核心器件，可通过电场快速调控光的强度、相位与偏振态，实现电信号到光信号的高速转换，支撑了长距离、大容量光纤通信系统的运行。</p>
+      <p>本实验通过虚拟仿真平台完成电光效应的核心测量与应用演示，可规避高压操作、精密光路调节的实操风险，同时完整复现电光调制的物理过程，为掌握光电子器件的工作原理与工程应用提供实验支撑。</p>
+    </section>
+
+    <section>
+      <h2>三、实验原理</h2>
+
+      <h3>3.1 晶体的线性电光效应</h3>
+      <p>（请简述线性电光效应（普克尔效应）的基本概念，说明本实验所用晶体的特性）</p>
+
+      <h3>3.2 电光调制的光强传输公式</h3>
+      <p>（请简述正交偏振光路的结构：激光器 → 起偏器 → 电光晶体 → 检偏器 → 光电探测器，并说明起偏器与检偏器的作用）</p>
+      <div class="formula-box">
+        <strong>核心公式</strong>
+        <p>两束光的相位差由外加电压决定，后续可补入相位差公式和透过率公式。</p>
+        <p class="formula-text">δ = πU / Vπ</p>
+        <p class="formula-text">I / I₀ = sin²(δ / 2) = sin²(πU / 2Vπ)</p>
+      </div>
+      <p>该式为电光调制的核心传输公式，表明输出光强随外加电压呈正弦平方规律周期性变化。</p>
+
+      <h3>3.3 半波电压的物理定义</h3>
+      <p>（请给出半波电压 V<sub>π</sub> 的定义，并说明其与相邻极值点电压差的关系）</p>
+
+      <h3>3.4 两种半波电压测量方法的原理</h3>
+      <h4>（1）极值法（直流测量法）</h4>
+      <p>（请简述极值法的测量原理与操作要点）</p>
+      <h4>（2）交流调制法（动态测量法）</h4>
+      <p>（请简述交流调制法的测量原理，并解释倍频失真现象如何用于确定极值点位置）</p>
+    </section>
+
+    <section>
+      <h2>四、实验步骤</h2>
+
+      <h3>4.1 光路系统调节</h3>
+      <ol>
+        <li>（激光器调节要点）</li>
+        <li>（起偏器与检偏器正交调节）</li>
+        <li>（电光晶体摆放与角度对准）</li>
+        <li>（光电探测器校准）</li>
+      </ol>
+
+      <h3>4.2 极值法测量半波电压</h3>
+      <ol>
+        <li>（简述直流电压调节范围与步长设置）</li>
+        <li>（简述数据记录流程）</li>
+        <li>（简述基于测量数据计算半波电压的方法）</li>
+      </ol>
+
+      <h3>4.3 交流调制法测量半波电压</h3>
+      <ol>
+        <li>（简述信号源与示波器连接方式）</li>
+        <li>（简述倍频失真点的判断与记录方法）</li>
+        <li>（简述半波电压计算方法）</li>
+      </ol>
+
+      <h3>4.4 光通信演示拓展实验</h3>
+      <ol>
+        <li>（简述实验操作与现象）</li>
+        <li>（简述所验证的物理原理）</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>五、原始实验数据</h2>
+
+      <h3>5.0 观察锥光干涉图</h3>
+
+      <div class="result-input-group">
+        <label>晶体类型：</label>
+        <input type="text" class="vpi-input" id="conoscopicCrystal" placeholder="如 LiNbO₃" style="width:200px" />
+      </div>
+
+      <div class="result-input-group">
+        <label style="align-self:flex-start; padding-top:10px;">锥光干涉图：</label>
+        <div style="flex:1"></div>
+      </div>
+
+      <div class="image-upload-zone" id="conoscopicZone">
+        <input type="file" accept="image/*" class="file-input" hidden />
+        <div class="upload-drop-area">
+          <span class="upload-icon">📷</span>
+          <span class="upload-text">点击上传或拖拽锥光干涉图到此处</span>
+          <span class="upload-hint">支持 JPG、PNG 格式</span>
+        </div>
+        <div class="upload-preview-wrap" style="display:none">
+          <img class="preview-img" alt="锥光干涉图预览" />
+          <button type="button" class="remove-img-btn" title="删除图片">✕</button>
+          <span class="preview-label">锥光干涉图</span>
+        </div>
+      </div>
+
+      <h3>5.1 极值法：直流偏置电压与光功率测量数据</h3>
+
+      <div class="image-upload-zone" id="dcCurveZone">
+        <input type="file" accept="image/*" class="file-input" hidden />
+        <div class="upload-drop-area">
+          <span class="upload-icon">📷</span>
+          <span class="upload-text">点击上传或拖拽光功率-电压特性曲线图到此处</span>
+          <span class="upload-hint">支持 JPG、PNG 格式</span>
+        </div>
+        <div class="upload-preview-wrap" style="display:none">
+          <img class="preview-img" alt="曲线图预览" />
+          <button type="button" class="remove-img-btn" title="删除图片">✕</button>
+          <span class="preview-label">光功率-电压特性曲线图</span>
+        </div>
+      </div>
+
+      <table class="data-table" id="dcDataTable">
+        <thead>
+          <tr>
+            <th class="num-header">序号</th>
+            <th class="data-header">极值点 1 对应电压 U₁ (V)</th>
+            <th class="data-header">光功率 P₁ (mW)</th>
+            <th class="data-header">极值点 2 对应电压 U₂ (V)</th>
+            <th class="data-header">光功率 P₂ (mW)</th>
+            <th class="data-header">|U₂ − U₁| (V)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" class="add-row-btn" data-table="dcDataTable">+ 添加数据行</button>
+
+      <div class="result-input-group">
+        <label>极值法半波电压 V<sub>π</sub> = </label>
+        <input type="text" class="vpi-input" id="dcVpi" placeholder="请输入计算值" />
+        <span class="unit">V</span>
+      </div>
+
+      <h3>5.2 交流调制法：倍频失真点测量记录</h3>
+
+      <div class="image-upload-zone" id="acWaveZone">
+        <input type="file" accept="image/*" class="file-input" hidden />
+        <div class="upload-drop-area">
+          <span class="upload-icon">📷</span>
+          <span class="upload-text">点击上传或拖拽倍频失真波形截图到此处</span>
+          <span class="upload-hint">支持 JPG、PNG 格式，请上传示波器倍频现象截图</span>
+        </div>
+        <div class="upload-preview-wrap" style="display:none">
+          <img class="preview-img" alt="波形预览" />
+          <button type="button" class="remove-img-btn" title="删除图片">✕</button>
+          <span class="preview-label">倍频失真波形截图</span>
+        </div>
+      </div>
+
+      <table class="data-table" id="acDataTable">
+        <thead>
+          <tr>
+            <th class="num-header">序号</th>
+            <th class="data-header">倍频电压 U<sub>f1</sub> (V)</th>
+            <th class="data-header">倍频电压 U<sub>f2</sub> (V)</th>
+            <th class="data-header">|U<sub>f2</sub> − U<sub>f1</sub>| (V)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" class="add-row-btn" data-table="acDataTable">+ 添加记录行</button>
+
+      <div class="result-input-group">
+        <label>交流调制法半波电压 V<sub>π</sub> = </label>
+        <input type="text" class="vpi-input" id="acVpi" placeholder="请输入计算值" />
+        <span class="unit">V</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>六、数据处理与结果分析</h2>
+
+      <h3>6.1 极值法半波电压计算</h3>
+      <p>根据测量数据，绘制光功率 - 电压特性曲线，定位得到光强极小值点与光强极大值点。根据半波电压定义，相邻极值点的电压差即为单次测量的半波电压，取平均值得到极值法测量结果。</p>
+      <p class="cross-ref">（曲线图已上传至第 5.1 节，极值法半波电压已填入第 5.1 节下方）</p>
+
+      <h3>6.2 两种方法结果汇总与误差分析</h3>
+      <p>根据倍频失真点的测量结果，相邻倍频失真点的电压差即为单次测量的半波电压，取平均值得到交流调制法测量结果。将两种方法的测量结果与晶体半波电压理论标称值进行比较，计算相对误差。</p>
+
+      <table class="data-table readonly" id="resultsTable">
+        <thead>
+          <tr><th>测量方法</th><th>半波电压 V<sub>π</sub> (V)</th><th>相对误差 (%)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>极值法</td><td class="readonly-cell" id="summaryDcVpi">—</td><td class="readonly-cell" id="summaryDcError">—</td></tr>
+          <tr><td>交流调制法</td><td class="readonly-cell" id="summaryAcVpi">—</td><td class="readonly-cell" id="summaryAcError">—</td></tr>
+        </tbody>
+      </table>
+
+      <div class="result-input-group">
+        <label>晶体半波电压理论标称值 V<sub>π,theory</sub> = </label>
+        <input type="text" class="vpi-input" id="theoryVpi" placeholder="请输入理论值" />
+        <span class="unit">V</span>
+      </div>
+
+      <div class="result-input-group">
+        <label>极值法相对误差 = </label>
+        <input type="text" class="vpi-input" id="dcErrorRate" placeholder="计算值" />
+        <span class="unit">%</span>
+      </div>
+
+      <div class="result-input-group">
+        <label>交流调制法相对误差 = </label>
+        <input type="text" class="vpi-input" id="acErrorRate" placeholder="计算值" />
+        <span class="unit">%</span>
+      </div>
+
+      <h3>6.3 调制特性与倍频失真分析</h3>
+      <ol>
+        <li>电光调制的特性曲线呈周期性正弦平方分布，与理论传输公式匹配。光功率随电压变化呈现周期性增强与减弱。</li>
+        <li>倍频失真的本质是调制曲线极值点处的非线性：当工作点位于极值点时，光强对电压的一阶导数为 0，二阶导数主导输出，因此输入正弦信号时，输出信号以二次谐波为主，出现倍频现象。该现象可精准定位调制曲线的极值点，避免极值法中人工判断光强极值的主观误差。</li>
+      </ol>
+
+      <h3>6.4 误差分析</h3>
+      <p>（请从系统误差和偶然误差两个方面，分析本实验可能的误差来源及其对测量结果的影响。提示：可考虑偏振片消光比、晶体轴向对准偏差、仪器精度、温度漂移、环境干扰、人工读数误差等因素，约200字）</p>
+    </section>
+
+    <section>
+      <h2>七、实验结论</h2>
+      <ol>
+        <li>本实验完整验证了晶体的线性电光效应，观测到正交偏振光路下，输出光强随外加驱动电压呈正弦平方规律的周期性变化，明确了电光调制的核心传输特性。</li>
+        <li>采用极值法与交流调制法完成了晶体半波电压的测量，两种方法的测量结果应与晶体理论标称值吻合，验证两种测量方法的准确性。</li>
+        <li>极值法原理直观、操作简单，适用于电光晶体半波电压的静态标定；交流调制法通过倍频失真现象精准定位极值点，抗干扰能力强，适用于电光调制器动态性能测试与在线校准。</li>
+        <li>光通信演示实验验证了电光调制技术的工程应用价值：当工作点设置在线性区时，电光调制可实现音频信号的无失真传输，遮挡光路后信号传输中断，直观复现光纤通信系统中"电 - 光 - 电"的信号转换与传输过程。</li>
+      </ol>
+
+      <div class="conclusion-summary">
+        <h3>最终实验结果</h3>
+        <div class="conclusion-grid">
+          <div class="conclusion-item">
+            <span class="conclusion-label">极值法半波电压 V<sub>π</sub></span>
+            <span class="conclusion-value" id="finalDcVpi">—</span>
+          </div>
+          <div class="conclusion-item">
+            <span class="conclusion-label">交流调制法半波电压 V<sub>π</sub></span>
+            <span class="conclusion-value" id="finalAcVpi">—</span>
+          </div>
+          <div class="conclusion-item">
+            <span class="conclusion-label">理论标称值 V<sub>π,theory</sub></span>
+            <span class="conclusion-value" id="finalTheoryVpi">—</span>
+          </div>
+          <div class="conclusion-item">
+            <span class="conclusion-label">极值法相对误差</span>
+            <span class="conclusion-value" id="finalDcError">—</span>
+          </div>
+          <div class="conclusion-item">
+            <span class="conclusion-label">交流调制法相对误差</span>
+            <span class="conclusion-value" id="finalAcError">—</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="./report_template.js"></script>
+</body>
+</html>

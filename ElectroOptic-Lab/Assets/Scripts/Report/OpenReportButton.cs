@@ -9,18 +9,18 @@ public class OpenReportButton : MonoBehaviour
         string reportPath = Path.Combine(
             Application.streamingAssetsPath,
             "ReportWeb",
-            "report.html"
+            "report_template.html"
         );
 
         if (!File.Exists(reportPath))
         {
-            Debug.LogError("实验报告文件不存在：" + reportPath);
+            Debug.LogError("实锟介报锟斤拷锟侥硷拷锟斤拷锟斤拷锟节ｏ拷" + reportPath);
             return;
         }
 
         string reportUrl = new Uri(reportPath).AbsoluteUri;
 
-        Debug.Log("正在打开实验报告：" + reportUrl);
+        Debug.Log("锟斤拷锟节达拷实锟介报锟芥：" + reportUrl);
         Application.OpenURL(reportUrl);
     }
 }
