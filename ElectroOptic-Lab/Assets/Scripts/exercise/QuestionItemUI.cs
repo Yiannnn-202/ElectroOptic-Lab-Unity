@@ -4,18 +4,18 @@ using TMPro;
 
 public class QuestionItemUI : MonoBehaviour
 {
-    [Header("UI ÎÄ±¾×é¼þ")]
+    [Header("UI ï¿½Ä±ï¿½ï¿½ï¿½ï¿½")]
     public TMP_Text questionText;
     public TMP_Text optionAText, optionBText, optionCText, optionDText;
     public TMP_Text explanationText;
 
-    [Header("±³¾°Í¼")]
+    [Header("ï¿½ï¿½ï¿½ï¿½Í¼")]
     public Image bgA; public Image bgB; public Image bgC; public Image bgD;
 
-    [Header("°´Å¥×é¼þ")]
+    [Header("ï¿½ï¿½Å¥ï¿½ï¿½ï¿½")]
     public Button btnA; public Button btnB; public Button btnC; public Button btnD;
 
-    [Header("ÑÕÉ«ÅäÖÃ")]
+    [Header("ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½")]
     public Color normalColor = new Color(0.95f, 0.95f, 0.95f);
     public Color selectedColor = new Color(0.6f, 0.8f, 1f);
 
@@ -52,27 +52,27 @@ public class QuestionItemUI : MonoBehaviour
         if (bgD) bgD.color = (currentSelected == 3) ? selectedColor : normalColor;
     }
 
-    // ====== ÐÞ¸ÄÁËÕâÀï£º´«ÈëÕýÈ·´ð°¸µÄË÷Òý ======
+    // ====== ï¿½Þ¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï£ºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È·ï¿½ð°¸µï¿½ï¿½ï¿½ï¿½ï¿½ ======
     public void RevealExplanation(string expText, int correctIdx)
     {
-        // ËøËÀËÄ¸ö°´Å¥
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ä¸ï¿½ï¿½ï¿½Å¥
         btnA.interactable = false; btnB.interactable = false;
         btnC.interactable = false; btnD.interactable = false;
 
-        // ÅÐ¶¨¶Ô´í
+        // ï¿½Ð¶ï¿½ï¿½Ô´ï¿½
         bool isCorrect = (currentSelected == correctIdx);
 
-        // ·­Òë ABCD
+        // ï¿½ï¿½ï¿½ï¿½ ABCD
         string[] letters = { "A", "B", "C", "D" };
         string correctLetter = letters[correctIdx];
-        string userLetter = (currentSelected == -1) ? "Î´×÷´ð" : letters[currentSelected];
+        string userLetter = (currentSelected == -1) ? "Î´ï¿½ï¿½ï¿½ï¿½" : letters[currentSelected];
 
-        // Æ´½ÓÈ«ÐÂµÄÌáÊ¾ÎÄ±¾
+        // Æ´ï¿½ï¿½È«ï¿½Âµï¿½ï¿½ï¿½Ê¾ï¿½Ä±ï¿½
         string resultText = isCorrect
-            ? $"<color=#00AA00>¡¾»Ø´ðÕýÈ·¡¿</color>  <color=#333333>ÕýÈ·´ð°¸£º{correctLetter}   ÄãµÄ´ð°¸£º{userLetter}</color>\n"
-            : $"<color=#FF0000>¡¾»Ø´ð´íÎó¡¿</color>  <color=#333333>ÕýÈ·´ð°¸£º{correctLetter}   ÄãµÄ´ð°¸£º{userLetter}</color>\n";
+            ? $"<color=#00AA00>ï¿½ï¿½ï¿½Ø´ï¿½ï¿½ï¿½È·ï¿½ï¿½</color>  <color=#333333>ï¿½ï¿½È·ï¿½ð°¸£ï¿½{correctLetter}   ï¿½ï¿½Ä´ð°¸£ï¿½{userLetter}</color>\n"
+            : $"<color=#FF0000>ï¿½ï¿½ï¿½Ø´ï¿½ï¿½ï¿½ï¿½</color>  <color=#333333>ï¿½ï¿½È·ï¿½ð°¸£ï¿½{correctLetter}   ï¿½ï¿½Ä´ð°¸£ï¿½{userLetter}</color>\n";
 
-        explanationText.text = resultText + "<b>½âÎö£º</b>" + expText;
+        explanationText.text = resultText + "<b>ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½</b>" + expText;
         explanationText.gameObject.SetActive(true);
     }
 }
