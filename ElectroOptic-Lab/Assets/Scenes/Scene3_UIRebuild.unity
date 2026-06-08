@@ -8949,8 +8949,8 @@ RectTransform:
   - {fileID: 824478713}
   - {fileID: 613257049}
   - {fileID: 1011135785}
-  - {fileID: 484581290}
   - {fileID: 1132932500}
+  - {fileID: 484581290}
   m_Father: {fileID: 1598429626}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -27751,9 +27751,9 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 0.8901961, g: 0.91764706, b: 0.9529412, a: 1}
-    m_HighlightedColor: {r: 0.9411765, g: 0.9607843, b: 0.9843137, a: 1}
-    m_PressedColor: {r: 0.7882353, g: 0.8352941, b: 0.89411765, a: 1}
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.79514813, g: 0.79514813, b: 0.79514813, a: 1}
+    m_PressedColor: {r: 0.61185974, g: 0.61185974, b: 0.61185974, a: 1}
     m_SelectedColor: {r: 0.8901961, g: 0.91764706, b: 0.9529412, a: 1}
     m_DisabledColor: {r: 0.8235294, g: 0.8509804, b: 0.8862745, a: 0.5019608}
     m_ColorMultiplier: 1
@@ -27783,7 +27783,7 @@ MonoBehaviour:
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
-          m_StringArgument:
+          m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
 --- !u!114 &768318429
@@ -42770,8 +42770,8 @@ RectTransform:
   - {fileID: 1516583120}
   - {fileID: 1994611100}
   - {fileID: 540342636}
-  - {fileID: 1408241024}
   - {fileID: 1535032113}
+  - {fileID: 1408241024}
   m_Father: {fileID: 828342277}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
@@ -44166,7 +44166,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.3254902, g: 0.4745098, b: 0.7490196, a: 1}
+  m_Color: {r: 0.34117648, g: 0.54901963, b: 0.8392157, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
