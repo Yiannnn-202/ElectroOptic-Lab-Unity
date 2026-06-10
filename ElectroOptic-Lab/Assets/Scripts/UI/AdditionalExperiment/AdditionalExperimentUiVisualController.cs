@@ -6,10 +6,6 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
 public enum AdditionalConoscopicMode
 {
     Uniaxial = 0,
@@ -504,11 +500,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private GameObject CreateParamRow(Transform parent, string name)
     {
-#if UNITY_EDITOR
-        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/ParamRow_Template.prefab");
+        GameObject prefab = Resources.Load<GameObject>("Prefabs/ParamRow_Template");
         if (prefab != null)
         {
-            GameObject instance = PrefabUtility.InstantiatePrefab(prefab, parent) as GameObject;
+            GameObject instance = Instantiate(prefab, parent);
             if (instance != null)
             {
                 instance.name = name;
@@ -516,7 +511,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
                 return instance;
             }
         }
-#endif
+
         return CreateRectObject(name, parent);
     }
 
@@ -1093,9 +1088,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             return chineseFont;
         }
 
-#if UNITY_EDITOR
-        chineseFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Arts/Fonts/SIMHEI SDF.asset");
-#endif
+        chineseFont = Resources.Load<TMP_FontAsset>("Fonts/SIMHEI SDF");
         return chineseFont;
     }
 

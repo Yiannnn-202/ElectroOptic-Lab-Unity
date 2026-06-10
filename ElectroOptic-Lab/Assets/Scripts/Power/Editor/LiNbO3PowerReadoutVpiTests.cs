@@ -6,7 +6,7 @@ using UnityEngine;
 
 public static class LiNbO3PowerReadoutVpiTests
 {
-    private const string ProfilePath = "Assets/LiNbO3_Profile.asset";
+    private const string ProfilePath = "Assets/Resources/Profiles/LiNbO3_Profile.asset";
     private const int SampleCount = 1201;
     private const float RelativeTolerance = 0.01f;
 

@@ -9,8 +9,8 @@ using ElectroOptics.ConoscopicAnalysis;
 public static class ConoscopicJonesVisualizationSceneBuilder
 {
     private const string ScenePath = "Assets/Scenes/ConoscopicJonesIntensitySurface_Test.unity";
-    private const string LiNbO3ProfilePath = "Assets/LiNbO3_Profile.asset";
-    private const string KtpProfilePath = "Assets/KTP_Profile.asset";
+    private const string LiNbO3ProfilePath = "Assets/Resources/Profiles/LiNbO3_Profile.asset";
+    private const string KtpProfilePath = "Assets/Resources/Profiles/KTP_Profile.asset";
 
     [MenuItem("ElectroOptics/Tests/Create Conoscopic Jones Visualization Scene")]
     public static void CreateScene()

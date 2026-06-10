@@ -6,8 +6,8 @@ using ElectroOptics.ConoscopicAnalysis;
 
 public static class ConoscopicIntensityCoreTests
 {
-    private const string LiNbO3ProfilePath = "Assets/LiNbO3_Profile.asset";
-    private const string KtpProfilePath = "Assets/KTP_Profile.asset";
+    private const string LiNbO3ProfilePath = "Assets/Resources/Profiles/LiNbO3_Profile.asset";
+    private const string KtpProfilePath = "Assets/Resources/Profiles/KTP_Profile.asset";
     private static int _passed;
     private static int _failed;
 

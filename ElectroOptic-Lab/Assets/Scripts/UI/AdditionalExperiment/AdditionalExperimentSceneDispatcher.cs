@@ -4,16 +4,12 @@ using ElectroOptics.ConoscopicAnalysis;
 using UnityEngine;
 using UnityEngine.UI;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
 [DisallowMultipleComponent]
 public sealed class AdditionalExperimentSceneDispatcher : MonoBehaviour
 {
     private const string LogPrefix = "[AdditionalExperimentSceneDispatcher]";
-    private const string LiNbO3ProfilePath = "Assets/LiNbO3_Profile.asset";
-    private const string KtpProfilePath = "Assets/KTP_Profile.asset";
+    private const string LiNbO3ProfilePath = "Profiles/LiNbO3_Profile";
+    private const string KtpProfilePath = "Profiles/KTP_Profile";
 
     [Header("Scene References")]
     [SerializeField] private AdditionalExperimentUiVisualController uiController;
@@ -204,17 +200,15 @@ public sealed class AdditionalExperimentSceneDispatcher : MonoBehaviour
             core = FindFirstObjectByType<ConoscopicJonesGpuCore>();
         }
 
-#if UNITY_EDITOR
         if (liNbO3Profile == null)
         {
-            liNbO3Profile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(LiNbO3ProfilePath);
+            liNbO3Profile = Resources.Load<CrystalProfile>(LiNbO3ProfilePath);
         }
 
         if (ktpProfile == null)
         {
-            ktpProfile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(KtpProfilePath);
+            ktpProfile = Resources.Load<CrystalProfile>(KtpProfilePath);
         }
-#endif
     }
 
     private void EnsureRuntimeObjects()
@@ -319,20 +313,18 @@ public sealed class AdditionalExperimentSceneDispatcher : MonoBehaviour
         return null;
     }
 
-#if UNITY_EDITOR
     private void OnValidate()
     {
         autoRecalculateDelaySeconds = Mathf.Max(0f, autoRecalculateDelaySeconds);
         interactiveRecalculateIntervalSeconds = Mathf.Max(0f, interactiveRecalculateIntervalSeconds);
         if (liNbO3Profile == null)
         {
-            liNbO3Profile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(LiNbO3ProfilePath);
+            liNbO3Profile = Resources.Load<CrystalProfile>(LiNbO3ProfilePath);
         }
 
         if (ktpProfile == null)
         {
-            ktpProfile = AssetDatabase.LoadAssetAtPath<CrystalProfile>(KtpProfilePath);
+            ktpProfile = Resources.Load<CrystalProfile>(KtpProfilePath);
         }
     }
-#endif
 }

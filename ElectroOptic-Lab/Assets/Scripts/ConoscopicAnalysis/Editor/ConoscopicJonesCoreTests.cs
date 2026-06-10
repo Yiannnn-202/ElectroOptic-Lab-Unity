@@ -7,8 +7,8 @@ using ElectroOptics.ConoscopicAnalysis;
 
 public static class ConoscopicJonesCoreTests
 {
-    private const string LiNbO3ProfilePath = "Assets/LiNbO3_Profile.asset";
-    private const string KtpProfilePath = "Assets/KTP_Profile.asset";
+    private const string LiNbO3ProfilePath = "Assets/Resources/Profiles/LiNbO3_Profile.asset";
+    private const string KtpProfilePath = "Assets/Resources/Profiles/KTP_Profile.asset";
     private const float EoSmoothElectricFieldVm = 15000000f;
     private const float EoSmoothPhaseScale = 0.05f;
     private const float EoSmoothAntiAliasStrength = 3f;
