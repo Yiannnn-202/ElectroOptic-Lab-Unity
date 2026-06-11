@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using System.Collections;
+using ElectroOptics.WebStreaming;
 
 // ZYX 最终完美版：逻辑与表现分离，颜色完全交由 Outline 组件自己控制
 public class RotateStandController : MonoBehaviour
@@ -66,8 +67,8 @@ public class RotateStandController : MonoBehaviour
     private void HandleRotation()
     {
         float direction = 0f;
-        if (Input.GetKey(KeyCode.A)) direction = 1f;
-        else if (Input.GetKey(KeyCode.D)) direction = -1f;
+        if (RemoteInputRelay.GetKey(KeyCode.A)) direction = 1f;
+        else if (RemoteInputRelay.GetKey(KeyCode.D)) direction = -1f;
 
         if (direction != 0f)
         {
@@ -86,7 +87,7 @@ public class RotateStandController : MonoBehaviour
 
     private IEnumerator HandleClickWithDelay()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (RemoteInputRelay.GetMouseButtonDown(0))
         {
             isProcessingClick = true;
             yield return null;
@@ -158,7 +159,7 @@ public class RotateStandController : MonoBehaviour
 
     private bool IsClickingThisRotateStand()
     {
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Ray ray = Camera.main.ScreenPointToRay(RemoteInputRelay.MousePosition);
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
             // 检查点击的是否是自己或子物体

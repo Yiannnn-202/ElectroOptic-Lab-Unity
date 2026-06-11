@@ -1,4 +1,5 @@
 using UnityEngine;
+using ElectroOptics.WebStreaming;
 
 // 键盘控制：拾取移动，点击放下/吸附导轨，双击再次拾起
 public class OpticalComponent : MonoBehaviour
@@ -91,7 +92,7 @@ public class OpticalComponent : MonoBehaviour
         {
             HandleKeyboardMove();
 
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (RemoteInputRelay.GetKeyDown(KeyCode.Space))
             {
                 TryDrop();
             }
@@ -119,8 +120,8 @@ public class OpticalComponent : MonoBehaviour
 
     void HandleKeyboardMove()
     {
-        float h = Input.GetAxis("Vertical");
-        float v = Input.GetAxis("Horizontal");
+        float h = RemoteInputRelay.GetAxis("Vertical");
+        float v = RemoteInputRelay.GetAxis("Horizontal");
 
         Vector3 movement = new Vector3(-h, 0, v) * moveSpeed * Time.deltaTime;
         transform.Translate(movement, Space.World);

@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using System.Collections;
+using ElectroOptics.WebStreaming;
 
 /// <summary>
 /// 激光器选中状态控制器
@@ -30,12 +31,12 @@ public class LaserStateController : MonoBehaviour
     void Update()
     {
         // 监听鼠标左键单击
-        if (Input.GetMouseButtonDown(0))
+        if (RemoteInputRelay.GetMouseButtonDown(0))
         {
             // 防 UI 穿透
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            Ray ray = Camera.main.ScreenPointToRay(RemoteInputRelay.MousePosition);
 
             // 使用 RaycastAll 确保能穿透透明物体点中模型
             RaycastHit[] hits = Physics.RaycastAll(ray);

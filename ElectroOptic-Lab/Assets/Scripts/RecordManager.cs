@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 using UnityEngine.SceneManagement;
+using ElectroOptics.WebStreaming;
 
 public class RecordManager : MonoBehaviour, IVoltageSource
 {
@@ -117,7 +118,7 @@ public class RecordManager : MonoBehaviour, IVoltageSource
         if (gameObject.scene != SceneManager.GetActiveScene())
             return;
 
-        if (isMouseHolding || Input.GetKey(KeyCode.R))
+        if (isMouseHolding || RemoteInputRelay.GetKey(KeyCode.R))
         {
             float dir = 0f;
             if (isIncSelected) dir = 1f;
@@ -130,7 +131,7 @@ public class RecordManager : MonoBehaviour, IVoltageSource
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.Backspace))
+        if (RemoteInputRelay.GetKeyDown(KeyCode.Backspace))
         {
             DeleteLastRecord();
         }

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
+using ElectroOptics.WebStreaming;
 
 /// <summary>
 /// 晶体状态控制器 (纯净单击变色版)
@@ -28,12 +29,12 @@ public class CrystalStateController : MonoBehaviour
     void Update()
     {
         // 纯粹的单击检测
-        if (Input.GetMouseButtonDown(0))
+        if (RemoteInputRelay.GetMouseButtonDown(0))
         {
             // 防止点到 UI 上触发误操作
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            Ray ray = Camera.main.ScreenPointToRay(RemoteInputRelay.MousePosition);
 
             // 射线穿透检测
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, Physics.AllLayers))

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
+using ElectroOptics.WebStreaming;
 
 /// <summary>
 /// 接收器专属状态控制器 (主控终端模式)
@@ -27,12 +28,12 @@ public class ReceiverStateController : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (RemoteInputRelay.GetMouseButtonDown(0))
         {
             if (ExperimentCameraController.IsInCloseUpView) return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            Ray ray = Camera.main.ScreenPointToRay(RemoteInputRelay.MousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, Physics.AllLayers))
             {
                 if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform))

@@ -1,5 +1,6 @@
 using ElectroOptics.Experiment.Renderer;
 using UnityEngine;
+using ElectroOptics.WebStreaming;
 
 /// <summary>
 /// Bridges Scene2 polarizer/analyzer rotation to the conoscopic texture renderer.
@@ -134,20 +135,20 @@ public class PolarizerConoscopicBridge : MonoBehaviour
 
         float step = KeyboardStep;
         // Speed up with Shift
-        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+        if (RemoteInputRelay.GetKey(KeyCode.LeftShift) || RemoteInputRelay.GetKey(KeyCode.RightShift))
         {
             step *= 6f;
         }
 
-        if (Input.GetKey(KeyCode.Q)) _testPolarizerAngle -= step;
-        if (Input.GetKey(KeyCode.E)) _testPolarizerAngle += step;
-        if (Input.GetKey(KeyCode.Z)) _testAnalyzerAngle -= step;
-        if (Input.GetKey(KeyCode.X)) _testAnalyzerAngle += step;
+        if (RemoteInputRelay.GetKey(KeyCode.Q)) _testPolarizerAngle -= step;
+        if (RemoteInputRelay.GetKey(KeyCode.E)) _testPolarizerAngle += step;
+        if (RemoteInputRelay.GetKey(KeyCode.Z)) _testAnalyzerAngle -= step;
+        if (RemoteInputRelay.GetKey(KeyCode.X)) _testAnalyzerAngle += step;
 
         // Preset shortcuts
-        if (Input.GetKeyDown(KeyCode.Alpha1)) { _testPolarizerAngle = 0f; _testAnalyzerAngle = 90f; }   // crossed
-        if (Input.GetKeyDown(KeyCode.Alpha2)) { _testPolarizerAngle = 0f; _testAnalyzerAngle = 0f; }    // parallel
-        if (Input.GetKeyDown(KeyCode.Alpha3)) { _testPolarizerAngle = 45f; _testAnalyzerAngle = 135f; }  // crossed at 45°
+        if (RemoteInputRelay.GetKeyDown(KeyCode.Alpha1)) { _testPolarizerAngle = 0f; _testAnalyzerAngle = 90f; }   // crossed
+        if (RemoteInputRelay.GetKeyDown(KeyCode.Alpha2)) { _testPolarizerAngle = 0f; _testAnalyzerAngle = 0f; }    // parallel
+        if (RemoteInputRelay.GetKeyDown(KeyCode.Alpha3)) { _testPolarizerAngle = 45f; _testAnalyzerAngle = 135f; }  // crossed at 45°
     }
 
     // ── Logging ────────────────────────────────────────────────────
