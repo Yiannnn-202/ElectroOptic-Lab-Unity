@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using UnityEngine.SceneManagement;
-using ElectroOptics.WebStreaming;
 
 /// <summary>
 /// 光功率计读数控制 (方案 A：完全独立版)
@@ -98,10 +97,10 @@ public class PowerReadoutController : MonoBehaviour, IPowerReadoutSource
     private void HandleVirtualAdjustment(ref float devX, ref float devY)
     {
         float dt = Time.deltaTime * adjustSpeed;
-        if (RemoteInputRelay.GetKey(KeyCode.W)) devY += dt;
-        if (RemoteInputRelay.GetKey(KeyCode.S)) devY -= dt;
-        if (RemoteInputRelay.GetKey(KeyCode.A)) devX -= dt;
-        if (RemoteInputRelay.GetKey(KeyCode.D)) devX += dt;
+        if (Input.GetKey(KeyCode.W)) devY += dt;
+        if (Input.GetKey(KeyCode.S)) devY -= dt;
+        if (Input.GetKey(KeyCode.A)) devX -= dt;
+        if (Input.GetKey(KeyCode.D)) devX += dt;
 
         devX = Mathf.Clamp(devX, -0.5f, 0.5f);
         devY = Mathf.Clamp(devY, -0.5f, 0.5f);

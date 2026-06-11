@@ -3,7 +3,6 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using ElectroOptics.DataTransfer;
 using ElectroOptics.Experiment.Controller;
-using ElectroOptics.WebStreaming;
 
 namespace ElectroOptics.UI.ControlPanel
 {
@@ -92,7 +91,7 @@ namespace ElectroOptics.UI.ControlPanel
 
         private System.Collections.IEnumerator HandleClickDetection()
         {
-            if (RemoteInputRelay.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0))
             {
                 _isProcessingClick = true;
                 yield return null;
@@ -129,7 +128,7 @@ namespace ElectroOptics.UI.ControlPanel
         /// </summary>
         private bool IsClickingThisCrystal()
         {
-            Ray ray = Camera.main.ScreenPointToRay(RemoteInputRelay.MousePosition);
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             RaycastHit[] hits = Physics.RaycastAll(ray);
 
             foreach (RaycastHit hit in hits)
@@ -587,21 +586,21 @@ namespace ElectroOptics.UI.ControlPanel
             float deltaY = 0f;
 
             // W/S 控制 X轴
-            if (RemoteInputRelay.GetKey(KeyCode.W))
+            if (Input.GetKey(KeyCode.W))
             {
                 deltaX = rotateSpeed * Time.deltaTime;
             }
-            else if (RemoteInputRelay.GetKey(KeyCode.S))
+            else if (Input.GetKey(KeyCode.S))
             {
                 deltaX = -rotateSpeed * Time.deltaTime;
             }
 
             // A/D 控制 Y轴
-            if (RemoteInputRelay.GetKey(KeyCode.A))
+            if (Input.GetKey(KeyCode.A))
             {
                 deltaY = -rotateSpeed * Time.deltaTime;
             }
-            else if (RemoteInputRelay.GetKey(KeyCode.D))
+            else if (Input.GetKey(KeyCode.D))
             {
                 deltaY = rotateSpeed * Time.deltaTime;
             }

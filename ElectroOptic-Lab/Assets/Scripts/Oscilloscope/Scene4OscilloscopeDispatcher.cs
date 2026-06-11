@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
-using ElectroOptics.WebStreaming;
 using ElectroOptics.DataTransfer;
 
 namespace ElectroOptics.Oscilloscope
@@ -132,8 +131,8 @@ namespace ElectroOptics.Oscilloscope
         private void Update()
         {
             float wanted = 0f;
-            if (RemoteInputRelay.GetKey(KeyCode.A)) wanted = -1f;
-            else if (RemoteInputRelay.GetKey(KeyCode.D)) wanted = 1f;
+            if (Input.GetKey(KeyCode.A)) wanted = -1f;
+            else if (Input.GetKey(KeyCode.D)) wanted = 1f;
 
             if (wanted != 0f)
             {
