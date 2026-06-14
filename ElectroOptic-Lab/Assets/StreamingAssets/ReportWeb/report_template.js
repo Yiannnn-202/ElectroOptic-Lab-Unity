@@ -346,16 +346,22 @@
     }
 
     function initSync() {
-        // 5.1 → 6.3 summary + 7 conclusion
+        // 5.1 → 6.2 summary + 7 conclusion
         syncField("dcVpi", "summaryDcVpi");
         syncField("dcVpi", "finalDcVpi");
 
-        // 5.2 → 6.3 summary + 7 conclusion
+        // 5.2 → 6.2 summary + 7 conclusion
         syncField("acVpi", "summaryAcVpi");
         syncField("acVpi", "finalAcVpi");
 
-        // 6.3 theory Vπ → 7 conclusion
+        // 6.2 theory Vπ → 7 conclusion
         syncField("theoryVpi", "finalTheoryVpi");
+
+        // 6.2 error rates → summary table + conclusion
+        syncField("dcErrorRate", "summaryDcError");
+        syncField("dcErrorRate", "finalDcError");
+        syncField("acErrorRate", "summaryAcError");
+        syncField("acErrorRate", "finalAcError");
     }
 
     // ====================================================================
