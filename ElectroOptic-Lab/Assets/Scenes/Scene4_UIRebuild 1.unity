@@ -2528,9 +2528,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f1e2d3c4b5a69788c9d0e1f2a3b4c5d6, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
-  sceneToUnload: "Scene4_UIRebuild 1"
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sceneToUnload: Scene4_UIRebuild 1
 --- !u!1 &684934005
 GameObject:
   m_ObjectHideFlags: 0
@@ -3205,9 +3205,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f1e2d3c4b5a69788c9d0e1f2a3b4c5d6, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
-  sceneToUnload: "Scene4_UIRebuild 1"
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sceneToUnload: Scene4_UIRebuild 1
 --- !u!1 &815436296
 GameObject:
   m_ObjectHideFlags: 0
@@ -5040,7 +5040,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u5173\u952E\u70B9\u8BB0\u5F55\u2014\u2014\u8BF7\u4F9D\u6B21\u8BB0\u5F55\u4E09\u4E2A\u8FDE\u7EED\u500D\u9891\u5931\u771F\u70B9"
+  m_text: "\u5173\u952E\u70B9\u8BB0\u5F55\u2014\u2014\u8BF7\u4F9D\u6B21\u8BB0\u5F55\u4E24\u4E2A\u8FDE\u7EED\u500D\u9891\u5931\u771F\u70B9"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: e51917171fc617848a446063bf200535, type: 2}
   m_sharedMaterial: {fileID: -2422241761601968369, guid: e51917171fc617848a446063bf200535, type: 2}
@@ -5468,6 +5468,7 @@ MonoBehaviour:
   modulationAmplitude: 5
   frequency: 1000
   holdStartDelay: 0.35
+  voltageStepSize: 0.5
   voltageChangeRate: 30
   sampleCount: 1024
   displayPeriods: 2
