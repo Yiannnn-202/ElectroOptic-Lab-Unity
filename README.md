@@ -1,298 +1,276 @@
 # ElectroOptic-Lab-Unity
 
-基于 Unity 2022.3 的电光实验室仿真项目，模拟晶体光学实验，涵盖锥光干涉图样、偏振光传播和电光调制等功能。
+基于 **Unity 2022.3.62f2c1** 的电光效应虚拟仿真实验项目。项目围绕晶体光学、电光调制、偏振光传播、锥光干涉、半波电压测量、示波器波形和实验报告生成构建，核心主工程位于 `ElectroOptic-Lab/`。
 
-## 项目概述
+> 本 README 已按当前代码结构对齐。更细的设计文档见 `Docs/`，权威实验流程见 `memory/project_experiment_workflow.md`。
 
-本项目使用 Unity 引擎构建交互式电光实验室环境。用户可在虚拟光学平台上操作激光器、偏振片、晶体等光学元件，实时观察锥光干涉图样、测量半波电压，并通过示波器分析电光调制波形。
+## 项目结构
 
-### 技术栈
-
-| 层面 | 技术 |
+| 路径 | 说明 |
 |------|------|
-| 引擎 | Unity 2022.3.62f2c1 |
-| 语言 | C# (脚本), C++ (物理引擎 DLL) |
-| 渲染 | HLSL Shader, UGUI, LineRenderer |
-| 原生接口 | P/Invoke 调用 `CrystalPhysicsCore.dll` |
-| 包依赖 | TextMesh Pro, QuickOutline, Postprocessing |
+| `ElectroOptic-Lab/` | 主 Unity 项目，当前所有运行代码、场景、Shader、插件都在这里 |
+| `Docs/` | PRD、架构设计、API、开发日志、配置指南和开发计划 |
+| `Experiment/` | 脱离 Unity 的 DLL/物理模型验证工具和理论资料 |
+| `memory/` | 项目长期记忆，包含主实验流程等约定 |
+| `outputs/` | 生成输出或临时结果 |
+| `.claude/` | 本仓库的本地代理配置 |
 
-## 多项目结构
+## 环境要求
 
-本仓库包含多个独立 Unity 项目：
-
-| 目录 | 说明 |
+| 类别 | 要求 |
 |------|------|
-| `ElectroOptic-Lab/` | **主仿真项目**（核心工作目录） |
-| `Docs/` | 项目文档（PRD、架构、API、开发日志等） |
+| Unity | Unity 2022.3.62f2c1 或兼容的 2022.3 LTS |
+| 平台 | Windows x86_64；`CrystalPhysicsCore.dll` 位于 `Assets/Plugins/x86_64/` |
+| 语言 | C#、HLSL Shader、原生 C++ DLL |
+| 主要依赖 | TextMesh Pro、UGUI、Postprocessing、QuickOutline、XCharts、MathNet.Numerics |
+| 包注册源 | `https://packages.unity.cn` |
 
-其余目录（`Screen/`、`3DAssets/`、`TestRepo/`）为历史遗留或独立子项目。
+打开方式：用 Unity Hub 打开 `ElectroOptic-Lab/`，主实验场景是 `Assets/Scenes/Scene2.The Lab.unity`。
 
-## 快速开始
+## 主实验流程
 
-### 环境要求
+Scene2 主实验按五步组织：
 
-- **Unity 2022.3.62f2c1** 或兼容版本
-- **Windows x86_64**（原生 DLL 仅支持此平台）
-- 建议 IDE：Visual Studio / JetBrains Rider
+1. 放置光屏，`UnifiedScreenPanel` 显示红点追踪。
+2. 微调激光器，使红点对准光屏中心。
+3. 放置起偏器和检偏器，旋转检偏器实现消光，验证马吕斯定律。
+4. 放入晶体盒和扩束镜，面板自动切换到锥光干涉模式，调节晶体俯仰/偏航观察图样变化。
+5. 移除光屏和扩束镜，放置光电接收器，进入半波电压测量和示波器调制实验。
 
-### 打开项目
+## 场景
 
-1. 使用 Unity Hub → "Open" → 选择 `ElectroOptic-Lab/` 目录
-2. 定位主场景：`Assets/Scenes/Scene2.The Lab.unity`
-3. 通过 Unity 标准构建系统编译运行
+| 场景 | 当前用途 |
+|------|----------|
+| `Scene0.Open Menu.unity` | 主菜单 |
+| `Scene1.intro.unity` | 实验介绍/教程 |
+| `Scene2-preview.unity` | 晶体选择预览；支持内置晶体和自定义晶体 |
+| `Scene2.The Lab.unity` | 主实验场景：光轨、激光、偏振片、晶体、光屏、接收器、统一显示面板 |
+| `Scene_additional_exp.unity` | 附加锥光干涉实验场景，使用 GPU Jones 管线和 3D 光强曲面 |
+| `Scene3_UIRebuild.unity` | 极值法数据记录、拟合、残差分析和 Vπ 提取 |
+| `Scene4_UIRebuild 1.unity` | 示波器场景，显示调制电压和透射光强波形 |
+| `Scene5.History Records.unity` | 历史记录/数据查看 |
+| `Scene6_Quiz.unity` | Unity 内置习题场景 |
+| `Scene7_Report.unity` | 实验报告入口 |
+| `ConoscopicIntensitySurface_Test.unity` | CPU 锥光强度曲面测试/可视化场景 |
+| `ConoscopicJonesIntensitySurface_Test.unity` | GPU Jones 锥光强度曲面测试/可视化场景 |
+| `SceneTest*.unity`、`test.unity` | 开发/调试遗留场景，不作为生产入口 |
 
-### 场景导航
+## 核心架构
 
-| 场景文件 | 功能 |
-|----------|------|
-| `Scene0.Open Menu` | 主菜单，提供各场景入口 |
-| `Scene1.intro` | 入门介绍 / 教程 |
-| `Scene2-preview` | 晶体选择预览（晶体卡片展示与选择） |
-| `Scene2.The Lab` | **主实验场景**（光轨、激光、晶体、屏幕、示波器） |
-| `Scene3_UIRebuild` | 实验 UI 原型（重建版） |
-| `Scene4_UIRebuild 1` | 示波器重建场景（波形渲染与按键记录） |
-| `Scene5.History Records` | 历史数据记录查看器 |
-| `Scene6_Quiz` | 测验 / 练习场景（34 题题库） |
-| `Scene7_Report` | 实验报告生成与导出 |
+### 晶体物理核心
 
-> **注意**：`SceneTest.unity`、`SceneTest2.unity` 为开发调试场景，非生产用途。
+晶体物理计算由 `Assets/Plugins/x86_64/CrystalPhysicsCore.dll` 提供，C# 层通过 P/Invoke 访问：
 
-## 功能模块
+| 文件 | 职责 |
+|------|------|
+| `Scripts/DataContract/DataContracts.cs` | 与 DLL 对齐的 `SimInputData`、`CrystalOutputData` 结构体 |
+| `Scripts/DataContract/NativeInterface.cs` | DLL 安全调用、输入输出数组校验和异常日志 |
+| `Scripts/Business_logic/CrystalProfile.cs` | 晶体参数 ScriptableObject；支持 `CreateAssetMenu` |
+| `Scripts/Business_logic/CrystalConfig.cs` | 运行时晶体配置：Profile、旋转、电场、光方向 |
+| `Scripts/Business_logic/CrystalPhysicalCore.cs` | 两遍计算：Probe Pass 获取灵敏度，Render Pass 获取折射率/旋转矩阵；完成右手到左手坐标转换 |
+| `Scripts/Business_logic/CrystalWorkingGeometry.cs` | 统一解析锥光和示波器工作几何；KTP 有特殊几何覆盖 |
+| `Scripts/Business_logic/LabController.cs` | 原始晶体参数 UI 编排 |
 
-### 1. 晶体物理引擎
+可用晶体资源包括 `Assets/KDP.asset`、`Assets/Resources/Profiles/LiNbO3_Profile.asset`、`Assets/Resources/Profiles/KTP_Profile.asset`。自定义晶体由运行时 `CrystalProfile` 承载并通过同一数据链路传递。
 
-核心物理计算由原生 C++ DLL 提供，C# 层通过 P/Invoke 调用。
+### 光学链路
 
-**关键文件**：
-- `CrystalPhysicsCore.dll` (`Assets/Plugins/x86_64/`) — 原生 DLL，计算电光系数、折射率、旋转矩阵
-- `NativeInterface.cs` — DLL 安全调用封装与验证
-- `DataContracts.cs` — 与 C++ 结构体内存布局一致的 C# 结构体
-- `CrystalProfile.cs` — ScriptableObject，定义晶体属性参数
-- `CrystalConfig.cs` — 运行时晶体状态配置（旋转、电场、光方向）
-- `CrystalPhysicalCore.cs` — 核心组件：调用 DLL、坐标系转换、传递数据到 Shader
-- `EOEnums.cs` — 枚举：传播轴、电场轴、调制模式
+直接光路采用 `IOpticalReceiver` 责任链：
 
-**支持晶体**：KDP (`KDP.asset`)、KTP (`KTP_Profile.asset`)、LiNbO₃ (`LiNbO3_Profile.asset`)
-
-### 2. 光学组件链
-
-采用**责任链模式**，通过 `IOpticalReceiver` 接口串联光学元件：
-
-```
-LaserEmitter → PolarizerPhysics → Crystal → Screen Controller
-```
-
-**关键文件**：
-- `OpticalDef.cs` — `IOpticalReceiver` 接口、`LightData` 结构体
-- `LaserEmitter.cs` — 激光发射器，LineRenderer + Raycast 模拟光束
-- `PolarizerPhysics.cs` — 偏振片，应用马吕斯定律，输出完全偏振光 (DOP=1)
-- `DirectScreenController.cs` — 屏幕控制器，渲染红点追踪到 512×512 Texture2D
-
-### 3. 光学导轨与组件放置
-
-- `OpticalRail.cs` — 导轨定义（方向、长度、吸附位置计算）
-- `OpticalComponent_Keyboard.cs` — 光学组件：点击拾取、A/D 沿轨移动、Space 放置/吸附、双击移除
-- `RailObjectMover.cs` — 通用导轨移动器（轴向限位、轮廓高亮、放大镜头锚点）
-
-### 4. 激光调节系统
-
-- `LaserStateController.cs` — 激光选择（单击高亮 Outline 切换）
-- `LaserEmitterMover.cs` — 物理微调（WASD ±0.035m），Enter 锁定校准
-- `LaserKnobBridge.cs` — UI 旋钮控制激光组装体旋转
-
-### 5. 旋转台系统
-
-- `RotateStandController.cs` — 偏振片旋转台：双击打开刻度盘、单击选中（Outline 高亮）、A/D 旋转
-- `RotateWindowController.cs` — 动态刻度盘窗口，支持拖拽旋转
-- `RotateVirtualKeys.cs` — 虚拟按钮驱动旋转（替代键盘 A/D）
-
-全局互斥：同时只能选择一个旋转台。
-
-### 6. 实验模块 (P0-P2)
-
-遵循**解耦设计**原则 —— 通过包装器/适配器扩展功能，不修改原有代码。所有新代码位于独立目录。
-
-```
-Scripts/Experiment/
-├── Interfaces/          ICrystalSelectable, ICrystalConfigurable
-├── Controller/          CrystalControllerWrapper, CrystalKnobBridge
-├── Initializer/         CrystalComponentInitializer, Scene3CrystalBridge
-└── Renderer/            ConoscopicTextureRenderer
+```text
+LaserEmitter
+  -> PolarizerPhysics
+  -> CrystalRetarderPhysics
+  -> PolarizerPhysics / Analyzer
+  -> DirectScreenController
 ```
 
-**数据传递** (`Scripts/DataTransfer/`)：
-- `CrystalSelectionData` — 跨场景晶体选择传递
-- `CrystalRuntime` — 运行时全局访问晶体组件（Controller、TextureRenderer、PhysicalCore）
+`LightData` 已从早期“强度 + 线偏振角”扩展为 Stokes 表示，包含 `S0/Q/U/V`，因此可以描述线偏振、椭圆偏振和晶体延迟后的偏振态。`CrystalRetarderPhysics` 在红点模式下调用 Jones CPU 参考计算晶体本征轴和相位延迟，再把结果继续传给后级偏振片/屏幕。
 
-**关键功能**：
-- 晶体选择预览 → 主场景加载 → 组件自动初始化
-- 晶体旋转控制（XY 轴 ±15°）
-- 锥光干涉离线渲染到 RenderTexture
+### 光轨和交互
 
-### 7. 屏幕显示模块
+| 文件 | 职责 |
+|------|------|
+| `OpticalRail.cs` | 导轨方向、长度和吸附位置 |
+| `OpticalComponent_Keyboard.cs` | 光学元件拾取、A/D 移动、Space 吸附、双击移除 |
+| `LaserEmitterMover.cs` | 激光器 WASD 微调，Enter 锁定校准 |
+| `LaserKnobBridge.cs` | UI 旋钮控制激光组件 |
+| `RotateStandController.cs`、`RotateWindowController.cs`、`RotateVirtualKeys.cs` | 偏振片旋转座、动态刻度盘和虚拟按键 |
+| `ExperimentCameraController.cs`、`FocusableItem.cs` | 双击特写视角 |
 
-- `UnifiedScreenPanel.cs` — 左下角固定面板，双层显示（红点追踪 / 锥光干涉），根据 `isOnRail` 自动切换模式并带淡入淡出动画
-- `IScreenDataProvider.cs` — 接口解耦数据源与显示面板
-- `ConoscopicScreenDataProvider.cs` — 封装锥光 RenderTexture
-- `DirectScreenDataProvider.cs` — 封装红点追踪 Texture2D
-- `CanvasGroupTweener.cs` — CanvasGroup 淡入/淡出/交叉淡入淡出动画
+`Scene2AdditionalSceneNavigator` 在进入附加实验/预览场景时使用 additive scene flow，临时挂起 Scene2 的输入、相机、光路和 UI，返回后恢复，避免后台场景继续响应全局输入。
 
-### 8. 示波器模块
+### 晶体选择和实验初始化
 
-- `OscilloscopeCore.cs` — 顶层编排器：接收参数 → 调用 Bridge 获取灵敏度 → Vπ 计算 → 波形生成 → 事件通知 UI
-- `OscilloscopeCrystalBridge.cs` — 封装 CrystalPhysicalCore 用于示波器场景，含状态缓存优化
-- `OscilloscopeParameters.cs` — 输入参数（VDC、Vm、频率、调制模式、电场轴、补偿相位）
-- `VpiCalculator.cs` — 纯数学计算：从波长、尺寸、灵敏度计算半波电压 Vπ
-- `WaveformCalculator.cs` — 纯数学引擎：生成 CH1（AC 电压）和 CH2（透射光强）波形数组
-- `WaveformResult.cs` — 输出容器（CH1/CH2 数组、Vπ、γ₀）
-- `OscilloscopeWaveformGraphic.cs` — 自定义 uGUI Graphic，无需纹理/材质直接渲染波形折线
-- `Scene4OscilloscopeDispatcher.cs` — Scene4 UI 编排器，绑定参数到 UI 控件
-- `OscilloscopeCalcTests.cs` — 编辑器测试（消光、倍频、同频调制、补偿相位、数组复用验证）
+`ExperimentNavigator` 采用“两步导航”：先设置目标实验场景，再进入 `Scene2-preview` 选择晶体，选择完成后跳转到目标场景。若 Scene2 正在运行，会走 additive 加载路径以保留主实验状态。
 
-### 9. 功率计
+| 模块 | 职责 |
+|------|------|
+| `CrystalSelectionData` | 跨场景保存选中 Profile 和目标场景 |
+| `CrystalRuntime` | 运行时保存当前晶体控制器、渲染器和物理核心 |
+| `CrystalCardSelector` | 普通晶体卡片选择 |
+| `CustomCrystalCard`、`CustomCrystalPanel` | “自定义晶体”卡片和运行时参数输入面板 |
+| `CrystalComponentInitializer` | Scene2 中自动挂载/注册晶体控制、物理核心和锥光渲染器 |
+| `CrystalControllerWrapper`、`CrystalKnobBridge` | 晶体 XY 旋转控制，范围限制为 ±15° |
 
-- `ReceiverStateController.cs` — 接收器状态机（0=关闭, 1=监测/蓝色, 2=调节选中/绿色）。双击开关电源，单击切换监测/选中
-- `PowerReadoutController.cs` — 读数窗口，WASD 微调，基于光束聚焦模型计算功率
+### 统一光屏显示
 
-### 10. 测验系统
+当前光屏显示方案是 `Scripts/UI/ScreenDisplay/` 下的统一面板，而不是旧弹窗：
 
-- `QuizManager.cs` — 从 34 题题库随机出题，管理提交、评分和导航
-- `QuestionData.cs` — 题目数据结构（题干、4 个选项、正确索引、解析）
-- `QuestionItemUI.cs` — 题目 UI 项（选项选择、解析展示）
+| 文件 | 职责 |
+|------|------|
+| `UnifiedScreenPanel.cs` | 左下角固定面板，红点追踪/锥光干涉双图层，自动淡入淡出切换 |
+| `DirectScreenDataProvider.cs` | 读取 `DirectScreenController.SharedTexture` |
+| `ConoscopicScreenDataProvider.cs` | 读取 `CrystalRuntime.TextureRenderer.RenderTexture` |
+| `ScreenPanelInteraction.cs` | 面板双击进入附加实验场景 |
+| `Panel3DOutline.cs`、`UIOutline.cs` | 面板视觉描边 |
+| `CanvasGroupTweener.cs` | UI 淡入淡出工具 |
 
-### 11. Shader 可视化
+切换条件以光屏、扩束镜、晶体盒的 `OpticalComponent.isOnRail` 状态为准。
 
-| Shader | 文件 | 功能 |
+### 实验操作指引弹窗
+
+`Scripts/UI/ExperimentGuide/` 提供 Scene2 内嵌式操作指引阅读器：
+
+| 文件 | 职责 |
+|------|------|
+| `ExperimentGuidePopup.cs` | 复用/创建 `WindowsCanvas`，动态构建书册风格弹窗、遮罩、标题栏、单页高清图片显示区和翻页导航 |
+| `ExperimentGuideButton.cs` | 挂到 Scene2 UI Button 上，自动绑定点击事件并打开指引弹窗 |
+
+指引内容由提前从 PDF 转好的 PNG 页面提供，推荐以 Sprite 数组通过 Inspector 配置；当前交互为上一页/下一页、页码按钮和键盘左右键翻页。
+
+## 锥光干涉与附加实验
+
+`Scripts/ConoscopicAnalysis/` 同时保留两套管线：
+
+| 管线 | 文件 | 用途 |
+|------|------|------|
+| CPU 强度管线 | `ConoscopicIntensityCore`、`ConoscopicIntensityCalculator`、`ConoscopicIntensitySurfaceVisualizer` | 解析式强度计算、曲面可视化和测试场景 |
+| GPU Jones 管线 | `ConoscopicJonesGpuCore`、`ConoscopicJonesParameters`、`ConoscopicJonesCpuReference`、`ConoscopicJonesSurfaceVisualizer` | Jones calculus GPU 渲染，支持单轴/双轴、KTP 论文预设、电场扰动、超采样和强度读回 |
+
+`Scene_additional_exp` 使用 `Scripts/UI/AdditionalExperiment/`：
+
+| 文件 | 职责 |
+|------|------|
+| `AdditionalExperimentUiVisualController` | 运行时构建参数 UI，提供 M1/M2/M3 三种模式 |
+| `AdditionalConoscopicExperimentApi` | 将 UI 参数转换成 `ConoscopicJonesParameters` 并触发重算 |
+| `AdditionalConoscopicSurfaceView` | 把 GPU 结果重建为 3D 光强曲面并渲染到 UI |
+| `AdditionalConoscopicVisualizationSettings` | 分辨率、超采样、屏幕几何、显示映射和模式预设 |
+| `AdditionalExperimentSceneDispatcher` | 自动绑定 UI、Profile、GPU Core、曲面视图和 RawImage 输出 |
+
+## 示波器、功率计和数据分析
+
+### 示波器
+
+`Scripts/Oscilloscope/` 是解耦计算模块：
+
+| 文件 | 职责 |
+|------|------|
+| `OscilloscopeCore.cs` | 顶层 dirty-flag 编排：DLL 灵敏度 -> Vπ -> 波形 |
+| `OscilloscopeCrystalBridge.cs` | 包装 `CrystalPhysicalCore`，缓存几何配置 |
+| `VpiCalculator.cs` | 半波电压计算 |
+| `WaveformCalculator.cs` | CH1/CH2 波形计算 |
+| `OscilloscopeWaveformGraphic.cs` | uGUI 自绘波形 |
+| `Scene4OscilloscopeDispatcher.cs` | Scene4 UI、键盘 A/D 调压、AC 接入状态、关键点记录 |
+
+### 功率计和极值法
+
+| 文件 | 职责 |
+|------|------|
+| `ReceiverStateController.cs` | 光电接收器状态机：关机、监测、微调 |
+| `PowerReadoutController.cs` | 功率计窗口、接收器 WASD 微调、显示噪声 |
+| `PowerReadoutCalculator.cs` | 纯数学计算：`sin²(πV/2Vπ)` 透过率、对准效率和读数噪声 |
+| `RecordManager.cs` | 电压/功率记录表、按钮/键盘调压、删除和清表 |
+| `Scene3CrystalBridge.cs` | 将选中晶体的 DLL 计算 Vπ 注入 `RecordManager.halfWaveVoltage` |
+| `UIStateManager.cs` | 使用 MathNet.Numerics 拟合数据，使用 XCharts 展示散点、拟合曲线和残差，提取 Vπ |
+
+## 测验和报告
+
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| Unity 测验场景 | `QuizManager.cs`、`QuestionData.cs`、`QuestionItemUI.cs` | 34 题题库，默认抽题、交卷、得分和解析 |
+| 外部网页测验 | `OpenQuizButton.cs`、`StreamingAssets/QuizWeb/quiz.html` | 用系统浏览器打开课后习题网页 |
+| 报告入口 | `OpenReportButton.cs`、`StreamingAssets/ReportWeb/report_template.html` | 用系统浏览器打开报告模板 |
+| 报告静态资源 | `report.html`、`report.css`、`report.js`、`report_template.js` | 报告页面和模板脚本 |
+
+## Shader 和渲染资源
+
+| Shader | 路径 | 用途 |
 |--------|------|------|
-| 锥光干涉 | `ConoscopicInterference.shader` | GPU 菲涅尔方程计算干涉图样 |
-| 红点追踪 | `DotTracking.shader` | 光斑渲染 |
-| 轮廓高亮填充 | `OutlineFill.shader` | QuickOutline 填充层 |
-| 轮廓高亮遮罩 | `OutlineMask.shader` | QuickOutline 遮罩层 |
+| `ElectroOptics/DotTracking` | `Assets/Shaders/DotTracking.shader` | 光屏红点追踪 |
+| `ElectroOptics/ConoscopicInterference` | `Assets/Shaders/ConoscopicInterference.shader` | 主实验锥光干涉图样 |
+| `ElectroOptics/ConoscopicJonesIntensity` | `Assets/Shaders/ConoscopicJonesIntensity.shader` | GPU Jones 强度/高度图 |
+| `ElectroOptics/ConoscopicIntensityVertexColor` | `Assets/Shaders/ConoscopicIntensityVertexColor.shader` | 3D 光强曲面顶点色 |
+| `UI/WaveformLine` | `Assets/Shaders/WaveformLine.shader` | 示波器波形线 |
+| QuickOutline shaders | `Assets/QuickOutline/Resources/Shaders/` | 物体选中高亮 |
 
-`CrystalVisualizer.cs` 负责将晶体物理数据同步到 Shader 属性（折射率、旋转矩阵、晶体长度、波长、FOV）。
+`CrystalVisualizer.cs` 负责把晶体物理状态同步到渲染材质。
 
-### 12. 其他系统
+## 编辑器测试
 
-- **相机系统**：`CameraSwitch.cs`（三视图切换），`ExperimentCameraController.cs`（放大镜头），`CameraFocusController.cs`（平滑对焦过渡）
-- **数据记录**：`RecordManager.cs`（电压-功率数据表，支持删除和清除）
-- **旋钮控制**：`KnobAdjuster.cs`（按住旋转 3D 旋钮模型），`RotationKnob.cs`（控制面板旋钮），`KnobToggleController.cs`
-- **场景加载**：`SceneLoad.cs`、`ExperimentNavigator.cs`（场景导航按钮）
-- **报告**：`OpenReportButton.cs`（实验报告入口）
+项目没有独立 CI 或 headless 测试脚本。当前测试入口均为 Unity Editor 菜单：
 
-## 项目架构
+| 菜单 | 文件 | 覆盖内容 |
+|------|------|----------|
+| `ElectroOptics/Tests/Run Oscilloscope Calc Tests` | `Oscilloscope/Editor/OscilloscopeCalcTests.cs` | Vπ 和波形计算 |
+| `ElectroOptics/Tests/Run Direct Polarization Retarder Tests` | `ConoscopicAnalysis/Editor/DirectPolarizationRetarderTests.cs` | Stokes 光路、晶体延迟、偏振分析 |
+| `ElectroOptics/Tests/Run Conoscopic Jones Core Tests` | `ConoscopicAnalysis/Editor/ConoscopicJonesCoreTests.cs` | GPU Jones 与 CPU 参考对照 |
+| `ElectroOptics/Tests/Run Conoscopic Intensity Core Tests` | `ConoscopicAnalysis/Editor/ConoscopicIntensityCoreTests.cs` | CPU 强度计算 |
+| `ElectroOptics/Tests/Run Power Readout Calc Tests` | `Power/Editor/PowerReadoutCalculatorTests.cs` | 功率透过率、对准和噪声数学 |
+| `ElectroOptics/Tests/Run LiNbO3 Power Readout Vpi Test` | `Power/Editor/LiNbO3PowerReadoutVpiTests.cs` | LiNbO3 Vπ 计算 |
+| `ElectroOptics/Tests/Create Conoscopic Intensity Visualization Scene` | `ConoscopicIntensityVisualizationSceneBuilder.cs` | CPU 可视化测试场景构建 |
+| `ElectroOptics/Tests/Repair Conoscopic Intensity Visualization Scene` | `ConoscopicIntensityVisualizationSceneBuilder.cs` | CPU 可视化测试场景修复 |
+| `ElectroOptics/Tests/Create Conoscopic Jones Visualization Scene` | `ConoscopicJonesVisualizationSceneBuilder.cs` | GPU Jones 可视化测试场景构建 |
+| `ElectroOptics/Tests/Repair Conoscopic Jones Visualization Scene` | `ConoscopicJonesVisualizationSceneBuilder.cs` | GPU Jones 可视化测试场景修复 |
 
-### 目录结构
+## 命名空间和程序集
 
-```
-ElectroOptic-Lab/
-├── Assets/
-│   ├── Scenes/                    场景文件（8 个主场景 + 测试场景）
-│   ├── Scripts/
-│   │   ├── Business_logic/        晶体物理（Profile, Config, PhysicalCore, LabController, Enums）
-│   │   ├── DataContract/          原生 DLL 接口（NativeInterface, DataContracts）
-│   │   ├── DataTransfer/          跨场景数据传递（CrystalSelectionData, CrystalRuntime）
-│   │   ├── Experiment/            实验模块
-│   │   │   ├── Controller/        CrystalControllerWrapper, CrystalKnobBridge
-│   │   │   ├── Initializer/       CrystalComponentInitializer, Scene3CrystalBridge
-│   │   │   ├── Interfaces/        ICrystalSelectable, ICrystalConfigurable
-│   │   │   └── Renderer/          ConoscopicTextureRenderer
-│   │   ├── Laser/                 激光系统（LaserEmitter, LaserStateController, LaserEmitterMover, LaserKnobBridge）
-│   │   ├── Oscilloscope/          示波器模块（Core, Bridge, Parameters, Calculators, WaveformGraphic, Dispatcher, Tests）
-│   │   ├── UI/
-│   │   │   ├── ControlPanel/      旋转控制面板（RotationPanel, RotationKnob, AngleDisplay）
-│   │   │   ├── CrystalSelector/   晶体卡片选择器
-│   │   │   ├── ScreenDisplay/     统一显示面板（UnifiedPanel, DataProviders, CanvasGroupTweener）
-│   │   │   └── VoltageSwitch/     相机对焦与点击区域
-│   │   ├── ShaderScripts/         Shader 参数同步（CrystalVisualizer）
-│   │   ├── exercise/              测验系统（QuizManager, QuestionData, QuestionItemUI）
-│   │   ├── Receiver/              功率计接收器状态
-│   │   ├── LightScreen/           光屏（DirectScreenController, SimpleDrag）
-│   │   ├── Buttons/               按钮导航（SceneLoad, ExperimentNavigator）
-│   │   ├── ViewButton/            旋钮调节器（KnobAdjuster）
-│   │   └── Report/                报告（OpenReportButton）
-│   ├── Shaders/                   自定义 Shader（ConoscopicInterference, DotTracking）
-│   ├── Plugins/x86_64/            原生 C++ DLL（CrystalPhysicsCore.dll）
-│   ├── QuickOutline/              轮廓高亮资源包
-│   ├── *.asset                     晶体配置文件（KDP, KTP, LiNbO3）
-│   └── Resources/                 运行时资源
-└── ProjectSettings/               Unity 项目配置
-```
+项目业务脚本没有自定义 `.asmdef`，默认编译到 `Assembly-CSharp.dll`；Editor 脚本进入 `Assembly-CSharp-Editor.dll`。自定义程序集主要来自 XCharts：
 
-### 命名空间
+- `XCharts.Runtime`
+- `XCharts.Editor`
+- `XCharts.Examples`
 
-| 命名空间 | 包含 |
-|----------|------|
-| `ElectroOptics` | CrystalProfile, CrystalConfig, CrystalPhysicalCore (原始核心) |
-| `ElectroOptics.DataTransfer` | CrystalSelectionData, CrystalRuntime |
-| `ElectroOptics.Experiment.Interfaces` | ICrystalSelectable, ICrystalConfigurable |
-| `ElectroOptics.Experiment.Controller` | CrystalControllerWrapper, CrystalKnobBridge |
-| `ElectroOptics.Experiment.Initializer` | CrystalComponentInitializer |
-| `ElectroOptics.Experiment.Renderer` | ConoscopicTextureRenderer |
-| `ElectroOptics.UI.ScreenDisplay` | UnifiedScreenPanel, IScreenDataProvider, CanvasGroupTweener |
-| `ElectroOptics.UI.ControlPanel` | CrystalRotationPanel, RotationKnob, AngleDisplay |
-| `ElectroOptics.UI.CrystalSelector` | CrystalCardSelector |
-| `ElectroOptics.Oscilloscope` | OscilloscopeCore, OscilloscopeCrystalBridge, WaveformCalculator 等 |
+命名空间分层如下：
 
-### 核心数据流
+| 命名空间 | 主要内容 |
+|----------|----------|
+| 全局命名空间 | 原始核心脚本、光路、导轨、记录、功率计、报告/测验入口、部分桥接脚本 |
+| `ElectroOptics` | `CrystalProfile`、`CrystalConfig`、`CrystalWorkingGeometry`、电光枚举 |
+| `ElectroOptics.DataTransfer` | `CrystalSelectionData`、`CrystalRuntime` |
+| `ElectroOptics.Experiment.*` | 晶体控制包装器、初始化器、渲染器、接口 |
+| `ElectroOptics.UI.*` | 屏幕面板、晶体选择、控制面板、电压切换 UI |
+| `ElectroOptics.UI.ExperimentGuide` | Scene2 实验操作指引弹窗 |
+| `ElectroOptics.Oscilloscope` | 示波器核心、桥接、波形计算和 UI 调度 |
+| `ElectroOptics.ConoscopicAnalysis` | CPU/GPU 锥光分析管线 |
 
-```
-UI 控件 → LabController
-            ↓
-        CrystalConfig（晶体旋转、电场、光方向、尺寸）
-            ↓
-        CrystalPhysicalCore
-            ↓           ↑
-        NativeInterface → CrystalPhysicsCore.dll
-            ↓
-        物理数据（折射率矩阵、电光系数、旋转矩阵）
-            ↓
-        CrystalVisualizer → Shader Properties
-            ↓
-        GPU 实时渲染（锥光干涉图样 / 红点追踪）
+## 已弃用或遗留代码
+
+以下代码仍在仓库中，但当前设计不应继续扩展它们：
+
+| 文件 | 状态 |
+|------|------|
+| `CrystalInteract.cs` | 旧晶体交互方案；由 `CrystalControllerWrapper`/`CrystalKnobBridge` 替代 |
+| `ScreenInteract.cs` | 旧光屏弹窗方案；由 `UnifiedScreenPanel` 替代 |
+| `Cardclick.cs` | 早期硬编码场景加载器；当前优先用 `ExperimentNavigator`/`CrystalCardSelector` |
+| `CrystalStateController.cs` | 旧式晶体单击变色控制，疑似遗留 |
+| `SceneTest*.unity`、`test.unity` | 调试/中间场景 |
+
+## 开发注意事项
+
+- 新功能优先通过包装器、桥接器和独立模块扩展，避免直接改动原始核心逻辑。
+- 运行时修改材质应使用 `.material` 或创建运行时材质实例，避免写坏 `.sharedMaterial` 资源。
+- DLL 结构体字段、数组长度和内存布局必须与 C++ 保持一致。
+- Unity 和 DLL 坐标系不同：DLL 为右手系，Unity 为左手系，转换集中在 `CrystalPhysicalCore`。
+- UI 动态构建优先复用 `CustomCrystalPanel`/`AdditionalExperimentUiVisualController` 的模式：确保 `RectTransform`、EventSystem、TMP 中文字体和 ScrollRect Mask 正确配置。
+- 修改实验流程时以 `memory/project_experiment_workflow.md` 为准。
+
+## 独立验证工具
+
+`Experiment/generate_kdp_eo_data.py` 可在 Unity 外通过 Python `ctypes` 调用 `CrystalPhysicsCore.dll`，生成 KDP 电光响应数据并与一阶解析理论比较：
+
+```powershell
+python Experiment\generate_kdp_eo_data.py --fields 0 2e5 5e5 1e6 2e6 5e6 1e7
 ```
 
-## 开发指南
-
-### 核心原则
-
-1. **解耦设计**：新功能通过包装器/适配器扩展，不修改原有代码。所有实验模块代码位于 `Scripts/Experiment/`、`Scripts/DataTransfer/`、`Scripts/UI/` 独立目录。
-
-2. **坐标系转换**：原生 DLL 使用右手坐标系，Unity 使用左手坐标系。转换通过 `CrystalPhysicalCore.cs` 中 Z 轴翻转旋转矩阵实现，对上层代码透明。
-
-3. **材质安全**：运行时修改材质必须使用 `.material`（创建运行时实例），禁止使用 `.sharedMaterial`（会永久修改磁盘资源）。
-
-### 常见开发任务
-
-**修改晶体行为**：
-1. 修改 `CrystalProfile` 资产（如 `KDP.asset`）添加新晶体类型
-2. 物理计算变更需修改 C++ DLL 源码并替换 `Plugins/x86_64/CrystalPhysicsCore.dll`
-3. `DataContracts.cs` 结构体必须与 C++ 内存布局完全匹配
-
-**添加光学组件**：
-1. 实现 `IOpticalReceiver` 接口
-2. 在 `ReceiveLight()` 中处理光数据
-3. 通过 Raycast 传递到下游光学元件（可选）
-4. 使用 LineRenderer 可视化出射光
-5. 确保正确的 Layer / Collider 配置
-
-**创建 UI 窗口**：
-- Canvas 使用 Screen Space Overlay，命名为 "WindowsCanvas"
-- 拖拽通过 `SimpleDrag` 或 EventTrigger 实现
-- Canvas Scaler 参考分辨率 1920×1080
-- 确保场景中存在 EventSystem
-- 双击检测统一使用 0.3s 间隔
-
-**编辑器测试**：
-- 菜单 **ElectroOptics > Tests > Run Oscilloscope Calc Tests** 运行示波器计算测试
-
-### 已弃用代码
-
-以下文件在场景中已无引用，仅保留作参考：
-
-- `CrystalInteract.cs` — 旧版晶体交互（双击选择 + WASD 旋转），已被 `CrystalControllerWrapper` + `CrystalRotationPanel` 取代
-- `ScreenInteract.cs` — 旧版屏幕交互，已被 `UnifiedScreenPanel` 取代
-
-## 更多信息
-
-- 详细开发指南：参阅 [CLAUDE.md](./CLAUDE.md)
-- 项目文档：参阅 [Docs/](./Docs/) 目录（PRD、架构设计、API 文档、开发日志）
+该工具适合在修改原生 DLL 或数据契约后做快速回归验证。

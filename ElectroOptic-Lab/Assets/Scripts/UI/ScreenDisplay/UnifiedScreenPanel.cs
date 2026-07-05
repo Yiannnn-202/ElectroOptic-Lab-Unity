@@ -167,8 +167,12 @@ namespace ElectroOptics.UI.ScreenDisplay
         /// </summary>
         private void BuildVisualHierarchy()
         {
-            // 防止重复创建（Edit 模式下 OnEnable 可能多次触发）
-            if (_panelObject != null) return;
+            // 防止重复创建（Edit 模式下 OnEnable / OnValidate 可能多次触发）
+            if (_panelObject != null)
+            {
+                SyncInspectorToComponents();
+                return;
+            }
 
             EnsureEventSystem();
             CreateCanvas();
@@ -230,6 +234,20 @@ namespace ElectroOptics.UI.ScreenDisplay
         private void SyncInspectorToComponents()
         {
             if (_panelObject == null) return;
+
+            if (_panelRect == null)
+            {
+                _panelRect = _panelObject.GetComponent<RectTransform>();
+            }
+
+            if (_panelRect != null)
+            {
+                _panelRect.anchorMin = Vector2.zero;
+                _panelRect.anchorMax = Vector2.zero;
+                _panelRect.pivot = Vector2.zero;
+                _panelRect.anchoredPosition = panelPosition;
+                _panelRect.sizeDelta = panelSize;
+            }
 
             // 同步 ScreenPanelInteraction（在 ClickOverlay 上）
             Transform clickOverlay = _panelObject.transform.Find("ClickOverlay");
@@ -696,6 +714,36 @@ namespace ElectroOptics.UI.ScreenDisplay
         }
 
         #endregion
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            panelSize.x = Mathf.Max(1f, panelSize.x);
+            panelSize.y = Mathf.Max(1f, panelSize.y);
+
+            UnityEditor.EditorApplication.delayCall -= DelayedEditorSync;
+            UnityEditor.EditorApplication.delayCall += DelayedEditorSync;
+        }
+
+        private void DelayedEditorSync()
+        {
+            if (this == null)
+            {
+                return;
+            }
+
+            if (!Application.isPlaying && isActiveAndEnabled)
+            {
+                BuildVisualHierarchy();
+                SyncInspectorToComponents();
+                UnityEditor.EditorUtility.SetDirty(this);
+                if (_panelRect != null)
+                {
+                    UnityEditor.EditorUtility.SetDirty(_panelRect);
+                }
+            }
+        }
+#endif
 
         #region 编辑器调试
 
