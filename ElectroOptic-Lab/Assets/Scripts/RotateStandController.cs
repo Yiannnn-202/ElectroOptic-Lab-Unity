@@ -9,6 +9,9 @@ public class RotateStandController : MonoBehaviour
     [Tooltip("旋转速度（度/秒）")]
     public float rotateSpeed = 90f;
 
+    [Tooltip("光学计算使用的初始透振轴角度（度）。不要从模型欧拉角反推，避免 FBX 初始旋转导致读数错误。")]
+    [SerializeField] private float initialOpticalAngle = 0f;
+
     [Header("UI图片设置 (重要)")]
     [Tooltip("请把 Assets/UI/mine.png 拖到这里！")]
     public Texture2D customDialTexture;
@@ -29,6 +32,7 @@ public class RotateStandController : MonoBehaviour
     private RotateWindowController rotateWindow;
     private bool isProcessingClick = false;
     private bool isSelected = false;
+    private float currentOpticalAngle;
 
     // QuickOutline 引用
     private Outline outline;
@@ -38,6 +42,8 @@ public class RotateStandController : MonoBehaviour
 
     void Start()
     {
+        currentOpticalAngle = Mathf.Repeat(initialOpticalAngle, 180f);
+
         // 自动获取或添加 Outline 组件
         outline = GetComponent<Outline>();
         if (outline == null)
@@ -76,7 +82,7 @@ public class RotateStandController : MonoBehaviour
                 isRotating = true;
                 if (showDebug) Debug.Log($"🔄 {gameObject.name} 开始旋转");
             }
-            transform.Rotate(Vector3.forward, direction * rotateSpeed * Time.deltaTime);
+            RotateBy(direction * rotateSpeed * Time.deltaTime);
         }
         else if (isRotating)
         {
@@ -177,7 +183,13 @@ public class RotateStandController : MonoBehaviour
     }
 
     // --- 给 UI 调用的公共接口 ---
-    public float GetCurrentRotateAngle() => transform.eulerAngles.z;
+    public void RotateBy(float deltaAngle)
+    {
+        transform.Rotate(Vector3.forward, deltaAngle, Space.Self);
+        currentOpticalAngle = Mathf.Repeat(currentOpticalAngle + deltaAngle, 180f);
+    }
+
+    public float GetCurrentRotateAngle() => currentOpticalAngle;
     public string GetRotateStandName() => gameObject.name;
 
     void OnDestroy()

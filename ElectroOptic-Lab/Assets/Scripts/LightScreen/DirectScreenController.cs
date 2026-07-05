@@ -3,6 +3,9 @@ using UnityEngine;
 // ZYX - 光屏控制器 (精准红点追踪)
 public class DirectScreenController : MonoBehaviour, IOpticalReceiver
 {
+    private const float IntensityRedrawThreshold = 0.005f;
+    private const float ExtinctionRedrawThreshold = 0.001f;
+
     [Header("状态联动 (必填)")]
     [Tooltip("把晶体的 OpticalComponent 拖到这里，用于检测晶体吸附状态")]
     public OpticalComponent crystalOpticalComponent;
@@ -87,8 +90,11 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
             currentIntensity = Mathf.Lerp(currentIntensity, 0f, Time.deltaTime * 10f);
         }
 
-        // 降低敏感度，位置变化超过 2 个像素或亮度有变化才重画
-        if (Mathf.Abs(currentIntensity - lastDrawnIntensity) > 0.05f ||
+        bool extinctionChanged = currentIntensity <= ExtinctionRedrawThreshold && lastDrawnIntensity > ExtinctionRedrawThreshold;
+
+        // 亮度变化、位置变化或进入消光状态时重画
+        if (Mathf.Abs(currentIntensity - lastDrawnIntensity) > IntensityRedrawThreshold ||
+            extinctionChanged ||
             Mathf.Abs(targetCenterX - lastDrawnX) > 2f ||
             Mathf.Abs(targetCenterY - lastDrawnY) > 2f)
         {

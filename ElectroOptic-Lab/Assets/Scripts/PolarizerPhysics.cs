@@ -6,12 +6,20 @@ using UnityEngine;
 public class PolarizerPhysics : MonoBehaviour, IOpticalReceiver
 {
     private const float VisibleIntensityThreshold = 0.001f;
+    private const float ExtinctionEpsilon = 0.0001f;
 
     private LineRenderer lineRenderer;
     private bool gotLight;
+    private RotateStandController rotateStand;
 
     private void Start()
     {
+        rotateStand = GetComponent<RotateStandController>();
+        if (rotateStand == null)
+        {
+            rotateStand = GetComponentInParent<RotateStandController>();
+        }
+
         lineRenderer = gameObject.AddComponent<LineRenderer>();
         lineRenderer.positionCount = 2;
         lineRenderer.startWidth = 0.02f;
@@ -36,12 +44,16 @@ public class PolarizerPhysics : MonoBehaviour, IOpticalReceiver
     {
         gotLight = true;
 
-        float axis = transform.eulerAngles.z;
+        float axis = ResolveTransmissionAxisAngle();
         float axisRad = axis * Mathf.Deg2Rad;
         float cos2Axis = Mathf.Cos(2f * axisRad);
         float sin2Axis = Mathf.Sin(2f * axisRad);
         float finalIntensity = 0.5f * (inLight.intensity + inLight.stokesQ * cos2Axis + inLight.stokesU * sin2Axis);
         finalIntensity = Mathf.Max(0f, finalIntensity);
+        if (finalIntensity < ExtinctionEpsilon)
+        {
+            finalIntensity = 0f;
+        }
         Debug.Log($"[Polarizer:{gameObject.name}] axis={axis:F1}° inI={inLight.intensity:F4}(S1={inLight.stokesQ:F4},S2={inLight.stokesU:F4},S3={inLight.stokesV:F4}) outI={finalIntensity:F4}");
 
         bool drawLine = finalIntensity > VisibleIntensityThreshold;
@@ -75,5 +87,24 @@ public class PolarizerPhysics : MonoBehaviour, IOpticalReceiver
             lineRenderer.SetPosition(0, start);
             lineRenderer.SetPosition(1, end);
         }
+    }
+
+    private float ResolveTransmissionAxisAngle()
+    {
+        if (rotateStand == null)
+        {
+            rotateStand = GetComponent<RotateStandController>();
+            if (rotateStand == null)
+            {
+                rotateStand = GetComponentInParent<RotateStandController>();
+            }
+        }
+
+        if (rotateStand != null)
+        {
+            return rotateStand.GetCurrentRotateAngle();
+        }
+
+        return Mathf.Repeat(transform.localEulerAngles.z, 180f);
     }
 }

@@ -1,49 +1,49 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-// Æ«Õñ¾µ×¨ÊôÍâ¹Ò£º°Ñ UI ³¤°´×ª»»Îª A/D ¼üµÄÐý×ªÂß¼­
+// Æ«ï¿½ï¿½×¨ï¿½ï¿½ï¿½ï¿½Ò£ï¿½ï¿½ï¿½ UI ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½Îª A/D ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ß¼ï¿½
 public class RotateVirtualKeys : MonoBehaviour
 {
-    [Header("1. ÍÏÈëÆ«Õñ¾µ±¾Ìå (¹Ò×Å RotateStandController µÄÄÇ¸ö)")]
+    [Header("1. ï¿½ï¿½ï¿½ï¿½Æ«ï¿½ñ¾µ±ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ RotateStandController ï¿½ï¿½ï¿½Ç¸ï¿½)")]
     public RotateStandController targetStand;
 
-    [Header("2. ÍÏÈëÄã×öºÃµÄ UI °´Å¥")]
-    public GameObject btnCounterClockwise; // ÄæÊ±Õë (¶ÔÓ¦¼üÅÌ A ¼ü)
-    public GameObject btnClockwise;        // Ë³Ê±Õë (¶ÔÓ¦¼üÅÌ D ¼ü)
+    [Header("2. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½ UI ï¿½ï¿½Å¥")]
+    public GameObject btnCounterClockwise; // ï¿½ï¿½Ê±ï¿½ï¿½ (ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ A ï¿½ï¿½)
+    public GameObject btnClockwise;        // Ë³Ê±ï¿½ï¿½ (ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ D ï¿½ï¿½)
 
-    // ¼ÇÂ¼µ±Ç°Ó¦¸ÃÐý×ªµÄ·½Ïò
+    // ï¿½ï¿½Â¼ï¿½ï¿½Ç°Ó¦ï¿½ï¿½ï¿½ï¿½×ªï¿½Ä·ï¿½ï¿½ï¿½
     private float currentDirection = 0f;
 
     void Start()
     {
-        // Èç¹ûÌîÁËÄæÊ±Õë°´Å¥£¬¸øËü°ó¶¨ 1f (ºÍÔ­´úÂë A ¼üÒ»Ñù)
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ë°´Å¥ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 1f (ï¿½ï¿½Ô­ï¿½ï¿½ï¿½ï¿½ A ï¿½ï¿½Ò»ï¿½ï¿½)
         if (btnCounterClockwise != null) BindEvent(btnCounterClockwise, 1f);
 
-        // Èç¹ûÌîÁËË³Ê±Õë°´Å¥£¬¸øËü°ó¶¨ -1f (ºÍÔ­´úÂë D ¼üÒ»Ñù)
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë³Ê±ï¿½ë°´Å¥ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ -1f (ï¿½ï¿½Ô­ï¿½ï¿½ï¿½ï¿½ D ï¿½ï¿½Ò»ï¿½ï¿½)
         if (btnClockwise != null) BindEvent(btnClockwise, -1f);
     }
 
     void Update()
     {
-        // Ö»Òª°´×¡ÁË°´Å¥£¬¾Íµ÷ÓÃÆ«Õñ¾µ×Ô¼ºµÄËÙ¶È¿ªÊ¼×ª
+        // Ö»Òªï¿½ï¿½×¡ï¿½Ë°ï¿½Å¥ï¿½ï¿½ï¿½Íµï¿½ï¿½ï¿½Æ«ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ï¿½Ù¶È¿ï¿½Ê¼×ª
         if (currentDirection != 0f && targetStand != null)
         {
-            targetStand.transform.Rotate(Vector3.forward, currentDirection * targetStand.rotateSpeed * Time.deltaTime);
+            targetStand.RotateBy(currentDirection * targetStand.rotateSpeed * Time.deltaTime);
         }
     }
 
-    // ºËÐÄ£º×Ô¶¯¸ø UI °´Å¥´©ÉÏ¡°³¤°´¼ì²â¡±µÄ×°±¸
+    // ï¿½ï¿½ï¿½Ä£ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ UI ï¿½ï¿½Å¥ï¿½ï¿½ï¿½Ï¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â¡±ï¿½ï¿½×°ï¿½ï¿½
     private void BindEvent(GameObject btn, float dir)
     {
         EventTrigger trigger = btn.GetComponent<EventTrigger>();
         if (trigger == null) trigger = btn.AddComponent<EventTrigger>();
 
-        // Êó±ê°´ÏÂ£º¿ªÊ¼×ª
+        // ï¿½ï¿½ê°´ï¿½Â£ï¿½ï¿½ï¿½Ê¼×ª
         var pointerDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
         pointerDown.callback.AddListener((_) => currentDirection = dir);
         trigger.triggers.Add(pointerDown);
 
-        // Êó±êËÉ¿ª£ºÍ£Ö¹×ª
+        // ï¿½ï¿½ï¿½ï¿½É¿ï¿½ï¿½ï¿½Í£Ö¹×ª
         var pointerUp = new EventTrigger.Entry { eventID = EventTriggerType.PointerUp };
         pointerUp.callback.AddListener((_) => currentDirection = 0f);
         trigger.triggers.Add(pointerUp);
