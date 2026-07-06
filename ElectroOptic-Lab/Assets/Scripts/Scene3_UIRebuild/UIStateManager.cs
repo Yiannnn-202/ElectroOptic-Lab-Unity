@@ -23,6 +23,8 @@ public class UIStateManager : MonoBehaviour
     // 全局拟合留存的物理量与状态
     private bool hasValidFit = false;
     private string globalFormula = "";
+    private double _fitA, _fitW, _fitPhi, _fitB;
+    private string _signPhi, _signB;
 
     // 记录拟合曲线本身的理论极值点坐标
     private float fitCurveMaxV = 0f;
@@ -51,6 +53,34 @@ public class UIStateManager : MonoBehaviour
         if (analysisPanel != null) analysisPanel.SetActive(false);
         if (tablePanel != null) tablePanel.SetActive(true);
         if (graphPanel != null) graphPanel.SetActive(false);
+
+        // SIMHEI SDF 缺大量拉丁字母（P,U,V,c,o,s,m,n,a,x,i,p 等都没有）
+        //→ 换 LiberationSans SDF (完整 ASCII) 做主字体，SIMHEI 做中文回退
+        if (analysisText != null)
+        {
+            var liberation = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+            var simhei      = Resources.Load<TMP_FontAsset>("Fonts/SIMHEI SDF");
+            if (liberation != null && simhei != null)
+            {
+                analysisText.font = liberation;
+                if (!liberation.fallbackFontAssetTable.Contains(simhei))
+                    liberation.fallbackFontAssetTable.Add(simhei);
+
+                // 把回退字体的 material 也加进来，否则 SDF 渲染异常(黑块拖影)
+                var mats = new System.Collections.Generic.List<Material>();
+                foreach (var m in analysisText.fontSharedMaterials)
+                    if (m != null) mats.Add(m);
+                if (!mats.Contains(simhei.material))
+                    mats.Add(simhei.material);
+                analysisText.fontSharedMaterials = mats.ToArray();
+                analysisText.UpdateFontAsset();
+
+                // 换字体后 TMP 可能重置间距，重新写一遍确保生效
+                analysisText.fontSize = 28;
+                analysisText.lineSpacing = 16;
+                analysisText.paragraphSpacing = 0;
+            }
+        }
     }
 
     public void SwitchToGraphView()
@@ -88,19 +118,26 @@ public class UIStateManager : MonoBehaviour
         if (analysisText == null) return;
 
         StringBuilder sb = new StringBuilder();
-        sb.AppendLine("<size=110%><color=#005088><b>实验数据处理与结果分析</b></color></size>");
-        sb.AppendLine("-----------------------------------------");
+        sb.AppendLine("<size=120%><color=#1a3a5c><b>实验数据处理与结果分析</b></color></size>");
+        sb.AppendLine("<color=#999>-------------------------------------------------</color>");
 
         if (!hasValidFit)
         {
-            sb.AppendLine("<color=red><b>⚠️ 数据不足或算法迭代发散。</b></color>");
+            sb.AppendLine("<color=#cc3333><b>[!] 数据不足或算法迭代发散.</b></color>");
             analysisText.text = sb.ToString();
             return;
         }
 
-        sb.AppendLine($"<color=#333><b>1. 拟合方程：</b></color>\n   {globalFormula}");
-        sb.AppendLine($"<color=#333><b>2. 特征点提取：</b></color>\n   波峰: <b>V_max = {fitCurveMaxV:F2} V</b> ({fitCurveMaxP:F2} mW)\n   波谷: <b>V_min = {fitCurveMinV:F2} V</b> ({fitCurveMinP:F2} mW)");
-        sb.AppendLine($"<color=#333><b>3. 半波电压解算：</b></color>\n   V_π = V_min - V_max = <b>{lastCalculatedV:F2} V</b>");
+        sb.AppendLine($"<color=#1a3a5c><b>1. 拟合方程</b></color>");
+        sb.AppendLine($"   P(U) = {System.Math.Abs(_fitA):F1} cos({System.Math.Abs(_fitW):F4}U {_signPhi} {System.Math.Abs(_fitPhi):F2}) {_signB} {System.Math.Abs(_fitB):F1}");
+        sb.AppendLine("   <size=80%><color=#888>(P: 光功率 / mW,  U: 调制电压 / V)</color></size>");
+        sb.AppendLine("<size=40%> </size>");
+        sb.AppendLine($"<color=#1a3a5c><b>2. 特征点提取</b></color>");
+        sb.AppendLine($"   <b>Umax = {fitCurveMaxV:F2} V</b>  ({fitCurveMaxP:F2} mW)");
+        sb.AppendLine($"   <b>Umin = {fitCurveMinV:F2} V</b>  ({fitCurveMinP:F2} mW)");
+        sb.AppendLine("<size=40%> </size>");
+        sb.AppendLine($"<color=#1a3a5c><b>3. 半波电压解算</b></color>");
+        sb.AppendLine($"   Vπ = Umin - Umax = <b>{lastCalculatedV:F2} V</b>");
 
         analysisText.text = sb.ToString();
     }
@@ -126,6 +163,38 @@ public class UIStateManager : MonoBehaviour
             mainTooltip.titleFormatter = "";
             mainTooltip.itemFormatter = "电压: {b}V\n功率: {c:F2}mW";
         }
+
+        // ===== 主图坐标轴样式配置 =====
+        // Y 轴（纵轴）：统一小数点后一位 + 加深文字颜色
+        var mainYAxis = lineChart.GetChartComponent<YAxis>();
+        if (mainYAxis != null)
+        {
+            mainYAxis.axisLabel.numericFormatter = "f1";
+            mainYAxis.axisLabel.textStyle.color = new Color32(45, 45, 45, 255);
+            mainYAxis.axisLabel.textStyle.fontSize = 16;
+            // 分割线：淡灰色实线，让网格可见但不喧宾夺主
+            mainYAxis.splitLine.lineStyle.color = new Color32(190, 190, 190, 90);
+            mainYAxis.splitLine.lineStyle.width = 0.6f;
+            // 轴线稍深，定位更清晰
+            mainYAxis.axisLine.lineStyle.color = new Color32(100, 100, 100, 255);
+            mainYAxis.axisLine.lineStyle.width = 1.0f;
+            // 轴名称（"光功率 P (mW)"）加深
+            mainYAxis.axisName.labelStyle.textStyle.color = new Color32(45, 45, 45, 255);
+            mainYAxis.axisName.labelStyle.textStyle.fontSize = 16;
+        }
+
+        // X 轴（横轴）：加深文字颜色 + 轴线清晰
+        var mainXAxis = lineChart.GetChartComponent<XAxis>();
+        if (mainXAxis != null)
+        {
+            mainXAxis.axisLabel.textStyle.color = new Color32(45, 45, 45, 255);
+            mainXAxis.axisLabel.textStyle.fontSize = 16;
+            mainXAxis.axisLine.lineStyle.color = new Color32(100, 100, 100, 255);
+            mainXAxis.axisLine.lineStyle.width = 1.0f;
+            mainXAxis.axisName.labelStyle.textStyle.color = new Color32(45, 45, 45, 255);
+            mainXAxis.axisName.labelStyle.textStyle.fontSize = 16;
+        }
+
         if (residualChart != null)
         {
             var resTooltip = residualChart.GetChartComponent<Tooltip>();
@@ -189,7 +258,9 @@ public class UIStateManager : MonoBehaviour
 
             string signPhi = fitPhi < 0 ? "-" : "+";
             string signB = fitB < 0 ? "-" : "+";
-            globalFormula = $"P = {System.Math.Abs(fitA):F1}cos({System.Math.Abs(fitW):F4}V {signPhi} {System.Math.Abs(fitPhi):F2}) {signB} {System.Math.Abs(fitB):F1}";
+            _fitA = fitA; _fitW = fitW; _fitPhi = fitPhi; _fitB = fitB;
+            _signPhi = signPhi; _signB = signB;
+            globalFormula = $"P(U) = {System.Math.Abs(fitA):F1} cos({System.Math.Abs(fitW):F4}U {signPhi} {System.Math.Abs(fitPhi):F2}) {signB} {System.Math.Abs(fitB):F1}";
 
             // 双重扫描法找极值
             double scanStart = xData[0];
