@@ -47,13 +47,22 @@ namespace ElectroOptics.UI.CrystalSelector
 
         #region 字体
 
-        private TMP_FontAsset GetFont()
+        private TMP_FontAsset GetChineseFont()
         {
             if (_fontOK) return _font;
             _fontOK = true;
+            _font = Resources.Load<TMP_FontAsset>("Fonts/SimSun SDF")
+                ?? Resources.Load<TMP_FontAsset>("Fonts/SIMSUN SDF")
+                ?? Resources.Load<TMP_FontAsset>("Fonts/SIMHEI SDF");
+            if (_font != null) return _font;
+
             foreach (var t in FindObjectsOfType<TMP_Text>(true))
             {
-                if (t.font != null && t.font.name.Contains("SIMHEI"))
+                if (t.font != null
+                    && (t.font.name.Contains("SimSun")
+                        || t.font.name.Contains("宋体")
+                        || t.font.name.Contains("SIMHEI")
+                        || t.font.name.Contains("NotoSerifSC")))
                 { _font = t.font; return _font; }
             }
             foreach (var t in FindObjectsOfType<TMP_Text>(true))
@@ -65,40 +74,53 @@ namespace ElectroOptics.UI.CrystalSelector
             return _font;
         }
 
+        private TMP_FontAsset GetLatinFont()
+        {
+            if (_latinFontOK) return _latinFont;
+            _latinFontOK = true;
+            _latinFont = Resources.Load<TMP_FontAsset>("Fonts/Times New Roman SDF")
+                ?? Resources.Load<TMP_FontAsset>("Fonts/TIMES SDF")
+                ?? Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF")
+                ?? TMP_Settings.defaultFontAsset;
+            return _latinFont;
+        }
+
         #endregion
 
         #region Inspector 可调参数
 
         [Header("面板尺寸")]
         [SerializeField] private float pnlW = 940f;
-        [SerializeField] private float pnlH = 680f;
+        [SerializeField] private float pnlH = 740f;
 
         [Header("行高 / 标签宽 / 输入框宽")]
-        [SerializeField] private float rowH = 56f;
-        [SerializeField] private float lblW = 150f;
-        [SerializeField] private float inpW = 220f;
-        [SerializeField] private float inpSmallW = 100f;
+        [SerializeField] private float rowH = 38f;
+        [SerializeField] private float lblW = 112f;
+        [SerializeField] private float inpW = 180f;
+        [SerializeField] private float inpSmallW = 166f;
 
         [Header("字号")]
         [SerializeField] private int fontSizeTitle = 34;
-        [SerializeField] private int fontSizeSection = 20;
-        [SerializeField] private int fontSizeLabel = 16;
-        [SerializeField] private int fontSizeInput = 16;
-        [SerializeField] private int fontSizeButton = 26;
+        [SerializeField] private int fontSizeSection = 22;
+        [SerializeField] private int fontSizeLabel = 19;
+        [SerializeField] private int fontSizeInput = 18;
+        [SerializeField] private int fontSizeButton = 22;
 
         [Header("颜色")]
-        [SerializeField] private Color clrOverlay = new Color(0, 0, 0, 0.50f);
-        [SerializeField] private Color clrPanel   = new Color(0.13f, 0.14f, 0.18f, 0.98f);
-        [SerializeField] private Color clrBar     = new Color(0.17f, 0.19f, 0.25f, 1f);
-        [SerializeField] private Color clrSection = new Color(0.65f, 0.75f, 0.90f);
-        [SerializeField] private Color clrLabel   = new Color(0.68f, 0.70f, 0.76f);
-        [SerializeField] private Color clrInputBg = new Color(0.30f, 0.32f, 0.40f, 1f);
-        [SerializeField] private Color clrBtnOk   = new Color(0.22f, 0.56f, 0.86f);
-        [SerializeField] private Color clrBtnCancel = new Color(0.35f, 0.35f, 0.42f);
+        [SerializeField] private Color clrOverlay = new Color(0f, 0f, 0f, 0.18f);
+        [SerializeField] private Color clrPanel   = new Color(0.97f, 0.985f, 1.00f, 0.98f);
+        [SerializeField] private Color clrBar     = new Color(0.955f, 0.975f, 0.995f, 1f);
+        [SerializeField] private Color clrSection = new Color(0.33f, 0.45f, 0.62f, 1f);
+        [SerializeField] private Color clrLabel   = new Color(0.36f, 0.42f, 0.52f, 1f);
+        [SerializeField] private Color clrInputBg = new Color(0.985f, 0.992f, 1f, 1f);
+        [SerializeField] private Color clrBtnOk   = new Color(0.16f, 0.43f, 0.74f, 1f);
+        [SerializeField] private Color clrBtnCancel = new Color(1f, 1f, 1f, 1f);
 
         // 内部引用（保持非 static，支持重建）
         private TMP_FontAsset _font;
+        private TMP_FontAsset _latinFont;
         private bool _fontOK;
+        private bool _latinFontOK;
 
         #endregion
 
@@ -127,7 +149,9 @@ namespace ElectroOptics.UI.CrystalSelector
                 DestroyImmediate(transform.GetChild(i).gameObject);
             _built = false;
             _fontOK = false;
+            _latinFontOK = false;
             _font = null;
+            _latinFont = null;
             BuildUI();
         }
 #endif
@@ -137,328 +161,253 @@ namespace ElectroOptics.UI.CrystalSelector
             if (_built) return;
             _built = true;
 
-            TMP_FontAsset font = GetFont();
-
-            // ── Overlay ──
             var overlay = MkRect("Overlay", transform, 0, 0, 1, 1, fill: true);
             var ovImg = overlay.gameObject.AddComponent<Image>();
             ovImg.color = clrOverlay;
-            ovImg.raycastTarget = true; // 阻挡下层点击
+            ovImg.raycastTarget = true;
 
-            // ── Panel ──
+            var shadow = MkRect("PanelShadow", overlay, 0.5f, 0.5f, 0.5f, 0.5f, pnlW, pnlH);
+            shadow.anchoredPosition = new Vector2(10, -10);
+            shadow.gameObject.AddComponent<Image>().color = new Color(0.15f, 0.25f, 0.38f, 0.10f);
+
             var panel = MkRect("Panel", overlay, 0.5f, 0.5f, 0.5f, 0.5f, pnlW, pnlH);
             panel.anchoredPosition = Vector2.zero;
-            panel.gameObject.AddComponent<Image>().color = clrPanel;
+            var panelImg = panel.gameObject.AddComponent<Image>();
+            panelImg.color = clrPanel;
+            AddOutline(panel.gameObject, new Color(0.70f, 0.78f, 0.88f, 1f), new Vector2(1, -1));
 
-            // ── Title ──
-            var titleBar = MkRect("TitleBar", panel, 0, 1, 1, 1, h: 68);
-            titleBar.pivot = new Vector2(0.5f, 1);
-            titleBar.gameObject.AddComponent<Image>().color = clrBar;
-            {
-                var t = MkTxt("自定义晶体参数", titleBar, fontSizeTitle, Color.white);
-                var tr = t.GetComponent<RectTransform>();
-                tr.anchorMin = tr.anchorMax = new Vector2(0.5f, 0.5f); tr.sizeDelta = new Vector2(420, 44);
-                t.alignment = TextAlignmentOptions.Center;
-            }
-            {
-                var cb = MkRect("CloseBtn", titleBar, 1, 0.5f, 1, 0.5f, 42, 42);
-                cb.pivot = new Vector2(1, 0.5f); cb.anchoredPosition = new Vector2(-14, 0);
-                cb.gameObject.AddComponent<Image>().color = new Color(1, 1, 1, 0.18f);
-                cb.gameObject.AddComponent<Button>().onClick.AddListener(Hide);
-                var cx = MkTxt("X", cb, 24, new Color(0.85f, 0.85f, 0.85f));
-                CenterStretch(cx.GetComponent<RectTransform>());
-                cx.alignment = TextAlignmentOptions.Center;
-            }
-
-            // ── ButtonBar ──
-            var btnBar = MkRect("ButtonBar", panel, 0, 0, 1, 0, h: 76);
-            btnBar.pivot = new Vector2(0.5f, 0);
-            btnBar.gameObject.AddComponent<Image>().color = clrBar;
-            {
-                var hlg = btnBar.gameObject.AddComponent<HorizontalLayoutGroup>();
-                hlg.childAlignment = TextAnchor.MiddleCenter; hlg.spacing = 40;
-                hlg.padding = new RectOffset(24, 24, 12, 12);
-                hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = true;
-                hlg.childControlWidth = false; hlg.childControlHeight = true;
-            }
-            MkBtn("取 消", btnBar, clrBtnCancel, Hide);
-            MkBtn("确 认", btnBar, clrBtnOk, OnConfirm);
-
-            // ── 内容区：ScrollView 容纳溢出内容 ──
-            var sv = MkRect("ScrollView", panel, 0, 0, 1, 1, fill: true);
-            sv.offsetMin = new Vector2(0, 76); sv.offsetMax = new Vector2(0, -68);
-            sv.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0);
-
-            var scr = sv.gameObject.AddComponent<ScrollRect>();
-            scr.horizontal = false; scr.vertical = true;
-            scr.movementType = ScrollRect.MovementType.Clamped;
-            scr.scrollSensitivity = 30;
-
-            // Viewport
-            var vp = MkRect("Viewport", sv, 0, 0, 1, 1, fill: true);
-            // ⚠ Mask 需要不透明的 Image 才能写入 stencil buffer！
-            // showMaskGraphic=false 会隐藏渲染，但 Image 必须是可见颜色用于裁切
-            var vpImg = vp.gameObject.AddComponent<Image>();
-            vpImg.color = Color.white;  // 必须是 visible color，不能 alpha=0
-            var mask = vp.gameObject.AddComponent<Mask>();
-            mask.showMaskGraphic = false;
-            scr.viewport = vp;
-
-            // Content（不用 ContentSizeFitter，手动算高度）
-            var content = MkRect("Content", vp, 0, 1, 1, 1);
-            content.pivot = new Vector2(0.5f, 1);
-            content.anchoredPosition = Vector2.zero;
-
-            var vlg = content.gameObject.AddComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(34, 34, 20, 24);
-            vlg.spacing = 12;
-            vlg.childAlignment = TextAnchor.UpperCenter;
-            vlg.childForceExpandWidth = true;
-            vlg.childForceExpandHeight = false;
-            vlg.childControlWidth = true;
-            vlg.childControlHeight = false;
-
-            scr.content = content;
-
-            // 填充内容
-            FillContent(content);
-
-            // 等所有子对象创建后，让 VLG 计算实际高度
-            Canvas.ForceUpdateCanvases();
-            LayoutRebuilder.ForceRebuildLayoutImmediate(content);
-            // 取 VLG 计算出来的实际高度
-            float realH = LayoutUtility.GetPreferredHeight(content);
-            content.sizeDelta = new Vector2(0, Mathf.Max(realH, 400f));
+            BuildAcademicContent(panel);
         }
 
         #endregion
 
         #region 填充内容
 
-        private void FillContent(RectTransform content)
+        private void BuildAcademicContent(RectTransform panel)
         {
-            // 手动计算总高度并设置 sizeDelta：
-            // 每个 section header: 28px
-            // 每个 row: rowH px
-            // spacing: 10px (由 VLG 控制)
-            // padding top: 16, bottom: 20
-            // 不需要 ContentSizeFitter！
+            FixedImage("TitleBar", panel, 0, 0, pnlW, 84, clrBar);
+            FixedImage("TitleDivider", panel, 0, 84, pnlW, 1, new Color(0.74f, 0.81f, 0.90f, 1f));
+            FixedText("TitleText", "自定义晶体参数", panel, 36, 22, 330, 42,
+                fontSizeTitle, new Color(0.22f, 0.27f, 0.35f, 1f), GetChineseFont(), TextAlignmentOptions.MidlineLeft);
+            FixedButton("CloseButton", "X", panel, pnlW - 58, 20, 36, 36,
+                new Color(0.93f, 0.96f, 1f, 1f), new Color(0.40f, 0.47f, 0.58f, 1f),
+                new Color(0.76f, 0.84f, 0.94f, 1f), Hide, GetLatinFont());
 
-            // 基本信息
-            SectionHdr(content, "基本信息");
-            _inpName = Row_LblInp(content, "晶体名称", "自定义晶体", lblW, inpW + 110);
-            _inpWL   = Row_LblInp(content, "激光波长 (nm)", "633", lblW, inpW);
+            AddSectionTitle(panel, "基本信息", 108);
+            FixedText("NameLabel", "晶体名称", panel, 68, 148, lblW, 32,
+                fontSizeLabel, clrLabel, GetChineseFont(), TextAlignmentOptions.MidlineLeft);
+            _inpName = FixedInput("NameInput", panel, 188, 140, 430, rowH, "自定义晶体", GetChineseFont());
 
-            // 折射率
-            SectionHdr(content, "折射率");
+            FixedText("WavelengthLabel", "激光波长    λ", panel, 68, 200, 130, 32,
+                fontSizeLabel, clrLabel, GetChineseFont(), TextAlignmentOptions.MidlineLeft);
+            _inpWL = FixedInput("WavelengthInput", panel, 188, 192, inpW, rowH, "633");
+            FixedText("WavelengthUnit", "nm", panel, 382, 202, 44, 28,
+                16, clrLabel, GetLatinFont(), TextAlignmentOptions.MidlineLeft);
+
+            AddSectionTitle(panel, "折射率", 250);
+            FixedFormula("NxLabel", "n<sub>x</sub>", panel, 90, 296, 42, 30);
+            _inpNx = FixedInput("NxInput", panel, 188, 288, inpSmallW, rowH, "1.6");
+            FixedFormula("NyLabel", "n<sub>y</sub>", panel, 420, 296, 42, 30);
+            _inpNy = FixedInput("NyInput", panel, 520, 288, inpSmallW, rowH, "1.6");
+            FixedFormula("NzLabel", "n<sub>z</sub>", panel, 90, 348, 42, 30);
+            _inpNz = FixedInput("NzInput", panel, 188, 340, inpSmallW, rowH, "1.6");
+
+            AddSectionTitle(panel, "几何尺寸", 402);
+            FixedText("LengthLabel", "长度    L", panel, 68, 448, 120, 32,
+                fontSizeLabel, clrLabel, GetChineseFont(), TextAlignmentOptions.MidlineLeft);
+            _inpLen = FixedInput("LengthInput", panel, 188, 440, inpSmallW, rowH, "20");
+            FixedText("LengthUnit", "mm", panel, 372, 450, 44, 28,
+                16, clrLabel, GetLatinFont(), TextAlignmentOptions.MidlineLeft);
+
+            FixedText("ThicknessLabel", "厚度    d", panel, 420, 448, 120, 32,
+                fontSizeLabel, clrLabel, GetChineseFont(), TextAlignmentOptions.MidlineLeft);
+            _inpThick = FixedInput("ThicknessInput", panel, 520, 440, inpSmallW, rowH, "1");
+            FixedText("ThicknessUnit", "mm", panel, 704, 450, 44, 28,
+                16, clrLabel, GetLatinFont(), TextAlignmentOptions.MidlineLeft);
+
+            AddSectionTitle(panel, "电光系数", 500);
+            var grid = FixedImage("ElectroOpticGrid", panel, 26, 526, 888, 136,
+                new Color(1f, 1f, 1f, 0.34f));
+            AddOutline(grid.gameObject, new Color(0.78f, 0.86f, 0.96f, 1f), new Vector2(1, -1));
+            _eoGrid = grid.gameObject;
+            _eoOpen = true;
+            _eoArrow = null;
+            BuildElectroOpticGrid(grid);
+
+            FixedImage("FooterDivider", panel, 0, 672, pnlW, 1, new Color(0.76f, 0.83f, 0.92f, 1f));
+            FixedImage("Footer", panel, 0, 673, pnlW, 67, new Color(0.985f, 0.992f, 1f, 0.96f));
+            FixedButton("CancelButton", "取消", panel, 590, 684, 150, 48,
+                Color.white, new Color(0.38f, 0.44f, 0.54f, 1f),
+                new Color(0.70f, 0.79f, 0.90f, 1f), Hide, GetChineseFont());
+            FixedButton("ConfirmButton", "确认", panel, 760, 684, 150, 48,
+                clrBtnOk, Color.white, clrBtnOk, OnConfirm, GetChineseFont());
+        }
+
+        private void BuildElectroOpticGrid(RectTransform grid)
+        {
+            float[] leftLabelX = { 18f, 164f, 310f };
+            float[] leftInputX = { 62f, 208f, 354f };
+            float[] rightLabelX = { 468f, 614f, 760f };
+            float[] rightInputX = { 512f, 658f, 804f };
+
+            for (int row = 0; row < 3; row++)
             {
-                var r = MkHrz(content);
-                _inpNx = LblInp(r, "n_x", "1.5", inpSmallW + 20);
-                _inpNy = LblInp(r, "n_y", "1.5", inpSmallW + 20);
+                float y = 8f + row * 40f;
+                for (int col = 0; col < 3; col++)
+                {
+                    AddEoCell(grid, row + 1, col + 1, leftLabelX[col], leftInputX[col], y);
+                    AddEoCell(grid, row + 4, col + 1, rightLabelX[col], rightInputX[col], y);
+                }
             }
-            _inpNz = Row_LblInp(content, "n_z", "1.5", lblW, inpW);
+        }
 
-            // 几何尺寸
-            SectionHdr(content, "几何尺寸");
-            {
-                var r = MkHrz(content);
-                _inpLen   = LblInp(r, "长度 (mm)", "20", inpSmallW + 30);
-                _inpThick = LblInp(r, "厚度 (mm)", "1", inpSmallW + 30);
-            }
+        private void AddEoCell(Transform parent, int row, int col, float labelX, float inputX, float y)
+        {
+            FixedFormula($"R{row}{col}Label", $"r<sub>{row}{col}</sub>", parent, labelX, y + 2, 42, 28);
+            _inpR[row - 1, col - 1] = FixedInput($"R{row}{col}Input", parent, inputX, y, 84, 32, "0");
+        }
 
-            // 电光系数
-            {
-                var foldRow = MkHrz(content);
-                foldRow.sizeDelta = new Vector2(0, 40);
-                _eoArrow = MkTxt("▼", foldRow, 18, new Color(0.60f, 0.60f, 0.65f));
-                _eoArrow.GetComponent<RectTransform>().sizeDelta = new Vector2(28, 40);
-                MkTxt("电光系数 (pm/V) — 点击展开/折叠", foldRow, 18, clrSection);
-                foldRow.gameObject.AddComponent<Button>().onClick.AddListener(ToggleEO);
-                var flg = foldRow.GetComponent<HorizontalLayoutGroup>();
-                if (flg != null) { flg.childForceExpandWidth = true; flg.childControlWidth = true; }
-            }
-
-            _eoGrid = new GameObject("EOGrid");
-            _eoGrid.transform.SetParent(content, false);
-            var gridRt = _eoGrid.AddComponent<RectTransform>();
-            gridRt.sizeDelta = new Vector2(0, 6 * (rowH + 6));
-            var gvl = _eoGrid.AddComponent<VerticalLayoutGroup>();
-            gvl.spacing = 6;
-            gvl.childForceExpandWidth = true; gvl.childForceExpandHeight = false;
-            gvl.childControlWidth = true; gvl.childControlHeight = false;
-
-            for (int i = 0; i < 6; i++)
-            {
-                var erow = MkHrz(_eoGrid.transform);
-                erow.sizeDelta = new Vector2(0, rowH);
-                for (int j = 0; j < 3; j++)
-                    _inpR[i, j] = LblInp(erow, $"r{i + 1}{j + 1}", "0", inpSmallW + 10);
-            }
-
-            // VLG + child sizes 自动撑开 Content 高度
+        private void AddSectionTitle(Transform parent, string title, float y)
+        {
+            FixedText($"{title}Title", title, parent, 68, y, 120, 32,
+                fontSizeSection, clrSection, GetChineseFont(), TextAlignmentOptions.MidlineLeft);
+            FixedImage($"{title}Rule", parent, 188, y + 18, 690, 1,
+                new Color(0.76f, 0.83f, 0.92f, 1f));
         }
 
         #endregion
 
         #region UI 原子组件
 
-        // —— 结构 ——
         private static RectTransform MkRect(string name, Transform parent,
             float ax, float ay, float ax2, float ay2, float w = 0, float h = 0, bool fill = false)
         {
-            var go = new GameObject(name); go.transform.SetParent(parent, false);
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
             var rt = go.AddComponent<RectTransform>();
             rt.anchorMin = new Vector2(ax, ay);
             rt.anchorMax = new Vector2(ax2, ay2);
             if (w > 0 || h > 0) rt.sizeDelta = new Vector2(w, h);
-            if (fill) { rt.offsetMin = rt.offsetMax = Vector2.zero; }
+            if (fill) rt.offsetMin = rt.offsetMax = Vector2.zero;
             return rt;
         }
 
-        private RectTransform MkHrz(Transform parent)
+        private static RectTransform FixedRect(string name, Transform parent, float x, float y, float w, float h)
         {
-            var rt = MkRect("Row", parent, 0, 0, 0, 0, h: rowH);
-            rt.anchorMin = rt.anchorMax = Vector2.zero;
-            var hlg = rt.gameObject.AddComponent<HorizontalLayoutGroup>();
-            hlg.childAlignment = TextAnchor.MiddleLeft;
-            hlg.spacing = 14;
-            hlg.childForceExpandWidth = false;
-            hlg.childForceExpandHeight = true;
-            hlg.childControlWidth = false;
-            hlg.childControlHeight = true;
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(x, -y);
+            rt.sizeDelta = new Vector2(w, h);
             return rt;
         }
 
-        // —— 文本 ——
-        private TMP_Text MkTxt(string text, Transform parent, int size, Color color)
+        private static RectTransform FixedImage(string name, Transform parent, float x, float y, float w, float h, Color color)
         {
-            var go = new GameObject("Lbl"); go.transform.SetParent(parent, false);
-            go.AddComponent<RectTransform>();
-            var tmp = go.AddComponent<TextMeshProUGUI>();
-            tmp.font = GetFont();
+            var rt = FixedRect(name, parent, x, y, w, h);
+            var image = rt.gameObject.AddComponent<Image>();
+            image.color = color;
+            return rt;
+        }
+
+        private static void AddOutline(GameObject go, Color color, Vector2 distance)
+        {
+            var outline = go.AddComponent<UnityEngine.UI.Outline>();
+            outline.effectColor = color;
+            outline.effectDistance = distance;
+        }
+
+        private TMP_Text FixedText(string name, string text, Transform parent, float x, float y, float w, float h,
+            int size, Color color, TMP_FontAsset font, TextAlignmentOptions alignment)
+        {
+            var rt = FixedRect(name, parent, x, y, w, h);
+            var tmp = rt.gameObject.AddComponent<TextMeshProUGUI>();
+            tmp.font = font;
             tmp.text = text;
             tmp.fontSize = size;
             tmp.color = color;
-            tmp.alignment = TextAlignmentOptions.Left;
+            tmp.alignment = alignment;
             tmp.enableWordWrapping = false;
+            tmp.richText = true;
+            tmp.raycastTarget = false;
+            tmp.overflowMode = TextOverflowModes.Overflow;
             return tmp;
         }
 
-        private TMP_Text MkTxtSz(string text, Transform parent, int size, Color color, float w, float h)
+        private TMP_Text FixedFormula(string name, string text, Transform parent, float x, float y, float w, float h)
         {
-            var t = MkTxt(text, parent, size, color);
-            t.GetComponent<RectTransform>().sizeDelta = new Vector2(w, h);
-            return t;
+            return FixedText(name, text, parent, x, y, w, h, 19,
+                new Color(0.38f, 0.44f, 0.54f, 1f), GetLatinFont(), TextAlignmentOptions.Center);
         }
 
-        // —— Section 标题: 一条细线 + 文字 ——
-        private void SectionHdr(Transform parent, string title)
+        private TMP_InputField FixedInput(string name, Transform parent, float x, float y, float w, float h, string def,
+            TMP_FontAsset fontOverride = null)
         {
-            var go = new GameObject("Sec");
-            go.transform.SetParent(parent, false);
-            var rt = go.AddComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(0, 36);
-            // 细线
-            var line = new GameObject("Line"); line.transform.SetParent(rt, false);
-            var lr = line.AddComponent<RectTransform>();
-            lr.anchorMin = new Vector2(0, 0.5f); lr.anchorMax = new Vector2(1, 0.5f);
-            lr.sizeDelta = new Vector2(0, 1);
-            lr.anchoredPosition = Vector2.zero;
-            line.AddComponent<Image>().color = new Color(0.25f, 0.28f, 0.35f);
-            // 文字
-            var t = MkTxt(title, rt, fontSizeSection, clrSection);
-            var tr = t.GetComponent<RectTransform>();
-            tr.anchorMin = new Vector2(0, 0.5f); tr.anchorMax = new Vector2(0, 0.5f);
-            tr.pivot = new Vector2(0, 0.5f);
-            tr.anchoredPosition = new Vector2(4, 0);
-            tr.sizeDelta = new Vector2(340, 36);
-        }
+            TMP_FontAsset font = fontOverride != null ? fontOverride : GetLatinFont();
+            var rt = FixedRect(name, parent, x, y, w, h);
+            var bg = rt.gameObject.AddComponent<Image>();
+            bg.color = clrInputBg;
+            AddOutline(rt.gameObject, new Color(0.68f, 0.78f, 0.90f, 1f), new Vector2(1, -1));
 
-        // —— 带标签的输入框（放在母行内） ——
-        private TMP_InputField LblInp(Transform parent, string label, string def, float inpW)
-        {
-            MkTxtSz(label, parent, fontSizeLabel, clrLabel, 36, rowH);
-            return MkInput(parent, def, inpW, rowH);
-        }
+            var taRt = FixedRect("Text Area", rt, 12, 4, w - 24, h - 8);
+            taRt.gameObject.AddComponent<RectMask2D>();
 
-        // —— 独立行 = 标签 + 输入框 ——
-        private TMP_InputField Row_LblInp(Transform parent, string label, string def, float lblW, float inpW)
-        {
-            var row = MkHrz(parent);
-            MkTxtSz(label, row, fontSizeLabel, clrLabel, lblW, rowH);
-            return MkInput(row, def, inpW, rowH);
-        }
+            var textRt = FixedRect("Text", taRt, 0, 0, w - 24, h - 8);
+            var txt = textRt.gameObject.AddComponent<TextMeshProUGUI>();
+            txt.font = font;
+            txt.text = def;
+            txt.fontSize = fontSizeInput;
+            txt.color = new Color(0.25f, 0.30f, 0.38f, 1f);
+            txt.alignment = TextAlignmentOptions.MidlineLeft;
+            txt.enableWordWrapping = false;
+            txt.raycastTarget = false;
 
-        // —— 输入框 ——
-        private TMP_InputField MkInput(Transform parent, string def, float w, float h)
-        {
-            TMP_FontAsset font = GetFont();
+            var phRt = FixedRect("Placeholder", taRt, 0, 0, w - 24, h - 8);
+            var ph = phRt.gameObject.AddComponent<TextMeshProUGUI>();
+            ph.font = font;
+            ph.text = def;
+            ph.fontSize = fontSizeInput;
+            ph.color = new Color(0.58f, 0.64f, 0.72f, 0.85f);
+            ph.alignment = TextAlignmentOptions.MidlineLeft;
+            ph.enableWordWrapping = false;
+            ph.raycastTarget = false;
 
-            var go = new GameObject("Inp"); go.transform.SetParent(parent, false);
-            var rt = go.AddComponent<RectTransform>(); rt.sizeDelta = new Vector2(w, h);
-
-            // 背景 + 边框效果（深底 + 浅色 Image outline）
-            go.AddComponent<Image>().color = clrInputBg;
-
-            // ★ 关键修复：先创建所有子对象，再添加 TMP_InputField
-            // Text Area
-            var taGo = new GameObject("Text Area"); taGo.transform.SetParent(rt, false);
-            var taRt = taGo.AddComponent<RectTransform>();
-            taRt.anchorMin = Vector2.zero; taRt.anchorMax = Vector2.one;
-            taRt.offsetMin = new Vector2(10, 4); taRt.offsetMax = new Vector2(-10, -4);
-            taGo.AddComponent<RectMask2D>();
-
-            // Text
-            var textGo = new GameObject("Text"); textGo.transform.SetParent(taRt, false);
-            var textRt = textGo.AddComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero; textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = textRt.offsetMax = Vector2.zero;
-            var txt = textGo.AddComponent<TextMeshProUGUI>();
-            txt.font = font; txt.text = def; txt.fontSize = fontSizeInput; txt.color = Color.white;
-            txt.alignment = TextAlignmentOptions.Left; txt.enableWordWrapping = false;
-
-            // Placeholder
-            var phGo = new GameObject("Placeholder"); phGo.transform.SetParent(taRt, false);
-            var phRt = phGo.AddComponent<RectTransform>();
-            phRt.anchorMin = Vector2.zero; phRt.anchorMax = Vector2.one;
-            phRt.offsetMin = phRt.offsetMax = Vector2.zero;
-            var ph = phGo.AddComponent<TextMeshProUGUI>();
-            ph.font = font; ph.text = def; ph.fontSize = fontSizeInput;
-            ph.color = new Color(0.45f, 0.45f, 0.50f); ph.fontStyle = FontStyles.Italic;
-            ph.alignment = TextAlignmentOptions.Left; ph.enableWordWrapping = false;
-
-            // ★ 最后添加 TMP_InputField，此时子对象已完备
-            var inp = go.AddComponent<TMP_InputField>();
+            var inp = rt.gameObject.AddComponent<TMP_InputField>();
             inp.textViewport = taRt;
             inp.textComponent = txt;
             inp.placeholder = ph;
             inp.text = def;
             inp.fontAsset = font;
-
-            // 用更亮的背景色 + 微调区分输入框（Outline 与 QuickOutline 冲突）
+            inp.lineType = TMP_InputField.LineType.SingleLine;
+            inp.selectionColor = new Color(0.25f, 0.50f, 0.85f, 0.35f);
+            inp.caretColor = new Color(0.17f, 0.35f, 0.62f, 1f);
+            inp.customCaretColor = true;
             return inp;
         }
 
-        // —— 按钮 ——
-        private void MkBtn(string text, Transform parent, Color bg, UnityEngine.Events.UnityAction cb)
+        private Button FixedButton(string name, string text, Transform parent, float x, float y, float w, float h,
+            Color bg, Color textColor, Color borderColor, UnityEngine.Events.UnityAction cb, TMP_FontAsset font)
         {
-            var go = new GameObject("Btn"); go.transform.SetParent(parent, false);
-            var rt = go.AddComponent<RectTransform>(); rt.sizeDelta = new Vector2(180, 54);
-            go.AddComponent<Image>().color = bg;
-            var btn = go.AddComponent<Button>();
-            var clr = btn.colors;
-            clr.normalColor = bg; clr.highlightedColor = bg * 1.2f; clr.pressedColor = bg * 0.8f;
-            btn.colors = clr;
-            btn.onClick.AddListener(cb);
-            var lbl = MkTxt(text, rt, fontSizeButton, Color.white);
-            CenterStretch(lbl.GetComponent<RectTransform>());
-            lbl.alignment = TextAlignmentOptions.Center;
-        }
+            var rt = FixedRect(name, parent, x, y, w, h);
+            var image = rt.gameObject.AddComponent<Image>();
+            image.color = bg;
+            AddOutline(rt.gameObject, borderColor, new Vector2(1, -1));
 
-        private static void CenterStretch(RectTransform rt)
-        {
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
+            var btn = rt.gameObject.AddComponent<Button>();
+            btn.targetGraphic = image;
+            var colors = btn.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(0.92f, 0.96f, 1f, 1f);
+            colors.pressedColor = new Color(0.80f, 0.88f, 0.98f, 1f);
+            colors.selectedColor = colors.highlightedColor;
+            colors.colorMultiplier = 1f;
+            btn.colors = colors;
+            btn.onClick.AddListener(cb);
+
+            FixedText($"{name}Text", text, rt, 0, 0, w, h, fontSizeButton, textColor, font, TextAlignmentOptions.Center);
+            return btn;
         }
 
         #endregion
@@ -477,7 +426,7 @@ namespace ElectroOptics.UI.CrystalSelector
             var p = ScriptableObject.CreateInstance<CrystalProfile>();
             p.crystalName          = GetT(_inpName, "自定义晶体");
             p.defaultWavelength_nm = GetN(_inpWL, 633.0);
-            p.n_x = GetN(_inpNx, 1.5); p.n_y = GetN(_inpNy, 1.5); p.n_z = GetN(_inpNz, 1.5);
+            p.n_x = GetN(_inpNx, 1.6); p.n_y = GetN(_inpNy, 1.6); p.n_z = GetN(_inpNz, 1.6);
             p.defaultLength_mm    = GetN(_inpLen, 20.0);
             p.defaultThickness_mm = GetN(_inpThick, 1.0);
 
@@ -506,7 +455,7 @@ namespace ElectroOptics.UI.CrystalSelector
         private void ResetFields()
         {
             SetT(_inpName, "自定义晶体"); SetT(_inpWL, "633");
-            SetT(_inpNx, "1.5"); SetT(_inpNy, "1.5"); SetT(_inpNz, "1.5");
+            SetT(_inpNx, "1.6"); SetT(_inpNy, "1.6"); SetT(_inpNz, "1.6");
             SetT(_inpLen, "20");  SetT(_inpThick, "1");
             for (int i = 0; i < 6; i++) for (int j = 0; j < 3; j++) SetT(_inpR[i, j], "0");
         }
