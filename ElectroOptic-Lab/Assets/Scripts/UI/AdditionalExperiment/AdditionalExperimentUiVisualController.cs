@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using ElectroOptics;
+using ElectroOptics.DataTransfer;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -54,6 +56,7 @@ public struct AdditionalConoscopicGlobalPhysicalParameters
 public class AdditionalExperimentUiVisualController : MonoBehaviour
 {
     [SerializeField] private AdditionalConoscopicMode defaultMode = AdditionalConoscopicMode.BiaxialVoltage;
+    [SerializeField] private bool useSelectedCrystalAsDefaultMode = true;
     [SerializeField] private TMP_FontAsset chineseFont;
     [SerializeField] private Button resetButton;
     [SerializeField] private AdditionalConoscopicGlobalPhysicalParameters m1GlobalParameters = AdditionalConoscopicGlobalPhysicalParameters.StandardDefaults;
@@ -63,9 +66,9 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     [SerializeField] private AdditionalConoscopicUserParameters m2InitialParameters = AdditionalConoscopicUserParameters.Defaults;
     [SerializeField] private AdditionalConoscopicUserParameters m3InitialParameters = AdditionalConoscopicUserParameters.UniaxialVoltageDefaults;
 
-    private const float SectionSpacing = 10f;
-    private const float RowHeight = 38f;
-    private const float HeaderHeight = 42f;
+    private const float SectionSpacing = 11f;
+    private const float RowHeight = 42f;
+    private const float HeaderHeight = 46f;
     private const float SectionInnerPaddingX = 15f;
     private const float SectionInnerPaddingTop = 8f;
     private const float PanelInsetX = 20f;
@@ -73,15 +76,15 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private const float TabHeight = 50f;
     private const float TabWidth = 210f;
     private const float TabButtonHeight = 38f;
-    private const float ParamLabelWidth = 220f;
+    private const float ParamLabelWidth = 240f;
     private const float InfoLabelWidth = 140f;
-    private const float InputWidth = 82f;
+    private const float InputWidth = 96f;
     private const float GlobalTop = 75f;
-    private const float GlobalHeight = 290f;
-    private const float ModeTop = 375f;
-    private const float M1Height = 290f;
-    private const float M2Height = 380f;
-    private const float M3Height = 230f;
+    private const float GlobalHeight = 320f;
+    private const float ModeTop = 410f;
+    private const float M1Height = 320f;
+    private const float M2Height = 425f;
+    private const float M3Height = 270f;
     private const string PolarizerAngleLabel = "起偏器角度 (°)";
     private const string AnalyzerAngleLabel = "检偏器角度 (°)";
     private const string AngleFormat = "{0:0}";
@@ -105,6 +108,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
     private readonly Color _normalTabColor = new Color(0.72f, 0.72f, 0.72f, 1f);
     private readonly Color _textColor = Color.white;
     private readonly Color _darkTextColor = new Color(0.16f, 0.16f, 0.16f, 1f);
+    private readonly Color _inputTextColor = Color.black;
 
     private Transform _tabGroup;
     private GameObject _sectionGlobal;
@@ -278,9 +282,20 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             return;
         }
 
+        AdditionalConoscopicMode initialMode = ResolveInitialMode();
         RebuildVisualTree();
-        SetMode(defaultMode);
+        SetMode(initialMode);
         _hasInitialized = true;
+    }
+
+    private AdditionalConoscopicMode ResolveInitialMode()
+    {
+        if (useSelectedCrystalAsDefaultMode && CrystalWorkingGeometry.IsKtp(CrystalSelectionData.SelectedProfile))
+        {
+            return AdditionalConoscopicMode.BiaxialVoltage;
+        }
+
+        return defaultMode;
     }
 
     private void CreateOrSetupTab(string objectName, string text, UnityAction action)
@@ -303,20 +318,20 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         TMP_Text label = tab.GetComponentInChildren<TMP_Text>(true);
         if (label == null)
         {
-            label = CreateText("Text (TMP)", tab.transform, text, 20, _darkTextColor, TextAlignmentOptions.Center);
+            label = CreateText("Text (TMP)", tab.transform, text, 21, _darkTextColor, TextAlignmentOptions.Center);
             Stretch(label.rectTransform);
         }
         else
         {
             label.text = text;
-            label.fontSize = 20;
+            label.fontSize = 21;
             label.color = _darkTextColor;
             label.alignment = TextAlignmentOptions.Center;
         }
         label.enableWordWrapping = false;
         label.enableAutoSizing = true;
-        label.fontSizeMin = 16f;
-        label.fontSizeMax = 20f;
+        label.fontSizeMin = 17f;
+        label.fontSizeMax = 21f;
         label.overflowMode = TextOverflowModes.Ellipsis;
         ApplyChineseFont(label);
     }
@@ -390,16 +405,16 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
     private void AddHeader(Transform parent, string text)
     {
-        TMP_Text label = CreateText("Header", parent, text, 26, _textColor, TextAlignmentOptions.Center);
+        TMP_Text label = CreateText("Header", parent, text, 28, _textColor, TextAlignmentOptions.Center);
         SetLayout(label.gameObject, preferredHeight: HeaderHeight);
         PlaceSectionChild(label.gameObject, HeaderHeight);
     }
 
     private void AddSubHeader(Transform parent, string text)
     {
-        TMP_Text label = CreateText("AdvancedHeader", parent, text, 19, _textColor, TextAlignmentOptions.Left);
-        SetLayout(label.gameObject, preferredHeight: 30f);
-        PlaceSectionChild(label.gameObject, 30f);
+        TMP_Text label = CreateText("AdvancedHeader", parent, text, 21, _textColor, TextAlignmentOptions.Left);
+        SetLayout(label.gameObject, preferredHeight: 34f);
+        PlaceSectionChild(label.gameObject, 34f);
     }
 
     private void AddInfoRow(Transform parent, string labelText, string valueText)
@@ -408,11 +423,11 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         SetupHorizontalLayout(row, 10f, TextAnchor.MiddleLeft, true, false);
         SetLayout(row, preferredHeight: RowHeight);
 
-        TMP_Text label = CreateText("Label", row.transform, labelText, 22, _textColor, TextAlignmentOptions.Left);
+        TMP_Text label = CreateText("Label", row.transform, labelText, 24, _textColor, TextAlignmentOptions.Left);
         label.enableWordWrapping = false;
         SetLayout(label.gameObject, preferredWidth: InfoLabelWidth);
 
-        TMP_Text value = CreateText("Value", row.transform, valueText, 22, _textColor, TextAlignmentOptions.Left);
+        TMP_Text value = CreateText("Value", row.transform, valueText, 24, _textColor, TextAlignmentOptions.Left);
         SetLayout(value.gameObject, flexibleWidth: 1f);
         PlaceSectionChild(row, RowHeight);
     }
@@ -428,10 +443,10 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         TMP_Text label = FindDirectChild(row.transform, "Label")?.GetComponent<TMP_Text>();
         if (label == null)
         {
-            label = CreateText("Label", row.transform, labelText, 21, _textColor, TextAlignmentOptions.Left);
+            label = CreateText("Label", row.transform, labelText, 23, _textColor, TextAlignmentOptions.Left);
         }
         label.text = labelText;
-        label.fontSize = 21;
+        label.fontSize = 23;
         label.color = _textColor;
         label.alignment = TextAlignmentOptions.Left;
         label.enableWordWrapping = false;
@@ -454,7 +469,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
             input = CreateInput(row.transform, formattedValue);
         }
         ConfigureInput(input, formattedValue);
-        SetLayout(input.gameObject, preferredWidth: InputWidth, preferredHeight: 30f);
+        SetLayout(input.gameObject, preferredWidth: InputWidth, preferredHeight: 34f);
         BindSliderAndInput(slider, input, min, max, format);
         CachePolarizerControl(labelText, slider, input);
         _bindings[key] = new ControlBinding(slider, input, format);
@@ -521,7 +536,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         SetupHorizontalLayout(row, 10f, TextAnchor.MiddleLeft, true, false);
         SetLayout(row, preferredHeight: 38f);
 
-        TMP_Text label = CreateText("Text_真实物理参数", row.transform, "* 真实物理参数", 20, _textColor, TextAlignmentOptions.Left);
+        TMP_Text label = CreateText("Text_真实物理参数", row.transform, "* 真实物理参数", 22, _textColor, TextAlignmentOptions.Left);
         SetLayout(label.gameObject, preferredWidth: 180f);
 
         GameObject spacer = CreateRectObject("Spacer", row.transform);
@@ -615,11 +630,11 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         textAreaRect.offsetMin = new Vector2(6f, 3f);
         textAreaRect.offsetMax = new Vector2(-6f, -3f);
 
-        TMP_Text placeholder = CreateText("Placeholder", textArea.transform, "Enter text...", 14, new Color(0.55f, 0.55f, 0.55f, 0.65f), TextAlignmentOptions.Center);
+        TMP_Text placeholder = CreateText("Placeholder", textArea.transform, "Enter text...", 16, new Color(0.55f, 0.55f, 0.55f, 0.65f), TextAlignmentOptions.Center);
         Stretch(placeholder.rectTransform);
         placeholder.fontStyle = FontStyles.Italic;
 
-        TMP_Text text = CreateText("Text", textArea.transform, value, 14, _darkTextColor, TextAlignmentOptions.Center);
+        TMP_Text text = CreateText("Text", textArea.transform, value, 20, _inputTextColor, TextAlignmentOptions.Center);
         Stretch(text.rectTransform);
         text.enableWordWrapping = false;
 
@@ -642,8 +657,8 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         if (input.textComponent != null)
         {
             input.textComponent.text = value;
-            input.textComponent.fontSize = 14;
-            input.textComponent.color = _darkTextColor;
+            input.textComponent.fontSize = 20;
+            input.textComponent.color = _inputTextColor;
             input.textComponent.alignment = TextAlignmentOptions.Center;
             input.textComponent.enableWordWrapping = false;
             ApplyChineseFont(input.textComponent);
@@ -652,7 +667,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         if (input.placeholder is TMP_Text placeholder)
         {
             placeholder.text = "Enter text...";
-            placeholder.fontSize = 14;
+            placeholder.fontSize = 16;
             placeholder.alignment = TextAlignmentOptions.Center;
             ApplyChineseFont(placeholder);
         }
@@ -770,7 +785,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         button.targetGraphic = image;
         SetLayout(buttonObject, preferredWidth: width, preferredHeight: height);
 
-        TMP_Text label = CreateText("Text (TMP)", buttonObject.transform, text, 18, _darkTextColor, TextAlignmentOptions.Center);
+        TMP_Text label = CreateText("Text (TMP)", buttonObject.transform, text, 20, _darkTextColor, TextAlignmentOptions.Center);
         Stretch(label.rectTransform);
         return button;
     }
@@ -1053,7 +1068,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
         TMP_Text text = tab.GetComponentInChildren<TMP_Text>(true);
         if (text != null)
         {
-            text.color = selected ? new Color(0.94f, 0.78f, 0.24f, 1f) : _darkTextColor;
+            text.color = _darkTextColor;
             text.fontStyle = selected ? FontStyles.Bold : FontStyles.Normal;
         }
     }
@@ -1244,7 +1259,7 @@ public class AdditionalExperimentUiVisualController : MonoBehaviour
 
         if (child.name == "AdvancedHeader")
         {
-            return 30f;
+            return 34f;
         }
 
         return RowHeight;
