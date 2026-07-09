@@ -21,6 +21,7 @@ namespace ElectroOptics.Oscilloscope
         private const float MinDetectorSaturationVoltage = 0.0001f;
         private const float MinDetectorVoltsPerDivision = 0.0001f;
         private const float MinDetectorVerticalDivisions = 0.0001f;
+        private const string ChineseFallbackFontPath = "Fonts/SIMHEI SDF";
 
         [Header("Core References")]
         [SerializeField] private CrystalPhysicalCore physicalCore;
@@ -82,6 +83,9 @@ namespace ElectroOptics.Oscilloscope
         [SerializeField] private TextMeshProUGUI[] keyPointVoltageTexts = new TextMeshProUGUI[2];
         [SerializeField] private TextMeshProUGUI[] keyPointLabelTexts = new TextMeshProUGUI[2];
 
+        [Header("Font Fallbacks")]
+        [SerializeField] private TMP_FontAsset chineseFallbackFont;
+
         private OscilloscopeCore _core;
         private OscilloscopeWaveformGraphic _ch1Graphic;
         private OscilloscopeWaveformGraphic _ch2Graphic;
@@ -102,6 +106,7 @@ namespace ElectroOptics.Oscilloscope
         {
             DisableLegacyRecordManager();
             AutoBindMissingReferences();
+            ApplyRuntimeTextFontFallbacks();
             EnsureCore();
 
             if (logDiagnostics)
@@ -603,6 +608,79 @@ namespace ElectroOptics.Oscilloscope
                 keyPointVoltageTexts[index] = FindTmp(card, "数值区", "电压", "Text (TMP)");
             if (keyPointLabelTexts[index] == null)
                 keyPointLabelTexts[index] = FindTmp(card, "数值区", "对应值", "Text (TMP)");
+        }
+
+        private void ApplyRuntimeTextFontFallbacks()
+        {
+            TMP_FontAsset fallback = ResolveChineseFallbackFont();
+            if (fallback == null)
+            {
+                Debug.LogWarning($"{LogPrefix} Chinese fallback font '{ChineseFallbackFontPath}' not found. Runtime status text may show missing glyph boxes.");
+                return;
+            }
+
+            AddFallbackFont(statusText, fallback);
+            AddFallbackFont(modulationStatusText, fallback);
+            AddFallbackFonts(keyPointVoltageTexts, fallback);
+            AddFallbackFonts(keyPointLabelTexts, fallback);
+        }
+
+        private TMP_FontAsset ResolveChineseFallbackFont()
+        {
+            if (chineseFallbackFont != null)
+                return chineseFallbackFont;
+
+            chineseFallbackFont = Resources.Load<TMP_FontAsset>(ChineseFallbackFontPath);
+            return chineseFallbackFont;
+        }
+
+        private void AddFallbackFonts(TextMeshProUGUI[] texts, TMP_FontAsset fallback)
+        {
+            if (texts == null)
+                return;
+
+            for (int i = 0; i < texts.Length; i++)
+                AddFallbackFont(texts[i], fallback);
+        }
+
+        private void AddFallbackFont(TextMeshProUGUI text, TMP_FontAsset fallback)
+        {
+            if (text == null || text.font == null || fallback == null || text.font == fallback)
+                return;
+
+            TMP_FontAsset font = text.font;
+            if (font.fallbackFontAssetTable == null)
+                font.fallbackFontAssetTable = new System.Collections.Generic.List<TMP_FontAsset>();
+
+            if (!font.fallbackFontAssetTable.Contains(fallback))
+                font.fallbackFontAssetTable.Add(fallback);
+
+            EnsureFallbackMaterial(text, fallback);
+            text.UpdateFontAsset();
+            text.SetAllDirty();
+        }
+
+        private void EnsureFallbackMaterial(TextMeshProUGUI text, TMP_FontAsset fallback)
+        {
+            if (text == null || fallback == null || fallback.material == null)
+                return;
+
+            Material[] existing = text.fontSharedMaterials;
+            if (existing != null)
+            {
+                for (int i = 0; i < existing.Length; i++)
+                {
+                    if (existing[i] == fallback.material)
+                        return;
+                }
+            }
+
+            int oldLength = existing != null ? existing.Length : 0;
+            Material[] materials = new Material[oldLength + 1];
+            for (int i = 0; i < oldLength; i++)
+                materials[i] = existing[i];
+            materials[oldLength] = fallback.material;
+            text.fontSharedMaterials = materials;
         }
 
         private TextMeshProUGUI FindTmp(Transform root, params string[] path)
