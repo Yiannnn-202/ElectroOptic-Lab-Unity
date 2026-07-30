@@ -101,8 +101,10 @@
     - Android SDK：`...\AndroidPlayer\SDK`
     - Android SDK Build Tools：`34.0.0`
     - Android Platform：`android-35`
+    - Android SDK Command-line Tools：`6.0`
     - Android NDK：`23.1.7779620`
     - OpenJDK：`11.0.32`
+  - 如果 Unity 报错 `Android SDK command-line tools component is not found. Make sure "Command-line Tools (6.0)" is installed`，说明缺少 `cmdline-tools;6.0`；当前机器已补装到 `...\AndroidPlayer\SDK\cmdline-tools\6.0`，重启 Unity 后再检查。
   - 补装完成后需要关闭并重新打开 Unity Editor，再进入 `File > Build Settings` 检查 Android 是否可切换。
   - 用 Unity 打开 `ElectroOptic-Lab/` 项目目录。
   - `File > Build Settings` 选择 Android，并点击 `Switch Platform`。
@@ -117,8 +119,15 @@
   - 检查 `Assets/Plugins/x86_64/CrystalPhysicsCore.dll`，确保 Android/iOS 未勾选。
   - 检查 `Scenes In Build` 至少包含 `Scene0.Open Menu`、`Scene2-preview`、`Scene2.The Lab`、`Scene4_UIRebuild 1`。
   - `Player Settings` 设置 `Company Name = ElectroOptics`、`Product Name = ElectroOpticLabMobile`、`Package Name = com.electrooptics.labmobile`。
-  - Android `Other Settings` 设置 `Scripting Backend = IL2CPP`、`Target Architectures = ARM64`、`Minimum API Level >= Android 8.0/API 26`、`Target API Level = Automatic` 或 Android 35。
+  - 如果没看到 `Package Name`，在 Android `Other Settings / 其他设置 > Identification / 标识` 中找 `Application Identifier / 应用程序标识符`；如果有 `Override Default Package Name`，先勾选它再填写。
+  - Android `Other Settings` 不在 Build Settings 主窗口里：进入 `File > Build Settings`，左侧选 Android，点左下 `Player Settings...`，在 `Project Settings > Player` 顶部选择 Android 小机器人图标，再展开 `Other Settings / 其他设置`。
+  - Android `Other Settings / 其他设置` 设置 `Scripting Backend = IL2CPP`、`Target Architectures` 只勾 `ARM64`（取消 `ARMv7`）、`Minimum API Level >= Android 8.0/API 26`、`Target API Level = Automatic` 或 Android 35。
+  - 如果 `ARM64` 是灰色不可勾，先把 `Configuration > Scripting Backend` 从 `Mono` 改为 `IL2CPP`；Unity Android 的 ARM64 需要 IL2CPP。
   - 先执行 `Build` 输出 APK，不急着 `Build And Run`；如果失败，优先看 Console 第一条红色错误。
+  - 点击 `Build` 后建议输出到 `D:\Projects\Github\MyRepo\ElectroOptic-Lab-Unity\Builds\Android\ElectroOpticLabMobile.apk`；如果 Unity 只让选择文件夹，则选择 `Builds\Android`。
+  - 第一次 Android/IL2CPP 构建可能需要数分钟到十几分钟；构建成功后再安装真机，只验证启动、切场景、核心渲染和不崩溃。
+  - APK 可直接通过微信/QQ/网盘/数据线传到安卓设备安装；首次安装需要允许对应 App 或文件管理器“安装未知来源应用”。
+  - 安装后只检查 App 能启动、能进主菜单、能进入晶体选择、能进入实验场景、不闪退、不黑屏。
 
 - [ ] **记录移动端精度差异**
   - managed fallback 只用于跑通，不代表和 DLL 完全一致。
