@@ -235,9 +235,7 @@ namespace ElectroOptics.Experiment.Renderer
             _renderTexture.Create();
             ClearRenderTexture(_renderTexture);
 
-            RenderTextureFormat intensityFormat = SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGBFloat)
-                ? RenderTextureFormat.ARGBFloat
-                : RenderTextureFormat.ARGBHalf;
+            RenderTextureFormat intensityFormat = ResolveSupportedIntensityFormat();
 
             _jonesIntensityTexture = new RenderTexture(_textureSize, _textureSize, 0, intensityFormat)
             {
@@ -249,6 +247,21 @@ namespace ElectroOptics.Experiment.Renderer
             };
             _jonesIntensityTexture.Create();
             ClearRenderTexture(_jonesIntensityTexture);
+        }
+
+        private static RenderTextureFormat ResolveSupportedIntensityFormat()
+        {
+            if (SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGBFloat))
+            {
+                return RenderTextureFormat.ARGBFloat;
+            }
+
+            if (SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGBHalf))
+            {
+                return RenderTextureFormat.ARGBHalf;
+            }
+
+            return RenderTextureFormat.ARGB32;
         }
 
         private bool EnsureMaterial()

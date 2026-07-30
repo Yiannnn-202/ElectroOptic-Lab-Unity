@@ -5,32 +5,35 @@ using UnityEngine;
 public static class NativeInterface
 {
     // ========================================================================
-    // 1. DLL ÅäÖÃ
+    // 1. DLL ï¿½ï¿½ï¿½ï¿½
     // ========================================================================
     private const string DLL_NAME = "CrystalPhysicsCore";
+    private static bool _warnedManagedFallback;
 
     // ========================================================================
-    // 2. Ô­Éúµ¼Èë (Private)
-    //    Ê¹ÓÃ ref ´«µÝ½á¹¹ÌåÖ¸Õë£¬ÐÔÄÜ×î¸ß
+    // 2. Ô­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (Private)
+    //    Ê¹ï¿½ï¿½ ref ï¿½ï¿½ï¿½Ý½á¹¹ï¿½ï¿½Ö¸ï¿½ë£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     // ========================================================================
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
     [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     private static extern void CalculateCrystalState(ref SimInputData input, ref CrystalOutputData output);
+#endif
 
     // ========================================================================
-    // 3. °²È«°ü×°²ã (Public API)
-    //    Ö°Ôð£ºÄÚ´æ¼ì²é¡¢Òì³£²¶»ñ¡¢ÈÕÖ¾¼ÇÂ¼
+    // 3. ï¿½ï¿½È«ï¿½ï¿½×°ï¿½ï¿½ (Public API)
+    //    Ö°ï¿½ï¿½ï¿½Ú´ï¿½ï¿½é¡¢ï¿½ì³£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾ï¿½ï¿½Â¼
     // ========================================================================
 
     /// <summary>
-    /// µ÷ÓÃµ×²ãÎïÀíËãºË¡£
+    /// ï¿½ï¿½ï¿½Ãµ×²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¡ï¿½
     /// </summary>
-    /// <param name="input">ÊäÈëÊý¾Ý (±ØÐëÒÑ Initialize)</param>
-    /// <param name="output">Êä³öÊý¾Ý (±ØÐëÒÑ Initialize)</param>
-    /// <returns>³É¹¦·µ»Ø true£¬Ê§°Ü·µ»Ø false</returns>
+    /// <param name="input">ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Initialize)</param>
+    /// <param name="output">ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Initialize)</param>
+    /// <returns>ï¿½É¹ï¿½ï¿½ï¿½ï¿½ï¿½ trueï¿½ï¿½Ê§ï¿½Ü·ï¿½ï¿½ï¿½ false</returns>
     public static bool SafeCalculate(ref SimInputData input, ref CrystalOutputData output)
     {
-        // --- A. ÄÚ´æ°²È«¼ì²é (Pre-flight Check) ---
-        // ·ÀÖ¹Êý×éÎ´·ÖÅä»ò³¤¶È´íÎóµ¼ÖÂµÄ C++ Ô½½ç·ÃÎÊ
+        // --- A. ï¿½Ú´æ°²È«ï¿½ï¿½ï¿½ (Pre-flight Check) ---
+        // ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½Î´ï¿½ï¿½ï¿½ï¿½ò³¤¶È´ï¿½ï¿½ï¿½ï¿½Âµï¿½ C++ Ô½ï¿½ï¿½ï¿½ï¿½ï¿½
         if (!ValidateInput(ref input))
         {
             Debug.LogError("[NativeInterface] Input validation failed! Aborting DLL call.");
@@ -43,7 +46,8 @@ public static class NativeInterface
             return false;
         }
 
-        // --- B. °²È«µ÷ÓÃ (Safe Invocation) ---
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        // --- B. ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ (Safe Invocation) ---
         try
         {
             CalculateCrystalState(ref input, ref output);
@@ -51,15 +55,17 @@ public static class NativeInterface
         }
         catch (DllNotFoundException ex)
         {
-            Debug.LogError($"[NativeInterface] Critical Error: DLL '{DLL_NAME}' not found. Check Assets/Plugins/x86_64/.");
+            Debug.LogWarning($"[NativeInterface] DLL '{DLL_NAME}' not found. Falling back to managed approximation.");
             Debug.LogException(ex);
-            return false;
+            FillManagedFallback(ref input, ref output, "DLL was not found");
+            return true;
         }
         catch (EntryPointNotFoundException ex)
         {
-            Debug.LogError($"[NativeInterface] Critical Error: Function 'CalculateCrystalState' not found in DLL.");
+            Debug.LogWarning($"[NativeInterface] Function 'CalculateCrystalState' not found in DLL. Falling back to managed approximation.");
             Debug.LogException(ex);
-            return false;
+            FillManagedFallback(ref input, ref output, "DLL entry point was not found");
+            return true;
         }
         catch (Exception ex)
         {
@@ -67,16 +73,73 @@ public static class NativeInterface
             Debug.LogException(ex);
             return false;
         }
+#else
+        FillManagedFallback(ref input, ref output, "native CrystalPhysicsCore is unavailable on this platform");
+        return true;
+#endif
+    }
+
+    private static void FillManagedFallback(ref SimInputData input, ref CrystalOutputData output, string reason)
+    {
+        if (!_warnedManagedFallback)
+        {
+            Debug.LogWarning($"[NativeInterface] Using managed crystal physics fallback because {reason}. This keeps mobile builds running, but is less accurate than the native backend.");
+            _warnedManagedFallback = true;
+        }
+
+        output.Initialize();
+
+        for (int i = 0; i < 3; i++)
+        {
+            double n = input.static_n[i];
+            double delta = -0.5 * n * n * n * ResolveLinearTensorTerm(input, i, input.e_field_local);
+            output.n_prime[i] = Math.Max(0.000001, n + delta);
+        }
+
+        output.rotation_matrix[0] = 1.0;
+        output.rotation_matrix[1] = 0.0;
+        output.rotation_matrix[2] = 0.0;
+        output.rotation_matrix[3] = 0.0;
+        output.rotation_matrix[4] = 1.0;
+        output.rotation_matrix[5] = 0.0;
+        output.rotation_matrix[6] = 0.0;
+        output.rotation_matrix[7] = 0.0;
+        output.rotation_matrix[8] = 1.0;
+        output.sensitivity = EstimateSensitivity(input);
+    }
+
+    private static double EstimateSensitivity(SimInputData input)
+    {
+        double sensitivity = 0.0;
+        for (int i = 0; i < 3; i++)
+        {
+            double n = input.static_n[i];
+            double candidate = Math.Abs(-0.5 * n * n * n * ResolveLinearTensorTerm(input, i, input.e_field_local));
+            if (candidate > sensitivity)
+            {
+                sensitivity = candidate;
+            }
+        }
+
+        return sensitivity;
+    }
+
+    private static double ResolveLinearTensorTerm(SimInputData input, int tensorRow, double[] field)
+    {
+        int rowOffset = tensorRow * 3;
+        return input.r_tensor[rowOffset] * field[0]
+            + input.r_tensor[rowOffset + 1] * field[1]
+            + input.r_tensor[rowOffset + 2] * field[2];
     }
 
     // ========================================================================
-    // 4. ¸¨ÖúÑéÖ¤Âß¼­
+    // 4. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¤ï¿½ß¼ï¿½
     // ========================================================================
 
     private static bool ValidateInput(ref SimInputData data)
     {
         if (data.static_n == null || data.static_n.Length != 3) return false;
-        if (data.r_tensor == null || data.r_tensor.Length != 18) return false; // ×î¹Ø¼üµÄ¼ì²é
+        if (data.r_tensor == null || data.r_tensor.Length != 18) return false; // ï¿½ï¿½Ø¼ï¿½ï¿½Ä¼ï¿½ï¿½
         if (data.e_field_local == null || data.e_field_local.Length != 3) return false;
         if (data.wave_vector == null || data.wave_vector.Length != 3) return false;
         return true;
