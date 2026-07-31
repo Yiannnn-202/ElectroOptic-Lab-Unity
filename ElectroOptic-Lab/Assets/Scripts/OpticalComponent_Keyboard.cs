@@ -1,3 +1,4 @@
+using ElectroOptics.Mobile;
 using UnityEngine;
 
 // 键盘控制：拾取移动，点击放下/吸附导轨，双击再次拾起
@@ -91,7 +92,7 @@ public class OpticalComponent : MonoBehaviour
         {
             HandleKeyboardMove();
 
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (MobileVirtualInput.GetKeyDown(KeyCode.Space))
             {
                 TryDrop();
             }
@@ -119,8 +120,12 @@ public class OpticalComponent : MonoBehaviour
 
     void HandleKeyboardMove()
     {
-        float h = Input.GetAxis("Vertical");
-        float v = Input.GetAxis("Horizontal");
+        float h = 0f;
+        float v = 0f;
+        if (MobileVirtualInput.GetKey(KeyCode.W) || MobileVirtualInput.GetKey(KeyCode.UpArrow)) h += 1f;
+        if (MobileVirtualInput.GetKey(KeyCode.S) || MobileVirtualInput.GetKey(KeyCode.DownArrow)) h -= 1f;
+        if (MobileVirtualInput.GetKey(KeyCode.D) || MobileVirtualInput.GetKey(KeyCode.RightArrow)) v += 1f;
+        if (MobileVirtualInput.GetKey(KeyCode.A) || MobileVirtualInput.GetKey(KeyCode.LeftArrow)) v -= 1f;
 
         Vector3 movement = new Vector3(-h, 0, v) * moveSpeed * Time.deltaTime;
         transform.Translate(movement, Space.World);

@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using ElectroOptics.Mobile;
 using UnityEngine;
 
 /// <summary>
@@ -41,8 +42,8 @@ public class LaserEmitterMover : MonoBehaviour
             return;
 
         // 获取 WASD 或 方向键的输入
-        float horizontal = Input.GetAxisRaw("Horizontal");
-        float vertical = Input.GetAxisRaw("Vertical");
+        float horizontal = MobileVirtualInput.GetAxisRaw("Horizontal");
+        float vertical = MobileVirtualInput.GetAxisRaw("Vertical");
 
         // 计算新的位置
         Vector3 movement = new Vector3(horizontal, vertical, 0f) * moveSpeed * Time.deltaTime;
@@ -64,7 +65,7 @@ public class LaserEmitterMover : MonoBehaviour
         // ==========================================
         // 🔒 锁定逻辑：按下回车键锁定第一步
         // ==========================================
-        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+        if (MobileVirtualInput.GetKeyDown(KeyCode.Return) || MobileVirtualInput.GetKeyDown(KeyCode.KeypadEnter))
         {
             isCalibrationDone = true; // 上锁！
             stateController.Deselect(); // 取消绿色高亮

@@ -5,6 +5,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 using ElectroOptics.DataTransfer;
+using ElectroOptics.Mobile;
 
 namespace ElectroOptics.Oscilloscope
 {
@@ -136,8 +137,8 @@ namespace ElectroOptics.Oscilloscope
         private void Update()
         {
             float wanted = 0f;
-            if (Input.GetKey(KeyCode.A)) wanted = -1f;
-            else if (Input.GetKey(KeyCode.D)) wanted = 1f;
+            if (ElectroOptics.Mobile.MobileVirtualInput.GetKey(KeyCode.A)) wanted = -1f;
+            else if (ElectroOptics.Mobile.MobileVirtualInput.GetKey(KeyCode.D)) wanted = 1f;
 
             if (wanted != 0f)
             {
@@ -517,11 +518,16 @@ namespace ElectroOptics.Oscilloscope
 
         private OscilloscopeWaveformGraphic EnsureGraphic(RectTransform channelBlock, string childName, Color waveformColor, bool upperHalf)
         {
-            RectTransform parent = channelBlock.parent as RectTransform;
+            RectTransform parent = MobileRuntime.IsActive ? channelBlock : channelBlock.parent as RectTransform;
             if (parent == null)
                 parent = channelBlock;
 
             Transform existing = parent.Find(childName);
+            if (existing == null && channelBlock.parent != null)
+            {
+                existing = channelBlock.parent.Find(childName);
+            }
+
             GameObject obj = existing != null ? existing.gameObject : new GameObject(childName);
             obj.transform.SetParent(parent, false);
             obj.transform.SetAsLastSibling();

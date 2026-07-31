@@ -65,9 +65,65 @@
     - `Enter` 锁定
   - 移动端需要对应虚拟按钮、拖拽、滑杆或手势方案。
 
+- [x] **第一版移动端虚拟按键**
+  - 新增 `MobileVirtualInput` 作为共享输入桥，保留桌面键盘输入，同时支持移动端虚拟按键注入。
+  - 新增 `MobileVirtualControls`，Android/iOS 运行时自动生成 `W/A/S/D`、`Drop(Space)`、`Enter` 屏幕按键。
+  - 虚拟按键仅在 `Scene2.The Lab` 和 `Scene4` 场景显示，避免遮挡主菜单和晶体选择流程。
+  - D-pad 位于右下角，避免遮挡左下角光屏/锥光显示面板。
+  - 已接入：光学元件移动/放置、激光微调/锁定、探测器微调、旋转台、晶体旋转面板、Scene4 示波器调压。
+  - Scene4 只需要 A/D 调压，移动端在 Scene4 只显示 A/D 两个按钮，隐藏 W/S/Drop/Enter，并移动到底部左侧空位，避免压住“当前状态”等文字。
+
+- [x] **Scene4 移动端波形区域修正**
+  - Scene4 的波形区域是一组联动布局。当前只重排右侧波形组：`WavePanel`、`WaveContentArea`、`CH1Block`、`CH2Block`、`ResultPanel`；不再改 `MainArea`、左侧控制面板或右侧整体面板。
+  - 移动端/Editor Android Target 下，波形图挂到各自 `CH1Block` / `CH2Block`，并配合上面的波形组重排，避免只改波形或只改面板造成错位。
+  - Scene4 A/D 虚拟键改为上/下箭头，放到电压数值左侧并垂直排列，用于升/降直流偏置电压；当前位置约为 `↑(118,763)`、`↓(118,678)`，尺寸 `92×72`。
+  - 新增 `Scene4MobileTextAdapter`，移动端隐藏桌面提示“按 A / D 键调节电压”。
+
+- [x] **第二版移动端虚拟按键位置微调**
+  - 虚拟按键从右下角移动到底部中间，避开原本靠右的场景按钮。
+  - 在 16:9 安全区域内计算底部偏移，Pad 上出现上下黑边时按键会上移，避免落入黑边。
+  - 光学元件移动不再依赖 Unity Axis 映射，改为显式读取 W/S/A/D 和方向键，保持桌面键盘与移动虚拟按键方向一致。
+
+- [x] **第三版移动端虚拟按键位置微调**
+  - 按键按用户反馈移到左下角：`W/A/S/D` 在左下，`Drop` 和 `Enter` 在左下底部同排。
+  - `Enter` 对应键盘回车，目前主要用于激光微调完成后的锁定/确认（`LaserEmitterMover.isCalibrationDone`）。
+
 - [ ] **适配手机和平板屏幕比例**
   - 检查固定位置 UI，例如底部/左下角面板。
   - 使用 safe area，避免刘海屏、圆角屏、系统导航栏遮挡。
+
+- [x] **移动端 16:9 视口约束**
+  - 新增 `MobileAspectRatioEnforcer`，Android/iOS 运行时自动将所有非 RenderTexture 摄像机约束到 16:9 视口。
+  - 在 Pad 等非 16:9 屏幕上添加黑边遮罩，避免画面被拉伸或构图变化过大。
+  - 黑边低于虚拟按键排序，虚拟按键仍可显示和触控。
+  - 第三版曾尝试运行时重包 Canvas 子节点，但会导致开始菜单按钮跑出屏幕，已回滚；后续 UI 比例适配需要逐场景/逐 Canvas 做安全处理，不能全局移动已有 UI 层级。
+
+- [x] **移动端 CanvasScaler 比例适配**
+  - 新增 `MobileCanvasScalerAdapter`，在正式移动端页面统一运行：主菜单、介绍、晶体选择、主实验、极值法、示波器、历史、测验、报告、附加实验。
+  - 不移动任何已有 UI 层级，只调整根 Canvas 的 `CanvasScaler`。
+  - Pad / 4:3 等窄于 16:9 的屏幕使用 `matchWidthOrHeight = 0`，优先保住 1920 设计宽度，减少光屏窗口、极值法界面和面板横向挤压。
+  - 宽于 16:9 的手机屏幕使用 `matchWidthOrHeight = 1`，优先保住 1080 设计高度。
+  - 第四版补充：每帧持续统一实验场景中运行时新创建的根 Canvas（例如 `WindowsCanvas`、光屏窗口），并为缺少 `CanvasScaler` 的根屏幕 Canvas 自动补齐，避免底层图和上层面板使用不同缩放标准。
+  - 第五版补充：适配范围扩展到所有正式页面；测试/可视化场景暂不处理，避免影响开发验证场景。
+
+- [x] **Android 横屏与安全区约束**
+  - 禁止 Android 自动旋转到竖屏，只保留横屏方向，避免 Pad/手机切到非实验设计方向后 UI 全面错位。
+  - 关闭 `androidRenderOutsideSafeArea`，避免画面最外圈渲染到系统安全区/圆角/导航区域之外。
+
+- [x] **Scene3 极值法移动端专用布局**
+  - 新增 `Scene3MobileLayoutAdapter`，仅在移动端 Scene3 运行。
+  - 曾尝试把整个 `DataCanvas` 移入 `Scene3MobileViewportRoot`，实测会导致整页压扁并露出 3D 背景，已回滚。
+  - 当前保留更安全的左右分栏适配：恢复顶部标题安全区，使用原设计 800/1120 左右比例，并对左右面板做裁剪，避免重挂复杂 UI 层级。
+  - 基于 2560×1600 Pad 继续微调：移动端适配可在 Editor Android Build Target 下生效；Scene3 主区域会按 16:10 计算 60px 逻辑上下安全边距，顶部额外保留 100px 标题区；左侧固定 800px，右侧从 830px 开始。
+  - 分析结果面板应覆盖左侧仪器区，而不是覆盖右侧表格/图表区；`analysisPanel` 已改为使用左侧布局。
+
+- [x] **Editor 内移动端布局测试**
+  - 新增 `MobileRuntime`：真机移动端启用移动端适配；Unity Editor 中如果当前 Build Target 是 Android，也启用移动端适配。
+  - 可以在电脑上打开 Unity Game 视图，添加/选择自定义分辨率 `2560×1600`，直接 Play 测试 Pad 布局，不必每次 Build APK。
+
+- [x] **Scene2-preview 返回按钮移动端微调**
+  - 新增 `Scene2PreviewMobileLayoutAdapter`，仅在移动端/Editor Android Target 的 Scene2-preview 生效。
+  - 自动查找文本为“返回”的按钮，仅调整其位置到左上安全区域，不修改原按钮尺寸和字号；当前位置为 `(48, -22)`。
 
 - [ ] **增大可点击区域**
   - 移动端按钮、旋钮、卡片、关闭按钮等需要满足触控尺寸。

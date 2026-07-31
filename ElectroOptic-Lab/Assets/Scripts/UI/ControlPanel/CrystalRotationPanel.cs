@@ -586,21 +586,21 @@ namespace ElectroOptics.UI.ControlPanel
             float deltaY = 0f;
 
             // W/S 控制 X轴
-            if (Input.GetKey(KeyCode.W))
+            if (ElectroOptics.Mobile.MobileVirtualInput.GetKey(KeyCode.W))
             {
                 deltaX = rotateSpeed * Time.deltaTime;
             }
-            else if (Input.GetKey(KeyCode.S))
+            else if (ElectroOptics.Mobile.MobileVirtualInput.GetKey(KeyCode.S))
             {
                 deltaX = -rotateSpeed * Time.deltaTime;
             }
 
             // A/D 控制 Y轴
-            if (Input.GetKey(KeyCode.A))
+            if (ElectroOptics.Mobile.MobileVirtualInput.GetKey(KeyCode.A))
             {
                 deltaY = -rotateSpeed * Time.deltaTime;
             }
-            else if (Input.GetKey(KeyCode.D))
+            else if (ElectroOptics.Mobile.MobileVirtualInput.GetKey(KeyCode.D))
             {
                 deltaY = rotateSpeed * Time.deltaTime;
             }
