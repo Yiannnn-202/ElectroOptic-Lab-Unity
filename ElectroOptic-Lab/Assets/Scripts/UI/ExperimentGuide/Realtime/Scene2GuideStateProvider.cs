@@ -1,0 +1,472 @@
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using ElectroOptics.UI.ScreenDisplay;
+using UnityEngine;
+
+namespace ElectroOptics.UI.ExperimentGuide
+{
+    [DisallowMultipleComponent]
+    public sealed class Scene2GuideStateProvider : MonoBehaviour, IScene2GuideStateProvider
+    {
+        private const string LogPrefix = "[Scene2RealtimeGuide]";
+
+        [Header("Laser")]
+        [SerializeField] private LaserEmitter laserEmitter;
+        [SerializeField] private LaserEmitterMover laserMover;
+        [SerializeField] private LaserStateController laserStateController;
+
+        [Header("Screen")]
+        [SerializeField] private OpticalComponent screen;
+        [SerializeField] private DirectScreenController directScreenController;
+        [SerializeField] private UnifiedScreenPanel unifiedScreenPanel;
+
+        [Header("Polarizers")]
+        [SerializeField] private OpticalComponent polarizer;
+        [SerializeField] private RotateStandController polarizerStand;
+        [SerializeField] private OpticalComponent analyzer;
+        [SerializeField] private RotateStandController analyzerStand;
+
+        [Header("Other optical components")]
+        [SerializeField] private OpticalComponent beamExpander;
+        [SerializeField] private OpticalComponent crystal;
+        [SerializeField] private OpticalComponent powerMeterProbe;
+        [SerializeField] private OpticalComponent photodiodeProbe;
+
+        private readonly HashSet<string> fallbackWarnings = new HashSet<string>();
+        private Scene2GuideScreenTelemetryReader telemetryReader;
+        private bool initialized;
+
+        public bool IsReady => initialized && ValidateReferences(false);
+        public LaserEmitterMover LaserMover => laserMover;
+        public LaserEmitter LaserEmitter => laserEmitter;
+        public LaserStateController LaserStateController => laserStateController;
+        public Transform LaserTransform => laserEmitter != null
+            ? laserEmitter.transform
+            : laserMover != null ? laserMover.transform : null;
+
+        private void Awake()
+        {
+            ResolveReferences(true);
+        }
+
+        public bool ResolveReferences(bool logFallback)
+        {
+            unifiedScreenPanel = unifiedScreenPanel != null
+                ? unifiedScreenPanel
+                : FindObjectOfType<UnifiedScreenPanel>(true);
+            if (unifiedScreenPanel != null)
+            {
+                screen = ReadPrivateReference(unifiedScreenPanel, "screenOpticalComponent", screen);
+                beamExpander = ReadPrivateReference(unifiedScreenPanel, "beamExpanderOpticalComponent", beamExpander);
+                crystal = ReadPrivateReference(unifiedScreenPanel, "crystalOpticalComponent", crystal);
+            }
+
+            directScreenController = directScreenController != null
+                ? directScreenController
+                : FindObjectOfType<DirectScreenController>(true);
+            if (screen == null && directScreenController != null)
+            {
+                screen = FindOpticalComponent(directScreenController.transform);
+                WarnFallback("screen", screen, logFallback);
+            }
+
+            laserMover = laserMover != null ? laserMover : FindObjectOfType<LaserEmitterMover>(true);
+            if (laserMover == null)
+            {
+                laserEmitter = laserEmitter != null ? laserEmitter : FindObjectOfType<LaserEmitter>(true);
+                if (laserEmitter != null)
+                    laserMover = laserEmitter.GetComponent<LaserEmitterMover>();
+            }
+
+            if (laserMover != null)
+            {
+                LaserEmitter moverEmitter = laserMover.GetComponent<LaserEmitter>();
+                LaserStateController moverStateController = laserMover.GetComponent<LaserStateController>();
+
+                if (moverEmitter != null)
+                {
+                    if (logFallback
+                        && laserEmitter != null
+                        && laserEmitter != moverEmitter
+                        && fallbackWarnings.Add("laserEmitterOwnerMismatch"))
+                    {
+                        Debug.LogWarning(
+                            $"{LogPrefix} laserEmitter 与 laserMover 不属于同一对象，已改用 `{GetHierarchyPath(moverEmitter.transform)}`。",
+                            this);
+                    }
+                    laserEmitter = moverEmitter;
+                }
+
+                if (moverStateController != null)
+                {
+                    if (logFallback
+                        && laserStateController != null
+                        && laserStateController != moverStateController
+                        && fallbackWarnings.Add("laserStateControllerOwnerMismatch"))
+                    {
+                        Debug.LogWarning(
+                            $"{LogPrefix} laserStateController 与 laserMover 不属于同一对象，已改用 `{GetHierarchyPath(moverStateController.transform)}`。",
+                            this);
+                    }
+                    laserStateController = moverStateController;
+                }
+            }
+
+            laserEmitter = laserEmitter != null ? laserEmitter : FindObjectOfType<LaserEmitter>(true);
+            laserStateController = laserStateController != null
+                ? laserStateController
+                : FindObjectOfType<LaserStateController>(true);
+
+            OpticalComponent[] components = FindObjectsOfType<OpticalComponent>(true);
+            if (screen == null)
+            {
+                screen = FindUniqueByName(components, "screen", "光屏", "screen");
+                WarnFallback("screen", screen, logFallback);
+            }
+            if (beamExpander == null)
+            {
+                beamExpander = FindUniqueByName(components, "beamExpander", "扩束镜", "扩束", "beam expander");
+                WarnFallback("beamExpander", beamExpander, logFallback);
+            }
+            if (crystal == null)
+            {
+                crystal = FindUniqueByName(components, "crystal", "新晶体盒", "晶体盒", "晶体", "crystal");
+                WarnFallback("crystal", crystal, logFallback);
+            }
+            if (powerMeterProbe == null)
+            {
+                powerMeterProbe = FindUniqueByName(
+                    components,
+                    "powerMeterProbe",
+                    "接收器",
+                    "功率计探头",
+                    "receiver");
+                WarnFallback("powerMeterProbe", powerMeterProbe, logFallback);
+            }
+            if (photodiodeProbe == null)
+            {
+                photodiodeProbe = FindUniqueByName(
+                    components,
+                    "photodiodeProbe",
+                    "光电二极管",
+                    "photodiode",
+                    "diode");
+                WarnFallback("photodiodeProbe", photodiodeProbe, logFallback);
+            }
+
+            ResolvePolarizers(components, logFallback);
+
+            telemetryReader = directScreenController != null
+                ? new Scene2GuideScreenTelemetryReader(directScreenController)
+                : null;
+            initialized = true;
+
+            bool valid = ValidateReferences(true);
+            if (valid)
+                Debug.Log($"{LogPrefix} Scene2 状态引用已就绪。", this);
+            return valid;
+        }
+
+        public Scene2GuideStateSnapshot Capture()
+        {
+            Scene2GuideStateSnapshot snapshot = new Scene2GuideStateSnapshot
+            {
+                capturedAt = Time.realtimeSinceStartupAsDouble,
+                referencesValid = ValidateReferences(false),
+                screenOnRail = IsOnRail(screen),
+                polarizerOnRail = IsOnRail(polarizer),
+                analyzerOnRail = IsOnRail(analyzer),
+                beamExpanderOnRail = IsOnRail(beamExpander),
+                crystalOnRail = IsOnRail(crystal),
+                powerMeterProbeOnRail = IsOnRail(powerMeterProbe),
+                photodiodeProbeOnRail = IsOnRail(photodiodeProbe),
+                laserCalibrationCommitted = laserMover != null && laserMover.isCalibrationDone,
+                polarizerAngle = polarizerStand != null ? polarizerStand.GetCurrentRotateAngle() : 0f,
+                analyzerAngle = analyzerStand != null ? analyzerStand.GetCurrentRotateAngle() : 0f,
+                screenMode = unifiedScreenPanel != null ? unifiedScreenPanel.CurrentMode : ScreenMode.Direct
+            };
+
+            snapshot.polarizerDelta = Scene2GuideStageEvaluator.NormalizePolarizerDelta(
+                snapshot.polarizerAngle,
+                snapshot.analyzerAngle);
+
+            float intensity = 0f;
+            Vector2 spot = Vector2.zero;
+            snapshot.screenTelemetryValid = telemetryReader != null
+                                            && telemetryReader.TryRead(out intensity, out spot);
+            snapshot.screenIntensity = snapshot.screenTelemetryValid ? Mathf.Max(0f, intensity) : 0f;
+            snapshot.screenSpotPosition = snapshot.screenTelemetryValid ? spot : Vector2.zero;
+            snapshot.screenReceivesEffectiveLaser = snapshot.screenTelemetryValid
+                                                     && snapshot.screenIntensity > 0f
+                                                     && DoesDirectBeamHitScreen();
+
+            Transform source = LaserTransform;
+            Vector3 direction = source != null ? -source.right : Vector3.zero;
+            snapshot.laserDirectionValid = source != null && direction.sqrMagnitude > 0.000001f;
+            if (snapshot.laserDirectionValid)
+            {
+                direction.Normalize();
+                Vector3 origin = source.position;
+                snapshot.polarizerProjection = Project(polarizer, origin, direction);
+                snapshot.analyzerProjection = Project(analyzer, origin, direction);
+                snapshot.beamExpanderProjection = Project(beamExpander, origin, direction);
+                snapshot.crystalProjection = Project(crystal, origin, direction);
+                snapshot.screenProjection = Project(screen, origin, direction);
+                snapshot.powerMeterProbeProjection = Project(powerMeterProbe, origin, direction);
+                snapshot.photodiodeProbeProjection = Project(photodiodeProbe, origin, direction);
+            }
+
+            return snapshot;
+        }
+
+        private void ResolvePolarizers(OpticalComponent[] components, bool logFallback)
+        {
+            if (polarizer != null && analyzer != null && polarizerStand != null && analyzerStand != null)
+                return;
+
+            List<KeyValuePair<OpticalComponent, RotateStandController>> candidates =
+                new List<KeyValuePair<OpticalComponent, RotateStandController>>();
+            RotateStandController[] stands = FindObjectsOfType<RotateStandController>(true);
+            for (int i = 0; i < stands.Length; i++)
+            {
+                OpticalComponent component = FindOpticalComponent(stands[i].transform);
+                if (component == null)
+                    continue;
+
+                bool duplicate = false;
+                for (int j = 0; j < candidates.Count; j++)
+                {
+                    if (candidates[j].Key == component)
+                    {
+                        duplicate = true;
+                        break;
+                    }
+                }
+
+                if (!duplicate)
+                    candidates.Add(new KeyValuePair<OpticalComponent, RotateStandController>(component, stands[i]));
+            }
+
+            Transform source = LaserTransform;
+            Vector3 origin = source != null ? source.position : Vector3.zero;
+            Vector3 direction = source != null ? -source.right : Vector3.right;
+            if (direction.sqrMagnitude < 0.000001f)
+                direction = Vector3.right;
+            direction.Normalize();
+            candidates.Sort((a, b) => Project(a.Key, origin, direction).CompareTo(Project(b.Key, origin, direction)));
+
+            if (candidates.Count >= 2)
+            {
+                if (polarizer == null) polarizer = candidates[0].Key;
+                if (polarizerStand == null) polarizerStand = candidates[0].Value;
+                if (analyzer == null) analyzer = candidates[1].Key;
+                if (analyzerStand == null) analyzerStand = candidates[1].Value;
+                WarnFallback("polarizer/analyzer", polarizer, logFallback);
+            }
+        }
+
+        private bool ValidateReferences(bool logErrors)
+        {
+            List<string> missing = new List<string>();
+            if (laserEmitter == null) missing.Add("laserEmitter");
+            if (laserMover == null) missing.Add("laserMover");
+            if (laserStateController == null) missing.Add("laserStateController");
+            if (screen == null) missing.Add("screen");
+            if (directScreenController == null) missing.Add("directScreenController");
+            if (unifiedScreenPanel == null) missing.Add("unifiedScreenPanel");
+            if (polarizer == null || polarizerStand == null) missing.Add("polarizer");
+            if (analyzer == null || analyzerStand == null) missing.Add("analyzer");
+            if (beamExpander == null) missing.Add("beamExpander");
+            if (crystal == null) missing.Add("crystal");
+            if (powerMeterProbe == null) missing.Add("powerMeterProbe");
+            if (photodiodeProbe == null) missing.Add("photodiodeProbe");
+
+            if (missing.Count == 0)
+                return true;
+
+            if (logErrors)
+                Debug.LogError($"{LogPrefix} 缺少关键场景引用：{string.Join(", ", missing)}。相关阶段将保持等待。", this);
+            return false;
+        }
+
+        private bool DoesDirectBeamHitScreen()
+        {
+            if (laserEmitter == null || screen == null)
+                return false;
+
+            Vector3 direction = -laserEmitter.transform.right;
+            if (direction.sqrMagnitude < 0.000001f)
+                return false;
+            direction.Normalize();
+
+            Vector3 origin = laserEmitter.transform.position + direction * laserEmitter.startOffset;
+            RaycastHit hit;
+            if (!Physics.Raycast(origin, direction, out hit, 50f))
+                return false;
+
+            return IsSameHierarchy(hit.collider != null ? hit.collider.transform : null, screen.transform);
+        }
+
+        private static float Project(OpticalComponent component, Vector3 origin, Vector3 direction)
+        {
+            return component != null
+                ? Vector3.Dot(component.transform.position - origin, direction)
+                : float.NaN;
+        }
+
+        private static bool IsOnRail(OpticalComponent component)
+        {
+            return component != null && component.isOnRail;
+        }
+
+        private static bool IsSameHierarchy(Transform left, Transform right)
+        {
+            if (left == null || right == null)
+                return false;
+            return left == right || left.IsChildOf(right) || right.IsChildOf(left);
+        }
+
+        private static OpticalComponent FindOpticalComponent(Transform owner)
+        {
+            if (owner == null)
+                return null;
+            return owner.GetComponent<OpticalComponent>()
+                   ?? owner.GetComponentInParent<OpticalComponent>()
+                   ?? owner.GetComponentInChildren<OpticalComponent>(true);
+        }
+
+        private OpticalComponent FindUniqueByName(
+            OpticalComponent[] components,
+            string fieldName,
+            params string[] tokens)
+        {
+            List<OpticalComponent> matches = new List<OpticalComponent>();
+            for (int i = 0; i < components.Length; i++)
+            {
+                OpticalComponent component = components[i];
+                if (component == null)
+                    continue;
+
+                string path = GetHierarchyPath(component.transform).ToLowerInvariant();
+                for (int tokenIndex = 0; tokenIndex < tokens.Length; tokenIndex++)
+                {
+                    if (path.Contains(tokens[tokenIndex].ToLowerInvariant()))
+                    {
+                        matches.Add(component);
+                        break;
+                    }
+                }
+            }
+
+            if (matches.Count == 1)
+                return matches[0];
+
+            if (matches.Count > 1)
+                Debug.LogError($"{LogPrefix} 名称回退 `{fieldName}` 匹配到 {matches.Count} 个对象，拒绝自动选择。", this);
+            return null;
+        }
+
+        private void WarnFallback(string fieldName, UnityEngine.Object value, bool enabled)
+        {
+            if (!enabled || value == null || !fallbackWarnings.Add(fieldName))
+                return;
+
+            Component component = value as Component;
+            string path = component != null ? GetHierarchyPath(component.transform) : value.name;
+            Debug.LogWarning($"{LogPrefix} `{fieldName}` 使用兼容回退引用：{path}。建议通过 Inspector 固定引用。", this);
+        }
+
+        private static string GetHierarchyPath(Transform transform)
+        {
+            if (transform == null)
+                return "<null>";
+
+            string path = transform.name;
+            Transform current = transform.parent;
+            while (current != null)
+            {
+                path = current.name + "/" + path;
+                current = current.parent;
+            }
+            return path;
+        }
+
+        private static T ReadPrivateReference<T>(object owner, string fieldName, T fallback)
+            where T : UnityEngine.Object
+        {
+            if (owner == null)
+                return fallback;
+
+            FieldInfo field = owner.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field == null)
+                return fallback;
+
+            T value = field.GetValue(owner) as T;
+            return value != null ? value : fallback;
+        }
+    }
+
+    internal sealed class Scene2GuideScreenTelemetryReader
+    {
+        private const string LogPrefix = "[Scene2RealtimeGuide]";
+        private readonly DirectScreenController controller;
+        private readonly FieldInfo intensityField;
+        private readonly FieldInfo centerXField;
+        private readonly FieldInfo centerYField;
+        private bool errorLogged;
+
+        public Scene2GuideScreenTelemetryReader(DirectScreenController target)
+        {
+            controller = target;
+            Type type = typeof(DirectScreenController);
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            intensityField = type.GetField("currentIntensity", flags);
+            centerXField = type.GetField("targetCenterX", flags);
+            centerYField = type.GetField("targetCenterY", flags);
+        }
+
+        public bool TryRead(out float intensity, out Vector2 spotPosition)
+        {
+            intensity = 0f;
+            spotPosition = Vector2.zero;
+            if (controller == null || intensityField == null || centerXField == null || centerYField == null)
+            {
+                LogErrorOnce("DirectScreenController 遥测字段缺失，无法读取屏幕强度或红点位置。");
+                return false;
+            }
+
+            try
+            {
+                intensity = (float)intensityField.GetValue(controller);
+                float x = (float)centerXField.GetValue(controller);
+                float y = (float)centerYField.GetValue(controller);
+                spotPosition = new Vector2(x, y);
+                bool valid = !float.IsNaN(intensity)
+                             && !float.IsInfinity(intensity)
+                             && !float.IsNaN(x)
+                             && !float.IsInfinity(x)
+                             && !float.IsNaN(y)
+                             && !float.IsInfinity(y);
+                if (!valid)
+                    LogErrorOnce("DirectScreenController 返回了非有限遥测值。");
+                return valid;
+            }
+            catch (Exception exception)
+            {
+                LogErrorOnce("读取 DirectScreenController 遥测失败：" + exception.Message);
+                return false;
+            }
+        }
+
+        private void LogErrorOnce(string message)
+        {
+            if (errorLogged)
+                return;
+            errorLogged = true;
+            Debug.LogError($"{LogPrefix} {message}", controller);
+        }
+    }
+}

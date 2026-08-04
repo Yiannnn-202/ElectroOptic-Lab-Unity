@@ -371,12 +371,17 @@ AND ScreenIntensity > 0
 
 ### 8.3 Stage 2：CalibrateLaser
 
-中心距离：
+中心方形判定区：
 
 ```csharp
-distance = Vector2.Distance(snapshot.ScreenSpotPosition, new Vector2(256f, 256f));
-centered = snapshot.ScreenTelemetryValid && distance <= 16f;
+offset = snapshot.ScreenSpotPosition - new Vector2(256f, 256f);
+halfSize = settings.CalibrationAreaSizePixels * 0.5f;
+centered = snapshot.ScreenTelemetryValid
+           && Mathf.Abs(offset.x) <= halfSize
+           && Mathf.Abs(offset.y) <= halfSize;
 ```
+
+`CalibrationAreaSizePixels` 默认值为 64，对应以屏幕中心为基准的 `64pt×64pt` 方形区域，即 X、Y 各允许 ±32。边界计入有效范围。
 
 `centered` 连续 0.5 秒后进入“可确认”状态；此时按 Return 或 KeypadEnter 才提交锁定并完成阶段。范围外 Enter 不提交、不锁定、不显示额外错误。
 
@@ -457,7 +462,9 @@ UnifiedScreenPanel.CurrentMode == ScreenMode.Conoscopic
 
 接管期间：
 
-- 仅当 `LaserStateController.IsSelected` 时读取 Horizontal/Vertical；
+- 仅当 LaserStateController.IsSelected 时读取 Horizontal/Vertical；
+- Return/KeypadEnter 的合法确认不依赖激光选中状态，红点稳定就绪后在默认全局视角也可直接提交；
+- LaserEmitter、LaserStateController 必须优先绑定 LaserEmitterMover 同一对象上的组件，禁止在存在多个激光对象时使用任意 FindObjectOfType 结果；
 - 使用旧 mover 的公开 `moveSpeed`、`moveRange`；
 - 复现原来的 XY 移动和相对初始位置 `±moveRange` 限制，Z 保持初始值；
 - 仅在控制器告知 `centeredReady=true` 时接受 Return/KeypadEnter；
@@ -850,7 +857,7 @@ ElectroOptics/Experiment Guide/Upgrade Realtime Guide UI In Scene2
 | `conditionStableSeconds` | `0.5` | 普通阶段完成稳定时间 |
 | `completionFeedbackSeconds` | `0.6` | 阶段完成高亮时间 |
 | `foldAnimationSeconds` | `0.2` | 展开/收起动画 |
-| `calibrationRadiusPixels` | `16` | 红点居中半径 |
+| `calibrationAreaSizePixels` | `64` | 红点中心方形判定区边长；X、Y 各允许 ±32 |
 | `screenCenterPixels` | `(256,256)` | 512×512 屏幕中心 |
 | `parallelToleranceDegrees` | `8` | 建立亮态基准 |
 | `orthogonalToleranceDegrees` | `8` | 消光角度范围 |
@@ -923,7 +930,7 @@ ElectroOptics/Experiment Guide/Upgrade Realtime Guide UI In Scene2
    - 高于 5% 失败；
    - 角度正确但顺序错误失败。
 6. 激光校准
-   - 半径 16 像素边界；
+   - 64×64 方形区域边界及四角；
    - 未稳定时 Enter 无效；
    - 稳定后 Enter 提交；
    - KeypadEnter 等价；
@@ -952,7 +959,7 @@ ElectroOptics/Experiment Guide/Upgrade Realtime Guide UI In Scene2
 | PRD 验收项 | 技术验证 |
 |------------|----------|
 | `ST-01`～`ST-02` | PlaceScreen 纯逻辑测试 + Scene2 实际收光测试 |
-| `ST-03`～`ST-04` | CalibrationGate 输入测试 + 16px 边界手工测试 |
+| `ST-03`～`ST-04` | CalibrationGate 输入测试 + 64×64 方形边界手工测试 |
 | `ST-05`～`ST-07` | 消光基准、角度和 5% 阈值测试 |
 | `ST-08`～`ST-13` | 旋转传播方向下的严格顺序测试 + Scene2 六阶段通关 |
 | `ST-14`～`ST-15` | 提前完成、单向推进状态机测试 |
