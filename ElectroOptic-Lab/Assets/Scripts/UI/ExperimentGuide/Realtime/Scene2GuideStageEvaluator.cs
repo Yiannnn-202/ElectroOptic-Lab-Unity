@@ -8,6 +8,8 @@ namespace ElectroOptics.UI.ExperimentGuide
     public static class Scene2GuideStageEvaluator
     {
         public const string MissingBrightBaselineMessage = "请先将检偏器调至亮态以建立基准";
+        public const string OpenPowerMeterDataProcessingMessage = "请双击名称为“功率计”的元件进入数据处理";
+        public const string OpenOscilloscopeDataProcessingMessage = "请双击名称为“示波器”的元件进入数据处理";
 
         public static Scene2GuideStageEvaluation Evaluate(
             Scene2GuideStageId stageId,
@@ -52,35 +54,17 @@ namespace ElectroOptics.UI.ExperimentGuide
 
                 case Scene2GuideStageId.InstallPowerMeterProbe:
                     return Scene2GuideStageEvaluation.FromCondition(
-                        !snapshot.screenOnRail
-                        && !snapshot.beamExpanderOnRail
-                        && !snapshot.photodiodeProbeOnRail
-                        && snapshot.polarizerOnRail
-                        && snapshot.crystalOnRail
-                        && snapshot.analyzerOnRail
-                        && snapshot.powerMeterProbeOnRail
-                        && HasOrder(
-                            settings.railOrderEpsilonMeters,
-                            snapshot.polarizerProjection,
-                            snapshot.crystalProjection,
-                            snapshot.analyzerProjection,
-                            snapshot.powerMeterProbeProjection));
+                        snapshot.powerMeterScene3Entered,
+                        !snapshot.powerMeterScene3Entered
+                            ? OpenPowerMeterDataProcessingMessage
+                            : null);
 
                 case Scene2GuideStageId.InstallPhotodiodeProbe:
                     return Scene2GuideStageEvaluation.FromCondition(
-                        !snapshot.screenOnRail
-                        && !snapshot.beamExpanderOnRail
-                        && !snapshot.powerMeterProbeOnRail
-                        && snapshot.polarizerOnRail
-                        && snapshot.crystalOnRail
-                        && snapshot.analyzerOnRail
-                        && snapshot.photodiodeProbeOnRail
-                        && HasOrder(
-                            settings.railOrderEpsilonMeters,
-                            snapshot.polarizerProjection,
-                            snapshot.crystalProjection,
-                            snapshot.analyzerProjection,
-                            snapshot.photodiodeProbeProjection));
+                        snapshot.oscilloscopeScene4Entered,
+                        !snapshot.oscilloscopeScene4Entered
+                            ? OpenOscilloscopeDataProcessingMessage
+                            : null);
 
                 default:
                     return Scene2GuideStageEvaluation.Waiting();

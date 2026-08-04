@@ -73,7 +73,13 @@ namespace ElectroOptics.UI.ExperimentGuide.Editor
                          && providers[0].ResolveReferences(false)
                          && providers[0].LaserMover != null
                          && providers[0].LaserEmitter == providers[0].LaserMover.GetComponent<LaserEmitter>()
-                         && providers[0].LaserStateController == providers[0].LaserMover.GetComponent<LaserStateController>();
+                         && providers[0].LaserStateController == providers[0].LaserMover.GetComponent<LaserStateController>()
+                         && providers[0].PowerMeterSceneEntry != null
+                         && providers[0].PowerMeterSceneEntry.transform.root.name == "功率计"
+                         && providers[0].PowerMeterSceneEntry.targetSceneName == "Scene3_UIRebuild"
+                         && providers[0].OscilloscopeSceneEntry != null
+                         && providers[0].OscilloscopeSceneEntry.transform.root.name == "示波器"
+                         && providers[0].OscilloscopeSceneEntry.targetSceneName == "Scene4_UIRebuild 1";
             if (valid)
                 Debug.Log("[Scene2RealtimeGuide] Scene2 实时指引结构和关键引用验证通过。");
             else

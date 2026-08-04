@@ -62,12 +62,12 @@ namespace ElectroOptics.UI.ExperimentGuide
                 new Scene2GuideStageDefinition(
                     Scene2GuideStageId.InstallPowerMeterProbe,
                     "更换光功率计探头",
-                    "取下光屏和扩束镜，将光功率计探头放到晶体后方的导轨上。",
+                    "取下光屏和扩束镜，将光功率计探头放到晶体后方的导轨上；完成后，双击名称为“功率计”的元件进入数据处理场景。",
                     "InstallPowerMeterProbe.gif"),
                 new Scene2GuideStageDefinition(
                     Scene2GuideStageId.InstallPhotodiodeProbe,
                     "更换光电二极管探头",
-                    "取下光功率计探头，将光电二极管探头放到晶体后方的导轨上。",
+                    "取下光功率计探头，将光电二极管探头放到晶体后方的导轨上；完成后，双击名称为“示波器”的元件进入数据处理场景。",
                     "InstallPhotodiodeProbe.gif")
             };
         }
@@ -103,8 +103,8 @@ namespace ElectroOptics.UI.ExperimentGuide
         public bool analyzerOnRail;
         public bool beamExpanderOnRail;
         public bool crystalOnRail;
-        public bool powerMeterProbeOnRail;
-        public bool photodiodeProbeOnRail;
+        public bool powerMeterScene3Entered;
+        public bool oscilloscopeScene4Entered;
 
         public float screenIntensity;
         public Vector2 screenSpotPosition;
@@ -120,8 +120,7 @@ namespace ElectroOptics.UI.ExperimentGuide
         public float beamExpanderProjection;
         public float crystalProjection;
         public float screenProjection;
-        public float powerMeterProbeProjection;
-        public float photodiodeProbeProjection;
+
     }
 
     public struct Scene2GuideSessionState

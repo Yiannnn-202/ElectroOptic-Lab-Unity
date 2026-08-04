@@ -227,6 +227,7 @@ public readonly struct Scene2GuideStateSnapshot
     public readonly bool BeamExpanderOnRail;
     public readonly bool CrystalOnRail;
     public readonly bool PowerMeterProbeOnRail;
+    public readonly bool PowerMeterDataProcessingActive;
     public readonly bool PhotodiodeProbeOnRail;
 
     public readonly float ScreenIntensity;
@@ -242,7 +243,7 @@ public readonly struct Scene2GuideStateSnapshot
 }
 ```
 
-实际实现可以拆分子结构，但必须保留以下语义：遥测是否有效、器件身份、在轨状态、实际强度、红点坐标、角度、Conoscopic 模式、校准提交状态和沿激光方向的投影位置。
+实际实现可以拆分子结构，但必须保留以下语义：遥测是否有效、器件身份、在轨状态、是否已通过“功率计”元件进入过 Scene3、是否已通过“示波器”元件进入过 Scene4、实际强度、红点坐标、角度、Conoscopic 模式、校准提交状态和沿激光方向的投影位置。
 
 快照本身不保存稳定计时和亮态基准；这些是引导会话状态，分别由流程控制器和状态提供器中的基准跟踪器维护。
 
@@ -257,7 +258,7 @@ public readonly struct Scene2GuideStageEvaluation
 }
 ```
 
-`StatusMessage` 只用于必要的状态说明。首期明确需要的动态提示是消光阶段无亮态基准时的“请先将检偏器调至亮态以建立基准”。普通条件未满足不显示错误。
+`StatusMessage` 只用于必要的状态说明。明确需要的动态提示包括消光阶段无亮态基准时的“请先将检偏器调至亮态以建立基准”，以及尚未通过指定入口进入数据处理时分别提示双击名称为“功率计”或“示波器”的元件。普通条件未满足不显示错误。
 
 ---
 
@@ -287,8 +288,8 @@ public interface IScene2GuideStateProvider
 - 光屏 `OpticalComponent` 和 `DirectScreenController`；
 - 起偏器、检偏器各自的 `OpticalComponent` 与 `RotateStandController`；
 - 扩束镜、晶体各自的 `OpticalComponent`；
-- `接收器.fbx` 对应的光功率计探头 `OpticalComponent`；
-- `光电二极管.fbx` 对应的光电二极管探头 `OpticalComponent`；
+- 名称为“功率计”、目标场景为 `Scene3_UIRebuild` 的 `ClickAreaFocus`；
+- 名称为“示波器”、目标场景为 `Scene4_UIRebuild 1` 的 `ClickAreaFocus`；
 - `UnifiedScreenPanel`、主相机和相机控制器。
 
 Inspector 引用是主路径。仅当引用为空时允许按名称或组件类型回退查找；每次回退必须输出一次警告，包含字段名、匹配对象完整层级和匹配规则。出现零个或多个歧义匹配时视为无效，不选择“第一个”。
@@ -421,27 +422,23 @@ UnifiedScreenPanel.CurrentMode == ScreenMode.Conoscopic
 
 ### 8.6 Stage 5：InstallPowerMeterProbe
 
-必须同时满足：
+本阶段不再检测光功率计探头的在轨状态、光路顺序或 `ReceiverStateController` 状态。完成条件只有：
 
-- 光屏离轨；
-- 扩束镜离轨；
-- 光电二极管探头离轨；
-- 光功率计探头在轨；
-- 光路严格为“激光 → 起偏器 → 晶体 → 检偏器 → 光功率计探头”。
+- 用户在 Scene2 双击根物体名称严格为“功率计”的交互区域；
+- 该交互的目标场景为 `Scene3_UIRebuild`；
+- 场景加载回调确认本次双击确实进入过 `Scene3_UIRebuild`，而不是仅发起加载请求。
 
-条件连续 0.5 秒后完成。
+`ClickAreaFocus` 在第二次双击触发跳转时记录待确认请求，并在目标场景加载成功后将 `HasEnteredTargetScene` 置为 true。状态提供器只读取这一持久到当前 Scene2 会话结束的标记。未进入时显示“请双击名称为“功率计”的元件进入数据处理”；标记连续保持 0.5 秒后完成。双击其他元件或通过其他入口进入 Scene3 均不得完成本阶段。
 
 ### 8.7 Stage 6：InstallPhotodiodeProbe
 
-必须同时满足：
+本阶段不再检测光电二极管探头、光功率计探头的在轨状态或光路顺序。完成条件只有：
 
-- 光屏离轨；
-- 扩束镜离轨；
-- 光功率计探头离轨；
-- 光电二极管探头在轨；
-- 光路严格为“激光 → 起偏器 → 晶体 → 检偏器 → 光电二极管探头”。
+- 用户在 Scene2 双击根物体名称严格为“示波器”的交互区域；
+- 该交互的目标场景为 `Scene4_UIRebuild 1`；
+- 场景加载回调确认本次双击确实进入过 `Scene4_UIRebuild 1`，而不是仅发起加载请求。
 
-条件连续 0.5 秒后完成，随后显示 0.6 秒完成反馈并进入永久完成页。
+复用 `ClickAreaFocus.HasEnteredTargetScene`：在第二次双击触发跳转时记录待确认请求，目标场景加载成功后置位。未进入时显示“请双击名称为“示波器”的元件进入数据处理”；标记连续保持 0.5 秒后完成，随后显示 0.6 秒完成反馈并进入永久完成页。双击其他元件或通过其他入口进入 Scene4 均不得完成本阶段。
 
 ---
 
@@ -961,8 +958,8 @@ ElectroOptics/Experiment Guide/Upgrade Realtime Guide UI In Scene2
 | `ST-01`～`ST-02` | PlaceScreen 纯逻辑测试 + Scene2 实际收光测试 |
 | `ST-03`～`ST-04` | CalibrationGate 输入测试 + 64×64 方形边界手工测试 |
 | `ST-05`～`ST-07` | 消光基准、角度和 5% 阈值测试 |
-| `ST-08`～`ST-13` | 旋转传播方向下的严格顺序测试 + Scene2 六阶段通关 |
-| `ST-14`～`ST-15` | 提前完成、单向推进状态机测试 |
+| `ST-08`～`ST-15` | 旋转传播方向下的严格顺序、功率计 Scene3 入口、示波器 Scene4 入口状态测试 + Scene2 六阶段通关 |
+| `ST-15`～`ST-16` | 提前完成、单向推进状态机测试 |
 | `UI-01`～`UI-03` | View 默认状态、动画和收起反馈测试 |
 | `UI-04`～`UI-06` | 相机位姿容差与稳定时间测试 |
 | `UI-07` | Finished 展示模型测试 |

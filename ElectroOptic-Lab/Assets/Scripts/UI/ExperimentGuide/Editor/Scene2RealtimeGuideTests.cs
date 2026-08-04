@@ -28,8 +28,8 @@ namespace ElectroOptics.UI.ExperimentGuide.Editor
             Run("Extinction requires baseline", TestExtinctionRequiresBaseline);
             Run("Extinction threshold", TestExtinctionThreshold);
             Run("Conoscopic path and mode", TestConoscopic);
-            Run("Power meter probe path", TestPowerMeterProbe);
-            Run("Photodiode probe path", TestPhotodiodeProbe);
+            Run("Power meter Scene3 entry", TestPowerMeterScene3Entry);
+            Run("Oscilloscope Scene4 entry", TestOscilloscopeScene4Entry);
             Run("Invalid references fail closed", TestInvalidReferencesFailClosed);
 
             Debug.Log($"[Scene2RealtimeGuideTests] 完成：{passed} 通过，{failed} 失败。");
@@ -197,44 +197,52 @@ namespace ElectroOptics.UI.ExperimentGuide.Editor
             AssertIncomplete(Scene2GuideStageId.ObserveConoscopic, snapshot, default(Scene2GuideSessionState));
         }
 
-        private static void TestPowerMeterProbe()
+        private static void TestPowerMeterScene3Entry()
         {
             Scene2GuideStateSnapshot snapshot = BaseSnapshot();
-            snapshot.screenOnRail = false;
-            snapshot.beamExpanderOnRail = false;
-            snapshot.photodiodeProbeOnRail = false;
-            snapshot.polarizerOnRail = true;
-            snapshot.crystalOnRail = true;
-            snapshot.analyzerOnRail = true;
-            snapshot.powerMeterProbeOnRail = true;
-            snapshot.polarizerProjection = 1f;
-            snapshot.crystalProjection = 2f;
-            snapshot.analyzerProjection = 3f;
-            snapshot.powerMeterProbeProjection = 4f;
+
+            Scene2GuideStageEvaluation waitingForDataProcessing = Scene2GuideStageEvaluator.Evaluate(
+                Scene2GuideStageId.InstallPowerMeterProbe,
+                snapshot,
+                default(Scene2GuideSessionState),
+                Settings());
+            AssertFalse(waitingForDataProcessing.completionConditionMet, "Scene3 entry through power meter is required");
+            AssertEqual(
+                Scene2GuideStageEvaluator.OpenPowerMeterDataProcessingMessage,
+                waitingForDataProcessing.statusMessage,
+                "power meter click prompt");
+
+            snapshot.powerMeterScene3Entered = true;
             AssertComplete(Scene2GuideStageId.InstallPowerMeterProbe, snapshot, default(Scene2GuideSessionState));
 
+            // 阶段 5 不再检测接收器探头或光路安装状态。
             snapshot.screenOnRail = true;
-            AssertIncomplete(Scene2GuideStageId.InstallPowerMeterProbe, snapshot, default(Scene2GuideSessionState));
+            snapshot.beamExpanderOnRail = true;
+            AssertComplete(Scene2GuideStageId.InstallPowerMeterProbe, snapshot, default(Scene2GuideSessionState));
         }
 
-        private static void TestPhotodiodeProbe()
+        private static void TestOscilloscopeScene4Entry()
         {
             Scene2GuideStateSnapshot snapshot = BaseSnapshot();
-            snapshot.screenOnRail = false;
-            snapshot.beamExpanderOnRail = false;
-            snapshot.powerMeterProbeOnRail = false;
-            snapshot.polarizerOnRail = true;
-            snapshot.crystalOnRail = true;
-            snapshot.analyzerOnRail = true;
-            snapshot.photodiodeProbeOnRail = true;
-            snapshot.polarizerProjection = 1f;
-            snapshot.crystalProjection = 2f;
-            snapshot.analyzerProjection = 3f;
-            snapshot.photodiodeProbeProjection = 4f;
+
+            Scene2GuideStageEvaluation waitingForDataProcessing = Scene2GuideStageEvaluator.Evaluate(
+                Scene2GuideStageId.InstallPhotodiodeProbe,
+                snapshot,
+                default(Scene2GuideSessionState),
+                Settings());
+            AssertFalse(waitingForDataProcessing.completionConditionMet, "Scene4 entry through oscilloscope is required");
+            AssertEqual(
+                Scene2GuideStageEvaluator.OpenOscilloscopeDataProcessingMessage,
+                waitingForDataProcessing.statusMessage,
+                "oscilloscope click prompt");
+
+            snapshot.oscilloscopeScene4Entered = true;
             AssertComplete(Scene2GuideStageId.InstallPhotodiodeProbe, snapshot, default(Scene2GuideSessionState));
 
-            snapshot.powerMeterProbeOnRail = true;
-            AssertIncomplete(Scene2GuideStageId.InstallPhotodiodeProbe, snapshot, default(Scene2GuideSessionState));
+            // 阶段 6 不再检测光电二极管探头或光路安装状态。
+            snapshot.screenOnRail = true;
+            snapshot.beamExpanderOnRail = true;
+            AssertComplete(Scene2GuideStageId.InstallPhotodiodeProbe, snapshot, default(Scene2GuideSessionState));
         }
 
         private static void TestInvalidReferencesFailClosed()

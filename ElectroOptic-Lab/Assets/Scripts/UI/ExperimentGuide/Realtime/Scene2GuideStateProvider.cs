@@ -30,8 +30,8 @@ namespace ElectroOptics.UI.ExperimentGuide
         [Header("Other optical components")]
         [SerializeField] private OpticalComponent beamExpander;
         [SerializeField] private OpticalComponent crystal;
-        [SerializeField] private OpticalComponent powerMeterProbe;
-        [SerializeField] private OpticalComponent photodiodeProbe;
+        [SerializeField] private ClickAreaFocus powerMeterSceneEntry;
+        [SerializeField] private ClickAreaFocus oscilloscopeSceneEntry;
 
         private readonly HashSet<string> fallbackWarnings = new HashSet<string>();
         private Scene2GuideScreenTelemetryReader telemetryReader;
@@ -41,6 +41,8 @@ namespace ElectroOptics.UI.ExperimentGuide
         public LaserEmitterMover LaserMover => laserMover;
         public LaserEmitter LaserEmitter => laserEmitter;
         public LaserStateController LaserStateController => laserStateController;
+        public ClickAreaFocus PowerMeterSceneEntry => powerMeterSceneEntry;
+        public ClickAreaFocus OscilloscopeSceneEntry => oscilloscopeSceneEntry;
         public Transform LaserTransform => laserEmitter != null
             ? laserEmitter.transform
             : laserMover != null ? laserMover.transform : null;
@@ -134,25 +136,38 @@ namespace ElectroOptics.UI.ExperimentGuide
                 crystal = FindUniqueByName(components, "crystal", "新晶体盒", "晶体盒", "晶体", "crystal");
                 WarnFallback("crystal", crystal, logFallback);
             }
-            if (powerMeterProbe == null)
+
+            if (powerMeterSceneEntry == null)
             {
-                powerMeterProbe = FindUniqueByName(
-                    components,
-                    "powerMeterProbe",
-                    "接收器",
-                    "功率计探头",
-                    "receiver");
-                WarnFallback("powerMeterProbe", powerMeterProbe, logFallback);
+                ClickAreaFocus[] sceneEntries = FindObjectsOfType<ClickAreaFocus>(true);
+                for (int i = 0; i < sceneEntries.Length; i++)
+                {
+                    ClickAreaFocus candidate = sceneEntries[i];
+                    if (candidate != null
+                        && candidate.transform.root.name == "功率计"
+                        && candidate.targetSceneName == "Scene3_UIRebuild")
+                    {
+                        powerMeterSceneEntry = candidate;
+                        WarnFallback("powerMeterSceneEntry", powerMeterSceneEntry, logFallback);
+                        break;
+                    }
+                }
             }
-            if (photodiodeProbe == null)
+            if (oscilloscopeSceneEntry == null)
             {
-                photodiodeProbe = FindUniqueByName(
-                    components,
-                    "photodiodeProbe",
-                    "光电二极管",
-                    "photodiode",
-                    "diode");
-                WarnFallback("photodiodeProbe", photodiodeProbe, logFallback);
+                ClickAreaFocus[] sceneEntries = FindObjectsOfType<ClickAreaFocus>(true);
+                for (int i = 0; i < sceneEntries.Length; i++)
+                {
+                    ClickAreaFocus candidate = sceneEntries[i];
+                    if (candidate != null
+                        && candidate.transform.root.name == "示波器"
+                        && candidate.targetSceneName == "Scene4_UIRebuild 1")
+                    {
+                        oscilloscopeSceneEntry = candidate;
+                        WarnFallback("oscilloscopeSceneEntry", oscilloscopeSceneEntry, logFallback);
+                        break;
+                    }
+                }
             }
 
             ResolvePolarizers(components, logFallback);
@@ -179,8 +194,10 @@ namespace ElectroOptics.UI.ExperimentGuide
                 analyzerOnRail = IsOnRail(analyzer),
                 beamExpanderOnRail = IsOnRail(beamExpander),
                 crystalOnRail = IsOnRail(crystal),
-                powerMeterProbeOnRail = IsOnRail(powerMeterProbe),
-                photodiodeProbeOnRail = IsOnRail(photodiodeProbe),
+                powerMeterScene3Entered = powerMeterSceneEntry != null
+                                          && powerMeterSceneEntry.HasEnteredTargetScene,
+                oscilloscopeScene4Entered = oscilloscopeSceneEntry != null
+                                            && oscilloscopeSceneEntry.HasEnteredTargetScene,
                 laserCalibrationCommitted = laserMover != null && laserMover.isCalibrationDone,
                 polarizerAngle = polarizerStand != null ? polarizerStand.GetCurrentRotateAngle() : 0f,
                 analyzerAngle = analyzerStand != null ? analyzerStand.GetCurrentRotateAngle() : 0f,
@@ -213,8 +230,7 @@ namespace ElectroOptics.UI.ExperimentGuide
                 snapshot.beamExpanderProjection = Project(beamExpander, origin, direction);
                 snapshot.crystalProjection = Project(crystal, origin, direction);
                 snapshot.screenProjection = Project(screen, origin, direction);
-                snapshot.powerMeterProbeProjection = Project(powerMeterProbe, origin, direction);
-                snapshot.photodiodeProbeProjection = Project(photodiodeProbe, origin, direction);
+
             }
 
             return snapshot;
@@ -279,8 +295,8 @@ namespace ElectroOptics.UI.ExperimentGuide
             if (analyzer == null || analyzerStand == null) missing.Add("analyzer");
             if (beamExpander == null) missing.Add("beamExpander");
             if (crystal == null) missing.Add("crystal");
-            if (powerMeterProbe == null) missing.Add("powerMeterProbe");
-            if (photodiodeProbe == null) missing.Add("photodiodeProbe");
+            if (powerMeterSceneEntry == null) missing.Add("powerMeterSceneEntry");
+            if (oscilloscopeSceneEntry == null) missing.Add("oscilloscopeSceneEntry");
 
             if (missing.Count == 0)
                 return true;
