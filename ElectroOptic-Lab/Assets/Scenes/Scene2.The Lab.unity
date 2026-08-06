@@ -3749,6 +3749,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 0b394c2bda437d84fa7b332879febe85, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1128520868}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 0b394c2bda437d84fa7b332879febe85, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1128520872}
   m_SourcePrefab: {fileID: 100100000, guid: 0b394c2bda437d84fa7b332879febe85, type: 3}
 --- !u!1 &552764697
 GameObject:
@@ -4083,11 +4086,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 577263445987644751, guid: 24b48deb477aeb94cbfd746f1f43bbca, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 650
+      value: 520
       objectReference: {fileID: 0}
     - target: {fileID: 577263445987644751, guid: 24b48deb477aeb94cbfd746f1f43bbca, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 340
+      value: 272
       objectReference: {fileID: 0}
     - target: {fileID: 577263445987644751, guid: 24b48deb477aeb94cbfd746f1f43bbca, type: 3}
       propertyPath: m_LocalPosition.x
@@ -8495,6 +8498,19 @@ MonoBehaviour:
   closeUpCameraAnchor: {fileID: 0}
   closeUpUICanvas: {fileID: 0}
   isMovementLocked: 0
+--- !u!114 &1128520872
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1128520866}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 415ff7e29bb1d474f9a1b98b29aa0192, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  content: {fileID: 11400000, guid: 893d113bb14726640922c8eb42315a60, type: 2}
 --- !u!1 &1148496098
 GameObject:
   m_ObjectHideFlags: 0

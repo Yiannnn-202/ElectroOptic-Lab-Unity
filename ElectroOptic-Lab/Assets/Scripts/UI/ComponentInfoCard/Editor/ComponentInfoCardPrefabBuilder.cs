@@ -21,6 +21,9 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
     {
         public const string PrefabPath = "Assets/Prefabs/UI/ComponentInfoCard.prefab";
         public const string ScenePath = "Assets/Scenes/Scene2_ComponentInfoCard_PrefabLab.unity";
+        public const float CardScale = 0.8f;
+        public const float CardWidth = 520f;
+        public const float CardHeight = 272f;
 
         private const string AssetRoot = "Assets/Arts/UI/ComponentInfoCard";
         private const string FontPath = "Assets/Resources/Fonts/SIMHEI SDF.asset";
@@ -142,11 +145,13 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
 
                 if (view != null)
                 {
-                    Check(ref valid, Approximately(view.CardRect.sizeDelta, new Vector2(650f, 340f)), "Prefab 尺寸不是 650×340");
+                    Check(ref valid, Approximately(view.CardRect.sizeDelta, new Vector2(CardWidth, CardHeight)), "Prefab 尺寸不是 520×272");
                     Check(ref valid, Mathf.Approximately(view.BaseImage.color.a, 0.85f), "底板 Alpha 不是 0.85");
-                    Check(ref valid, Mathf.Approximately(view.HeaderImage.rectTransform.sizeDelta.y, 46f), "标题栏高度不是 46");
-                    Check(ref valid, Mathf.Approximately(view.GridGraphic.Spacing, 13f), "程序网格间距不是 13");
-                    Check(ref valid, Mathf.Approximately(view.GridGraphic.LineThickness, 1f), "程序网格线宽不是 1");
+                    Check(ref valid, Mathf.Approximately(view.HeaderImage.rectTransform.sizeDelta.y, ScaleDesignValue(46f)), "标题栏高度未按 80% 缩放");
+                    Check(ref valid, Mathf.Approximately(view.GridGraphic.Spacing, ScaleDesignValue(13f)), "程序网格间距未按 80% 缩放");
+                    Check(ref valid, Mathf.Approximately(view.GridGraphic.LineThickness, ScaleDesignValue(1f)), "程序网格线宽未按 80% 缩放");
+                    Check(ref valid, Mathf.Approximately(view.TitleText.fontSize, ScaleDesignValue(24f)), "标题字号未按 80% 缩放");
+                    Check(ref valid, Mathf.Approximately(view.DescriptionText.fontSize, ScaleDesignValue(17f)), "正文字号未按 80% 缩放");
                     Check(ref valid, AssetDatabase.GetAssetPath(view.TitleText.font) == FontPath, "标题未使用 SIMHEI SDF");
                     Check(ref valid, AssetDatabase.GetAssetPath(view.DescriptionText.font) == FontPath, "正文未使用 SIMHEI SDF");
                 }
@@ -212,7 +217,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             RectTransform cardRect = root.GetComponent<RectTransform>();
             cardRect.anchorMin = cardRect.anchorMax = new Vector2(0.5f, 0.5f);
             cardRect.pivot = new Vector2(0.5f, 0.5f);
-            cardRect.sizeDelta = new Vector2(650f, 340f);
+            cardRect.sizeDelta = new Vector2(CardWidth, CardHeight);
             CanvasGroup canvasGroup = root.AddComponent<CanvasGroup>();
             canvasGroup.alpha = 1f;
             canvasGroup.interactable = false;
@@ -220,70 +225,70 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             ComponentInfoCardView view = root.AddComponent<ComponentInfoCardView>();
 
             Image shadow = CreateImage("Shadow", root.transform, baseSprite, new Color(0f, 0f, 0f, 0.25f));
-            SetCenteredRect(shadow.rectTransform, new Vector2(650f, 340f), new Vector2(4f, -4f));
+            SetCenteredRect(shadow.rectTransform, new Vector2(CardWidth, CardHeight), new Vector2(ScaleDesignValue(4f), ScaleDesignValue(-4f)));
 
             Image baseImage = CreateImage("Base", root.transform, baseSprite, new Color(1f, 1f, 1f, 0.85f));
-            SetCenteredRect(baseImage.rectTransform, new Vector2(650f, 340f), Vector2.zero);
+            SetCenteredRect(baseImage.rectTransform, new Vector2(CardWidth, CardHeight), Vector2.zero);
 
             Image headerImage = CreateImage("Header", root.transform, headerSprite, Color.white);
-            SetTopLeftRect(headerImage.rectTransform, 0f, 0f, 650f, 46f);
+            SetTopLeftRect(headerImage.rectTransform, 0f, 0f, CardWidth, ScaleDesignValue(46f));
 
             Image accentLine = CreateSolidImage("AccentLine", headerImage.transform, HexColor("40DBFFF2"));
-            SetTopLeftRect(accentLine.rectTransform, 20f, 22f, 43f, 3f);
+            SetTopLeftRect(accentLine.rectTransform, ScaleDesignValue(20f), ScaleDesignValue(22f), ScaleDesignValue(43f), ScaleDesignValue(3f));
 
             Image locator = CreateImage("Locator", headerImage.transform, locatorSprite, Color.white);
             locator.preserveAspect = true;
-            SetTopLeftRect(locator.rectTransform, 77f, 9f, 28f, 28f);
+            SetTopLeftRect(locator.rectTransform, ScaleDesignValue(77f), ScaleDesignValue(9f), ScaleDesignValue(28f), ScaleDesignValue(28f));
 
             TextMeshProUGUI title = CreateText(
                 "TitleText",
                 headerImage.transform,
                 DefaultTitle,
                 font,
-                24f,
+                ScaleDesignValue(24f),
                 HexColor("EAF7FFFF"),
                 TextAlignmentOptions.MidlineLeft);
-            SetStretchRect(title.rectTransform, new Vector2(120f, 0f), new Vector2(-20f, 0f));
+            SetStretchRect(title.rectTransform, new Vector2(ScaleDesignValue(120f), 0f), new Vector2(ScaleDesignValue(-20f), 0f));
             title.enableWordWrapping = false;
             title.overflowMode = TextOverflowModes.Ellipsis;
 
             GameObject showcase = CreateRectObject("ShowcaseArea", root.transform);
-            SetTopLeftRect(showcase.GetComponent<RectTransform>(), 0f, 46f, 317f, 294f);
+            SetTopLeftRect(showcase.GetComponent<RectTransform>(), 0f, ScaleDesignValue(46f), ScaleDesignValue(317f), ScaleDesignValue(294f));
 
             GameObject gridObject = CreateRectObject("Grid", showcase.transform);
-            SetTopLeftRect(gridObject.GetComponent<RectTransform>(), 20f, 12f, 278f, 268f);
+            SetTopLeftRect(gridObject.GetComponent<RectTransform>(), ScaleDesignValue(20f), ScaleDesignValue(12f), ScaleDesignValue(278f), ScaleDesignValue(268f));
             ComponentInfoCardGridGraphic grid = gridObject.AddComponent<ComponentInfoCardGridGraphic>();
-            grid.Configure(13f, 1f, HexColor("40DBFF14"));
+            grid.Configure(ScaleDesignValue(13f), ScaleDesignValue(1f), HexColor("40DBFF14"));
 
             Image preview = CreateImage("ComponentPreview", showcase.transform, null, Color.white);
             preview.preserveAspect = true;
             preview.enabled = false;
-            SetTopLeftRect(preview.rectTransform, 43f, 37f, 231f, 220f);
+            SetTopLeftRect(preview.rectTransform, ScaleDesignValue(43f), ScaleDesignValue(37f), ScaleDesignValue(231f), ScaleDesignValue(220f));
 
             Image scanRing = CreateImage("ScanRing", showcase.transform, scanRingSprite, Color.white);
             scanRing.preserveAspect = true;
-            SetTopLeftRect(scanRing.rectTransform, 55f, 45f, 208f, 204f);
+            SetTopLeftRect(scanRing.rectTransform, ScaleDesignValue(55f), ScaleDesignValue(45f), ScaleDesignValue(208f), ScaleDesignValue(204f));
 
             Image crosshair = CreateImage("Crosshair", showcase.transform, crosshairSprite, Color.white);
             crosshair.preserveAspect = true;
-            SetTopLeftRect(crosshair.rectTransform, 109f, 101f, 99f, 91f);
+            SetTopLeftRect(crosshair.rectTransform, ScaleDesignValue(109f), ScaleDesignValue(101f), ScaleDesignValue(99f), ScaleDesignValue(91f));
 
-            CreateBracket(showcase.transform, bracketSprite, "CornerBracket_LT", 20f, 24f, 0f);
-            CreateBracket(showcase.transform, bracketSprite, "CornerBracket_RT", 279f, 24f, -90f);
-            CreateBracket(showcase.transform, bracketSprite, "CornerBracket_RB", 279f, 248f, 180f);
-            CreateBracket(showcase.transform, bracketSprite, "CornerBracket_LB", 20f, 248f, 90f);
+            CreateBracket(showcase.transform, bracketSprite, "CornerBracket_LT", ScaleDesignValue(20f), ScaleDesignValue(24f), 0f);
+            CreateBracket(showcase.transform, bracketSprite, "CornerBracket_RT", ScaleDesignValue(279f), ScaleDesignValue(24f), -90f);
+            CreateBracket(showcase.transform, bracketSprite, "CornerBracket_RB", ScaleDesignValue(279f), ScaleDesignValue(248f), 180f);
+            CreateBracket(showcase.transform, bracketSprite, "CornerBracket_LB", ScaleDesignValue(20f), ScaleDesignValue(248f), 90f);
 
             TextMeshProUGUI description = CreateText(
                 "DescriptionText",
                 root.transform,
                 DefaultDescription,
                 font,
-                17f,
+                ScaleDesignValue(17f),
                 HexColor("EAF7FFDC"),
                 TextAlignmentOptions.TopLeft);
-            SetTopLeftRect(description.rectTransform, 344f, 82f, 282f, 234f);
+            SetTopLeftRect(description.rectTransform, ScaleDesignValue(344f), ScaleDesignValue(82f), ScaleDesignValue(282f), ScaleDesignValue(234f));
             description.enableWordWrapping = true;
-            description.lineSpacing = 1.5f;
+            description.lineSpacing = ScaleDesignValue(1.5f);
             description.overflowMode = TextOverflowModes.Ellipsis;
 
             SerializedObject serializedView = new SerializedObject(view);
@@ -489,7 +494,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
         {
             Image image = CreateImage(name, parent, sprite, Color.white);
             image.preserveAspect = true;
-            SetTopLeftRect(image.rectTransform, left, top, 20f, 19f);
+            SetTopLeftRect(image.rectTransform, left, top, ScaleDesignValue(20f), ScaleDesignValue(19f));
             image.rectTransform.localEulerAngles = new Vector3(0f, 0f, rotation);
         }
 
@@ -575,6 +580,11 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
         private static bool Approximately(Vector2 left, Vector2 right)
         {
             return Mathf.Abs(left.x - right.x) <= 0.01f && Mathf.Abs(left.y - right.y) <= 0.01f;
+        }
+
+        private static float ScaleDesignValue(float value)
+        {
+            return value * CardScale;
         }
 
         private static void Check(ref bool valid, bool condition, string message)

@@ -6,7 +6,7 @@
 
 卡片目标规格：
 
-- Unity 当前落地尺寸：`650 × 340 px`
+- Unity 当前落地尺寸：`520 × 272 px`
 - 使用场景：Scene2 元件介绍悬浮卡片
 - 视觉风格：深蓝半透明底、青蓝描边、冷白文字、轻度切角 HUD
 - 中文字体：项目已有的 `SIMHEI SDF`
@@ -30,7 +30,7 @@
 | 6 | `ComponentInfoCard_ScanRing.png` | 左侧低对比度扫描环 | 保留透明通道，低对比度显示 |
 | 7 | 不导入 | 问题合成图 | 与底板内容重复且不利于分层复刻，明确弃用 |
 
-网格由 `ComponentInfoGridGraphic` 在 Unity 中以 `13 px` 间距、`1 px` 线宽和 `#40DBFF14` 绘制，用于替代第 3 张切图中不可见的网格部分。当前 Prefab 依据原稿 `1328 × 694` 的比例缩放为 `650 × 340`，约为 `0.4895` 倍；这一版本不使用九宫格，也不支持改变卡片宽高比。
+网格由 `ComponentInfoGridGraphic` 在 Unity 中以 `10.4 px` 间距、`0.8 px` 线宽和 `#40DBFF14` 绘制，用于替代第 3 张切图中不可见的网格部分。当前 Prefab 依据原稿 `1328 × 694` 的比例缩放为 `520 × 272`，约为 `0.3917` 倍；这一版本不使用九宫格，也不支持改变卡片宽高比。
 
 ---
 
@@ -83,7 +83,7 @@
 
 | 项目 | 数值 |
 |---|---:|
-| 卡片尺寸 | 600 × 340 |
+| 卡片尺寸 | 520 × 272 |
 | 标题栏高度 | 52 |
 | 下方内容高度 | 288 |
 | 左侧展示区宽度 | 264（卡片宽度的 44%） |
@@ -363,7 +363,7 @@ Image Type = Tiled
 建议层级：
 
 ```text
-ComponentInfoCard                         RectTransform 600 × 340
+ComponentInfoCard                         RectTransform 520 × 272
 ├── Shadow                               复用 Background Sprite
 ├── CardBackground                       Background_9Sliced
 ├── CardOutline                          Outline_9Sliced
@@ -413,7 +413,7 @@ ComponentInfoCard                         RectTransform 600 × 340
 
 ### 9.2 Unity 资产验收
 
-- [ ] 卡片在 `600 × 340` 下切角和描边无拉伸
+- [ ] 卡片在 `520 × 272` 下切角和描边无拉伸
 - [ ] 卡片缩放到 80% 和 120% 时，九宫格边缘仍正常
 - [ ] 标题栏完整贯穿卡片顶部
 - [ ] 左侧展示区宽度约占 44%

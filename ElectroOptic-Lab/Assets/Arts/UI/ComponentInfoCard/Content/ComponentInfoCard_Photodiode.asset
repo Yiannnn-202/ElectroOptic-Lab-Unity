@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f919ad751b15007488003aa95a79e562, type: 3}
+  m_Name: ComponentInfoCard_Photodiode
+  m_EditorClassIdentifier: 
+  componentName: "\u5149\u7535\u4E8C\u6781\u7BA1"
+  description: "\u5149\u7535\u4E8C\u6781\u7BA1\u7528\u4E8E\u5C06\u5165\u5C04\u5149\u4FE1\u53F7\u8F6C\u6362\u4E3A\u7535\u6D41\u4FE1\u53F7\uFF0C\u5177\u6709\u54CD\u5E94\u901F\u5EA6\u5FEB\u3001\u7075\u654F\u5EA6\u9AD8\u7684\u7279\u70B9\u3002\u5728\u5B9E\u9A8C\u4E2D\uFF0C\u5B83\u4F5C\u4E3A\u793A\u6CE2\u5668\u7684\u5149\u4FE1\u53F7\u63A2\u5934\uFF0C\u7528\u4E8E\u89C2\u5BDF\u7535\u5149\u8C03\u5236\u540E\u7684\u5149\u5F3A\u53D8\u5316\u53CA\u500D\u9891\u5931\u771F\u6CE2\u5F62\u3002"
+  previewSprite: {fileID: 0}

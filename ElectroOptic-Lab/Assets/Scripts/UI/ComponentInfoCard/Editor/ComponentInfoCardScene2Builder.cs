@@ -50,6 +50,11 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             "光电接收器将入射光信号转换为可测量的电信号，用于记录不同外加电压下的光功率。" +
             "完成光路对准后，可据此测量半波电压并分析电光调制规律。";
 
+        private const string PhotodiodeDescription =
+            "光电二极管用于将入射光信号转换为电流信号，具有响应速度快、灵敏度高的特点。" +
+            "在实验中，它作为示波器的光信号探头，用于观察电光调制后的光强变化及倍频失真波形。";
+
+
         private static readonly ContentDefinition[] ContentDefinitions =
         {
             new ContentDefinition("Laser", "激光器", LaserDescription),
@@ -57,7 +62,8 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             new ContentDefinition("CrystalBox", "晶体盒", CrystalBoxDescription),
             new ContentDefinition("BeamExpander", "扩束镜", BeamExpanderDescription),
             new ContentDefinition("Screen", "光屏", ScreenDescription),
-            new ContentDefinition("PhotoReceiver", "光电接收器", ReceiverDescription)
+            new ContentDefinition("PhotoReceiver", "光电接收器", ReceiverDescription),
+            new ContentDefinition("Photodiode", "光电二极管", PhotodiodeDescription)
         };
 
         private static readonly TargetDefinition[] TargetDefinitions =
@@ -68,7 +74,8 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             new TargetDefinition("晶体盒", "CrystalBox"),
             new TargetDefinition("扩束镜", "BeamExpander"),
             new TargetDefinition("光屏", "Screen"),
-            new TargetDefinition("接收器", "PhotoReceiver")
+            new TargetDefinition("接收器", "PhotoReceiver"),
+            new TargetDefinition("光电二极管", "Photodiode")
         };
 
         [MenuItem("ElectroOptics/UI/Component Info Card/Install or Repair Hover Interaction In Scene2")]
@@ -82,7 +89,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
 
             bool confirmed = EditorUtility.DisplayDialog(
                 "Install Component Info Card Hover Interaction",
-                "将原位更新 Scene2.The Lab：创建悬停控制器、一个卡片实例、六份内容资产，并为七个元件添加 Target。\n\n" +
+                "将原位更新 Scene2.The Lab：创建悬停控制器、一个卡片实例、七份内容资产，并为八个元件添加 Target。\n\n" +
                 "已有内容资产会保留，不会修改原交互脚本。是否继续？",
                 "安装 / 修复",
                 "取消");
@@ -130,7 +137,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             }
 
             if (valid && logSuccess)
-                Debug.Log("[ComponentInfoCard] Scene2 悬停交互、七个目标和六份内容资产验证通过。");
+                Debug.Log("[ComponentInfoCard] Scene2 悬停交互、八个目标和七份内容资产验证通过。");
 
             return valid;
         }
@@ -169,7 +176,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                 throw new BuildFailedException("Component Info Card Scene2 悬停交互安装后验证失败。 ");
 
             Selection.activeGameObject = controller.gameObject;
-            Debug.Log("[ComponentInfoCard] 已在 Scene2 安装/修复七类元件的悬停介绍卡交互。");
+            Debug.Log("[ComponentInfoCard] 已在 Scene2 安装/修复八个元件的悬停介绍卡交互。");
         }
 
         private static Dictionary<string, ComponentInfoCardContent> EnsureContentAssets()
@@ -273,6 +280,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(ComponentInfoCardPrefabBuilder.CardWidth, ComponentInfoCardPrefabBuilder.CardHeight);
             rect.localScale = Vector3.one;
             cardView.RootGroup.alpha = 0f;
             cardView.RootGroup.interactable = false;
@@ -388,7 +396,8 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             {
                 ComponentInfoCardView view = cards[0];
                 Check(ref valid, view.IsValid, "Scene2 悬停卡片 View 引用不完整");
-                Check(ref valid, view.CardRect.rect.size == new Vector2(650f, 340f), "悬停卡片尺寸不是 650×340");
+                Vector2 expectedSize = new Vector2(ComponentInfoCardPrefabBuilder.CardWidth, ComponentInfoCardPrefabBuilder.CardHeight);
+                Check(ref valid, Approximately(view.CardRect.rect.size, expectedSize), "悬停卡片尺寸不是 520×272");
                 Check(ref valid, !view.gameObject.activeSelf, "悬停卡片在场景中应默认隐藏");
 
                 GameObject source = PrefabUtility.GetCorrespondingObjectFromSource(view.gameObject);
@@ -443,6 +452,12 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                 && targets.TryGetValue("检偏器", out ComponentInfoCardTarget analyzer))
             {
                 Check(ref valid, polarizer.Content == analyzer.Content, "起偏器和检偏器必须共享同一内容资产");
+            }
+
+            if (targets.TryGetValue("接收器", out ComponentInfoCardTarget receiver)
+                && targets.TryGetValue("光电二极管", out ComponentInfoCardTarget photodiode))
+            {
+                Check(ref valid, receiver.Content != photodiode.Content, "接收器和光电二极管必须使用独立内容资产");
             }
 
             GameObject[] roots = scene.GetRootGameObjects();
@@ -521,6 +536,11 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             return count;
         }
 
+
+        private static bool Approximately(Vector2 left, Vector2 right)
+        {
+            return Mathf.Abs(left.x - right.x) <= 0.01f && Mathf.Abs(left.y - right.y) <= 0.01f;
+        }
         private static void Check(ref bool valid, bool condition, string message)
         {
             if (condition)
