@@ -34,12 +34,11 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
         private const string DefaultDescription = "在此填写元件的功能、工作原理及其在实验光路中的作用。";
         private const string SampleTitle = "激光器";
         private const string SampleDescription =
-            "激光器为实验系统提供稳定、准直的单色光源，是偏振调制与晶体光学测量的入射光源。" +
+            "激光器为实验系统提供稳定、准直的单色光源，是偏振调制与晶体光学测量的入射光源。\n\n" +
             "实验开始后，需要先将光束中心对准光屏十字标记，再进行后续元件搭建与测量。";
 
         private const string BasePath = AssetRoot + "/ComponentInfoCard_Base.png";
         private const string CornerBracketPath = AssetRoot + "/ComponentInfoCard_CornerBracket.png";
-        private const string CrosshairPath = AssetRoot + "/ComponentInfoCard_Crosshair.png";
         private const string HeaderPath = AssetRoot + "/ComponentInfoCard_Header.png";
         private const string LocatorPath = AssetRoot + "/ComponentInfoCard_Locator.png";
         private const string ScanRingPath = AssetRoot + "/ComponentInfoCard_ScanRing.png";
@@ -48,7 +47,6 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
         {
             BasePath,
             CornerBracketPath,
-            CrosshairPath,
             HeaderPath,
             LocatorPath,
             ScanRingPath
@@ -163,6 +161,10 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                     Check(ref valid, players[0].IsValid, "Prefab GIF 播放器引用或缓冲配置无效");
                 Check(ref valid, MissingScriptCount(prefab) == 0, "Prefab 存在 Missing Script");
 
+                Check(
+                    ref valid,
+                    prefab.GetComponentsInChildren<Transform>(true).All(item => item.name != "Crosshair"),
+                    "Prefab preview area must not contain the Crosshair decoration.");
                 if (view != null)
                 {
                     Check(ref valid, Approximately(view.CardRect.sizeDelta, new Vector2(CardWidth, CardHeight)), "Prefab 尺寸不是 520×272");
@@ -171,7 +173,18 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                     Check(ref valid, Mathf.Approximately(view.GridGraphic.Spacing, ScaleDesignValue(13f)), "程序网格间距未按 80% 缩放");
                     Check(ref valid, Mathf.Approximately(view.GridGraphic.LineThickness, ScaleDesignValue(1f)), "程序网格线宽未按 80% 缩放");
                     Check(ref valid, Mathf.Approximately(view.TitleText.fontSize, ScaleDesignValue(24f)), "标题字号未按 80% 缩放");
-                    Check(ref valid, Mathf.Approximately(view.DescriptionText.fontSize, ScaleDesignValue(17f)), "正文字号未按 80% 缩放");
+                    Check(ref valid, Mathf.Approximately(view.DescriptionText.fontSize, ScaleDesignValue(18f)), "正文字号未按 80% 缩放");
+                    Check(ref valid, view.DescriptionText.alignment == TextAlignmentOptions.TopLeft, "正文应在描述区域内顶部左对齐");
+                    Check(ref valid, Mathf.Approximately(view.DescriptionText.lineSpacing, ScaleDesignValue(4f)), "正文行距不正确");
+                    Check(ref valid, Mathf.Approximately(view.DescriptionText.characterSpacing, ScaleDesignValue(1f)), "正文字距不正确");
+                    Check(
+                        ref valid,
+                        Approximately(view.DescriptionText.rectTransform.sizeDelta, new Vector2(ScaleDesignValue(290f), ScaleDesignValue(248f))),
+                        "正文区域尺寸不正确");
+                    Check(
+                        ref valid,
+                        Approximately(view.DescriptionText.rectTransform.anchoredPosition, new Vector2(ScaleDesignValue(338f), -ScaleDesignValue(70f))),
+                        "正文区域位置不正确");
                     Check(ref valid, AssetDatabase.GetAssetPath(view.TitleText.font) == FontPath, "标题未使用 SIMHEI SDF");
                     Check(ref valid, AssetDatabase.GetAssetPath(view.DescriptionText.font) == FontPath, "正文未使用 SIMHEI SDF");
                     Check(ref valid, view.AnimatedPreviewImage != null, "Prefab 缺少 GIF RawImage");
@@ -233,7 +246,6 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
         {
             Sprite baseSprite = LoadSprite(BasePath);
             Sprite bracketSprite = LoadSprite(CornerBracketPath);
-            Sprite crosshairSprite = LoadSprite(CrosshairPath);
             Sprite headerSprite = LoadSprite(HeaderPath);
             Sprite locatorSprite = LoadSprite(LocatorPath);
             Sprite scanRingSprite = LoadSprite(ScanRingPath);
@@ -310,10 +322,6 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             scanRing.preserveAspect = true;
             SetTopLeftRect(scanRing.rectTransform, ScaleDesignValue(55f), ScaleDesignValue(45f), ScaleDesignValue(208f), ScaleDesignValue(204f));
 
-            Image crosshair = CreateImage("Crosshair", showcase.transform, crosshairSprite, Color.white);
-            crosshair.preserveAspect = true;
-            SetTopLeftRect(crosshair.rectTransform, ScaleDesignValue(109f), ScaleDesignValue(101f), ScaleDesignValue(99f), ScaleDesignValue(91f));
-
             CreateBracket(showcase.transform, bracketSprite, "CornerBracket_LT", ScaleDesignValue(20f), ScaleDesignValue(24f), 0f);
             CreateBracket(showcase.transform, bracketSprite, "CornerBracket_RT", ScaleDesignValue(279f), ScaleDesignValue(24f), -90f);
             CreateBracket(showcase.transform, bracketSprite, "CornerBracket_RB", ScaleDesignValue(279f), ScaleDesignValue(248f), 180f);
@@ -324,12 +332,13 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                 root.transform,
                 DefaultDescription,
                 font,
-                ScaleDesignValue(17f),
+                ScaleDesignValue(18f),
                 HexColor("EAF7FFDC"),
                 TextAlignmentOptions.TopLeft);
-            SetTopLeftRect(description.rectTransform, ScaleDesignValue(344f), ScaleDesignValue(82f), ScaleDesignValue(282f), ScaleDesignValue(234f));
+            SetTopLeftRect(description.rectTransform, ScaleDesignValue(338f), ScaleDesignValue(70f), ScaleDesignValue(290f), ScaleDesignValue(248f));
             description.enableWordWrapping = true;
-            description.lineSpacing = ScaleDesignValue(1.5f);
+            description.lineSpacing = ScaleDesignValue(4f);
+            description.characterSpacing = ScaleDesignValue(1f);
             description.overflowMode = TextOverflowModes.Ellipsis;
 
             SerializedObject serializedView = new SerializedObject(view);

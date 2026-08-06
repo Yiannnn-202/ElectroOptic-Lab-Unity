@@ -10,7 +10,7 @@
 - 使用场景：Scene2 元件介绍悬浮卡片
 - 视觉风格：深蓝半透明底、青蓝描边、冷白文字、轻度切角 HUD
 - 中文字体：项目已有的 `SIMHEI SDF`
-- 制作原则：Photoshop 只制作 Unity 不方便稳定绘制的形状；文字、分隔线、十字线、阴影和布局在 Unity 中完成
+- 制作原则：Photoshop 只制作 Unity 不方便稳定绘制的形状；文字、分隔线、阴影和布局在 Unity 中完成
 
 概念图只能作为视觉参考，不应整张裁切后直接作为最终卡片。整图直接使用会导致文字无法替换、缩放后模糊、不同元件无法共用，并妨碍后续悬停交互。
 
@@ -24,7 +24,7 @@
 |---:|---|---|---|
 | 1 | `ComponentInfoCard_Base.png` | 卡片底板、外框和内容分隔线 | 固定尺寸显示，整体 Alpha 在 Unity 中设为 85% |
 | 2 | `ComponentInfoCard_CornerBracket.png` | 左侧展示区四角定位括号 | 同一 Sprite 旋转复用四次 |
-| 3 | `ComponentInfoCard_Crosshair.png` | 中心十字瞄准线 | 原图网格像素 Alpha 为 0，因此只使用可见准星部分 |
+| 3 | `ComponentInfoCard_Crosshair.png` | 归档备用，不再挂载到 Prefab | GIF 已承担预览区视觉主体，移除准星可减少遮挡与视觉冗余 |
 | 4 | `ComponentInfoCard_Header.png` | 顶部贯穿标题栏 | 固定尺寸覆盖在底板标题区 |
 | 5 | `ComponentInfoCard_Locator.png` | 标题栏菱形定位标记 | 原尺寸等比缩放使用 |
 | 6 | `ComponentInfoCard_ScanRing.png` | 左侧低对比度扫描环 | 保留透明通道，低对比度显示 |
@@ -55,7 +55,6 @@
 - 标题文字和描述文字：使用 TextMesh Pro
 - 标题栏左侧短横线：使用纯色 `Image`
 - 左右区域分隔线：使用宽度 `1–2 px` 的 `Image`
-- 中心十字瞄准线：使用两个细长 `Image`
 - 卡片阴影：复用背景九宫格图片，向右下偏移并着色为半透明黑色
 - 元件预览图：后续使用独立透明 PNG、Sprite 或 `RawImage + RenderTexture`
 - 概念稿中的白色标题/正文占位线：不得作为最终切图保留
@@ -379,8 +378,6 @@ ComponentInfoCard                         RectTransform 520 × 272
     │   ├── CornerBracket_RT             旋转 -90°
     │   ├── CornerBracket_RB             旋转 180°
     │   ├── CornerBracket_LB             旋转 90°
-    │   ├── CrosshairHorizontal          普通 Image
-    │   ├── CrosshairVertical            普通 Image
     │   └── ComponentPreview             Image 或 RawImage
     ├── Divider                          普通 Image，宽 1–2
     └── DescriptionText                  TextMeshProUGUI
@@ -393,6 +390,7 @@ ComponentInfoCard                         RectTransform 520 × 272
 - 标题和正文使用 `SIMHEI SDF`，不要使用无 CJK 字形的 LiberationSans。
 - `TitleText` 使用主文字色 `#EAF7FFFF`。
 - `DescriptionText` 使用正文色 `#EAF7FFDC`，开启自动换行。
+- `DescriptionText` 顶部左对齐；正文按语义分成两段，段间保留一行空行。
 - 概念图的占位横线在 Prefab 中由真实 TMP 文本替代。
 - `ComponentPreview` 第一版优先使用透明背景 Sprite；需要实时 3D 预览时再替换为 `RawImage + RenderTexture`。
 
