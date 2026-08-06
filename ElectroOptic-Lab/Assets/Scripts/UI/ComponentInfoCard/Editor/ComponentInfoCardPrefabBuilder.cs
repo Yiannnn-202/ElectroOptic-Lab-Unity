@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using ThreeDISevenZeroR.UnityGifDecoder;
 using TMPro;
 using UnityEditor;
 using UnityEditor.Build;
@@ -26,6 +27,8 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
         public const float CardHeight = 272f;
 
         private const string AssetRoot = "Assets/Arts/UI/ComponentInfoCard";
+        private const string GifRoot = "Assets/StreamingAssets/ComponentInfoCard";
+        private const string SampleGifFileName = "Laser.gif";
         private const string FontPath = "Assets/Resources/Fonts/SIMHEI SDF.asset";
         private const string DefaultTitle = "元件名称";
         private const string DefaultDescription = "在此填写元件的功能、工作原理及其在实验光路中的作用。";
@@ -49,6 +52,17 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             HeaderPath,
             LocatorPath,
             ScanRingPath
+        };
+
+        private static readonly string[] GifFileNames =
+        {
+            "Laser.gif",
+            "Polarizer.gif",
+            "CrystalBox.gif",
+            "BeamExpander.gif",
+            "Screen.gif",
+            "PhotoReceiver.gif",
+            "Photodiode.gif"
         };
 
         [MenuItem("ElectroOptics/UI/Component Info Card/Create Prefab Lab")]
@@ -135,12 +149,18 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                 Check(ref valid, importerSettings.spriteMeshType == SpriteMeshType.FullRect, path + " Mesh Type 应为 Full Rect");
             }
 
+            ValidateGifFiles(ref valid);
+
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
             Check(ref valid, prefab != null, "缺少 Prefab：" + PrefabPath);
             if (prefab != null)
             {
                 ComponentInfoCardView view = prefab.GetComponent<ComponentInfoCardView>();
+                ComponentInfoCardGifPlayer[] players = prefab.GetComponentsInChildren<ComponentInfoCardGifPlayer>(true);
                 Check(ref valid, view != null && view.IsValid, "Prefab View 引用不完整");
+                Check(ref valid, players.Length == 1, "Prefab 必须只有一个 GIF 播放器");
+                if (players.Length == 1)
+                    Check(ref valid, players[0].IsValid, "Prefab GIF 播放器引用或缓冲配置无效");
                 Check(ref valid, MissingScriptCount(prefab) == 0, "Prefab 存在 Missing Script");
 
                 if (view != null)
@@ -154,6 +174,14 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                     Check(ref valid, Mathf.Approximately(view.DescriptionText.fontSize, ScaleDesignValue(17f)), "正文字号未按 80% 缩放");
                     Check(ref valid, AssetDatabase.GetAssetPath(view.TitleText.font) == FontPath, "标题未使用 SIMHEI SDF");
                     Check(ref valid, AssetDatabase.GetAssetPath(view.DescriptionText.font) == FontPath, "正文未使用 SIMHEI SDF");
+                    Check(ref valid, view.AnimatedPreviewImage != null, "Prefab 缺少 GIF RawImage");
+                    Check(ref valid, view.AnimatedPreviewFitter != null, "Prefab 缺少 GIF AspectRatioFitter");
+                    Check(
+                        ref valid,
+                        view.AnimatedPreviewFitter != null
+                        && view.AnimatedPreviewFitter.aspectMode == AspectRatioFitter.AspectMode.FitInParent,
+                        "GIF 预览未使用 FitInParent");
+                    Check(ref valid, !view.AnimatedPreviewImage.raycastTarget, "GIF RawImage 不应拦截 UI 射线");
                 }
 
                 Graphic[] graphics = prefab.GetComponentsInChildren<Graphic>(true);
@@ -223,6 +251,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             canvasGroup.interactable = false;
             canvasGroup.blocksRaycasts = false;
             ComponentInfoCardView view = root.AddComponent<ComponentInfoCardView>();
+            ComponentInfoCardGifPlayer gifPlayer = root.AddComponent<ComponentInfoCardGifPlayer>();
 
             Image shadow = CreateImage("Shadow", root.transform, baseSprite, new Color(0f, 0f, 0f, 0.25f));
             SetCenteredRect(shadow.rectTransform, new Vector2(CardWidth, CardHeight), new Vector2(ScaleDesignValue(4f), ScaleDesignValue(-4f)));
@@ -265,6 +294,18 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             preview.enabled = false;
             SetTopLeftRect(preview.rectTransform, ScaleDesignValue(43f), ScaleDesignValue(37f), ScaleDesignValue(231f), ScaleDesignValue(220f));
 
+            GameObject animatedSlot = CreateRectObject("AnimatedPreviewSlot", showcase.transform);
+            SetTopLeftRect(animatedSlot.GetComponent<RectTransform>(), ScaleDesignValue(43f), ScaleDesignValue(37f), ScaleDesignValue(231f), ScaleDesignValue(220f));
+            GameObject animatedObject = CreateRectObject("AnimatedPreview", animatedSlot.transform);
+            SetCenteredRect(animatedObject.GetComponent<RectTransform>(), new Vector2(ScaleDesignValue(220f), ScaleDesignValue(220f)), Vector2.zero);
+            RawImage animatedPreview = animatedObject.AddComponent<RawImage>();
+            animatedPreview.color = Color.white;
+            animatedPreview.raycastTarget = false;
+            animatedPreview.enabled = false;
+            AspectRatioFitter animatedFitter = animatedObject.AddComponent<AspectRatioFitter>();
+            animatedFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            animatedFitter.aspectRatio = 1f;
+
             Image scanRing = CreateImage("ScanRing", showcase.transform, scanRingSprite, Color.white);
             scanRing.preserveAspect = true;
             SetTopLeftRect(scanRing.rectTransform, ScaleDesignValue(55f), ScaleDesignValue(45f), ScaleDesignValue(208f), ScaleDesignValue(204f));
@@ -299,8 +340,11 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             serializedView.FindProperty("titleText").objectReferenceValue = title;
             serializedView.FindProperty("descriptionText").objectReferenceValue = description;
             serializedView.FindProperty("previewImage").objectReferenceValue = preview;
+            serializedView.FindProperty("animatedPreviewImage").objectReferenceValue = animatedPreview;
+            serializedView.FindProperty("animatedPreviewFitter").objectReferenceValue = animatedFitter;
             serializedView.FindProperty("gridGraphic").objectReferenceValue = grid;
             serializedView.ApplyModifiedPropertiesWithoutUndo();
+            gifPlayer.Configure(view, 3);
             view.SetContent(DefaultTitle, DefaultDescription, null);
 
             SetLayerRecursively(root, LayerMask.NameToLayer("UI"));
@@ -348,11 +392,15 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             instanceRect.pivot = new Vector2(0.5f, 0.5f);
             instanceRect.anchoredPosition = Vector2.zero;
             ComponentInfoCardView view = instance.GetComponent<ComponentInfoCardView>();
+            ComponentInfoCardGifPlayer gifPlayer = instance.GetComponent<ComponentInfoCardGifPlayer>();
             view.SetContent(SampleTitle, SampleDescription, null);
             PrefabUtility.RecordPrefabInstancePropertyModifications(view.TitleText);
             PrefabUtility.RecordPrefabInstancePropertyModifications(view.DescriptionText);
             PrefabUtility.RecordPrefabInstancePropertyModifications(view.PreviewImage);
 
+            GameObject driverObject = new GameObject("ComponentInfoCardGifPreviewDriver");
+            ComponentInfoCardPrefabLabPreview driver = driverObject.AddComponent<ComponentInfoCardPrefabLabPreview>();
+            driver.Configure(view, gifPlayer, SampleGifFileName);
             new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
             SetLayerRecursively(canvasObject, LayerMask.NameToLayer("UI"));
 
@@ -394,6 +442,60 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             }
         }
 
+        private static void ValidateGifFiles(ref bool valid)
+        {
+            for (int index = 0; index < GifFileNames.Length; index++)
+            {
+                string fileName = GifFileNames[index];
+                string assetPath = GifRoot + "/" + fileName;
+                string fullPath = Path.GetFullPath(assetPath);
+                bool exists = File.Exists(fullPath);
+                Check(ref valid, exists, "缺少 GIF 占位资产：" + assetPath);
+                if (!exists)
+                    continue;
+
+                FileInfo info = new FileInfo(fullPath);
+                if (info.Length > ComponentInfoCardGifPlayer.RecommendedMaxBytes)
+                {
+                    Debug.LogWarning(
+                        $"[ComponentInfoCard] GIF `{fileName}` 为 {info.Length / (1024f * 1024f):F1} MB，超过建议的 5 MB 上限。");
+                }
+
+                try
+                {
+                    byte[] bytes = File.ReadAllBytes(fullPath);
+                    int frameCount = 0;
+                    using (GifStream gif = new GifStream(bytes))
+                    {
+                        gif.ReadHeader();
+                        Check(
+                            ref valid,
+                            gif.Header.width == 384 && gif.Header.height == 384,
+                            fileName + " 尺寸必须为 384×384");
+
+                        while (gif.HasMoreData && frameCount < 2)
+                        {
+                            if (gif.CurrentToken == GifStream.Token.Image)
+                            {
+                                gif.ReadImage();
+                                frameCount++;
+                            }
+                            else
+                            {
+                                gif.SkipToken();
+                            }
+                        }
+                    }
+
+                    Check(ref valid, frameCount >= 2, fileName + " 必须至少包含两帧");
+                }
+                catch (Exception exception)
+                {
+                    Check(ref valid, false, fileName + " 无法解码：" + exception.Message);
+                }
+            }
+        }
+
         private static void ValidateScene(ref bool valid)
         {
             Scene loaded = SceneManager.GetSceneByPath(ScenePath);
@@ -408,8 +510,16 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                 .ToArray();
             Canvas[] canvases = roots.SelectMany(root => root.GetComponentsInChildren<Canvas>(true)).ToArray();
             CanvasScaler[] scalers = roots.SelectMany(root => root.GetComponentsInChildren<CanvasScaler>(true)).ToArray();
+            ComponentInfoCardGifPlayer[] players = roots.SelectMany(root => root.GetComponentsInChildren<ComponentInfoCardGifPlayer>(true)).ToArray();
+            ComponentInfoCardPrefabLabPreview[] drivers = roots.SelectMany(root => root.GetComponentsInChildren<ComponentInfoCardPrefabLabPreview>(true)).ToArray();
 
             Check(ref valid, views.Length == 1, "Prefab Lab 场景必须只有一个 ComponentInfoCardView");
+            Check(ref valid, players.Length == 1 && players[0].IsValid, "Prefab Lab 必须只有一个有效 GIF 播放器");
+            Check(ref valid, drivers.Length == 1 && drivers[0].IsValid, "Prefab Lab 必须只有一个有效 GIF 预览驱动");
+            Check(
+                ref valid,
+                drivers.Length == 1 && drivers[0].GifFileName == SampleGifFileName,
+                "Prefab Lab 应自动预览 Laser.gif");
             Check(ref valid, canvases.Length == 1 && canvases[0].renderMode == RenderMode.ScreenSpaceOverlay, "Prefab Lab Canvas 配置错误");
             Check(
                 ref valid,
@@ -422,7 +532,8 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             {
                 Check(ref valid, views[0].TitleText.text == SampleTitle, "Prefab Lab 示例标题不是“激光器”");
                 Check(ref valid, views[0].DescriptionText.text == SampleDescription, "Prefab Lab 激光器示例文案不正确");
-                Check(ref valid, !views[0].PreviewImage.enabled, "Prefab Lab 左侧预览应保持空白");
+                Check(ref valid, !views[0].PreviewImage.enabled, "Prefab Lab 静态回退图应默认为空");
+                Check(ref valid, !views[0].AnimatedPreviewImage.enabled, "Prefab Lab GIF 应只在 Play Mode 开始播放");
             }
 
             if (openedForValidation)

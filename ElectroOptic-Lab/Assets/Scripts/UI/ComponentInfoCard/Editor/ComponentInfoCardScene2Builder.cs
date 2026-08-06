@@ -192,16 +192,27 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                 if (content == null && AssetDatabase.LoadMainAssetAtPath(path) != null)
                     throw new InvalidDataException("内容资产类型不正确：" + path);
 
-                if (content == null)
-                {
+                bool created = content == null;
+                if (created)
                     content = ScriptableObject.CreateInstance<ComponentInfoCardContent>();
-                    SerializedObject serialized = new SerializedObject(content);
+
+                SerializedObject serialized = new SerializedObject(content);
+                if (created)
+                {
                     serialized.FindProperty("componentName").stringValue = definition.Title;
                     serialized.FindProperty("description").stringValue = definition.Description;
                     serialized.FindProperty("previewSprite").objectReferenceValue = null;
-                    serialized.ApplyModifiedPropertiesWithoutUndo();
-                    AssetDatabase.CreateAsset(content, path);
                 }
+
+                SerializedProperty gifFileName = serialized.FindProperty("previewGifFileName");
+                if (string.IsNullOrWhiteSpace(gifFileName.stringValue))
+                    gifFileName.stringValue = definition.GifFileName;
+
+                bool changed = serialized.ApplyModifiedPropertiesWithoutUndo();
+                if (created)
+                    AssetDatabase.CreateAsset(content, path);
+                else if (changed)
+                    EditorUtility.SetDirty(content);
 
                 result.Add(definition.Key, content);
             }
@@ -223,6 +234,15 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                 if (content != null)
                 {
                     Check(ref valid, content.IsValid, "内容资产无效：" + path);
+                    bool gifFileNameValid = ComponentInfoCardGifPlayer.IsSafeGifFileName(content.PreviewGifFileName);
+                    Check(ref valid, gifFileNameValid, "Invalid GIF file name in content asset: " + path);
+                    if (gifFileNameValid)
+                    {
+                        Check(
+                            ref valid,
+                            File.Exists(Path.GetFullPath(GetGifAssetPath(content.PreviewGifFileName))),
+                            "Missing GIF file for content asset: " + content.PreviewGifFileName);
+                    }
                     result[definition.Key] = content;
                 }
             }
@@ -330,6 +350,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             serialized.FindProperty("hoverCamera").objectReferenceValue = mainCamera;
             serialized.FindProperty("targetCanvas").objectReferenceValue = canvas;
             serialized.FindProperty("cardView").objectReferenceValue = cardView;
+            serialized.FindProperty("gifPlayer").objectReferenceValue = cardView.GetComponent<ComponentInfoCardGifPlayer>();
             serialized.FindProperty("hoverLayerMask").intValue = 1 << componentLayer;
             serialized.FindProperty("hoverDelay").floatValue = 0.6f;
             serialized.FindProperty("disableInCloseUp").boolValue = true;
@@ -396,6 +417,12 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             {
                 ComponentInfoCardView view = cards[0];
                 Check(ref valid, view.IsValid, "Scene2 悬停卡片 View 引用不完整");
+                ComponentInfoCardGifPlayer[] players = view.GetComponentsInChildren<ComponentInfoCardGifPlayer>(true);
+                Check(ref valid, players.Length == 1 && players[0].IsValid, "Scene2 card must have one valid GIF player");
+                if (players.Length == 1 && controllers.Count == 1)
+                {
+                    Check(ref valid, controllers[0].GifPlayer == players[0], "Hover controller GIF player reference is invalid");
+                }
                 Vector2 expectedSize = new Vector2(ComponentInfoCardPrefabBuilder.CardWidth, ComponentInfoCardPrefabBuilder.CardHeight);
                 Check(ref valid, Approximately(view.CardRect.rect.size, expectedSize), "悬停卡片尺寸不是 520×272");
                 Check(ref valid, !view.gameObject.activeSelf, "悬停卡片在场景中应默认隐藏");
@@ -407,6 +434,10 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
                     "悬停卡片不是 ComponentInfoCard.prefab 的实例");
             }
 
+            Check(
+                ref valid,
+                FindComponentsInScene<ComponentInfoCardPrefabLabPreview>(scene).Count == 0,
+                "Scene2 must not contain the Prefab Lab preview driver");
             GameObject canvasObject = FindSingleSceneObject(scene, CanvasName);
             Check(ref valid, canvasObject != null, "Scene2 缺少 WindowsCanvas");
             if (canvasObject != null)
@@ -510,6 +541,11 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             return ContentRoot + "/ComponentInfoCard_" + key + ".asset";
         }
 
+        private static string GetGifAssetPath(string fileName)
+        {
+            return "Assets/StreamingAssets/" + ComponentInfoCardGifPlayer.StreamingAssetsFolderName + "/" + fileName;
+        }
+
         private static void EnsureFolder(string folderPath)
         {
             string normalized = folderPath.Replace('\\', '/');
@@ -562,6 +598,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             public string Key { get; }
             public string Title { get; }
             public string Description { get; }
+            public string GifFileName => Key + ".gif";
         }
 
         private readonly struct TargetDefinition

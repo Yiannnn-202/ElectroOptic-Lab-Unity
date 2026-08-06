@@ -13,10 +13,12 @@ namespace ElectroOptics.UI.ComponentInfoCard
         [SerializeField] private string componentName = string.Empty;
         [SerializeField, TextArea(4, 8)] private string description = string.Empty;
         [SerializeField] private Sprite previewSprite;
+        [SerializeField] private string previewGifFileName = string.Empty;
 
         public string ComponentName => componentName;
         public string Description => description;
         public Sprite PreviewSprite => previewSprite;
+        public string PreviewGifFileName => previewGifFileName;
 
         public bool IsValid => !string.IsNullOrWhiteSpace(componentName)
                                && !string.IsNullOrWhiteSpace(description);

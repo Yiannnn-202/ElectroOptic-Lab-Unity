@@ -20,6 +20,8 @@ namespace ElectroOptics.UI.ComponentInfoCard
         [SerializeField] private TextMeshProUGUI titleText;
         [SerializeField] private TextMeshProUGUI descriptionText;
         [SerializeField] private Image previewImage;
+        [SerializeField] private RawImage animatedPreviewImage;
+        [SerializeField] private AspectRatioFitter animatedPreviewFitter;
         [SerializeField] private ComponentInfoCardGridGraphic gridGraphic;
 
         public CanvasGroup RootGroup => rootGroup;
@@ -29,6 +31,8 @@ namespace ElectroOptics.UI.ComponentInfoCard
         public TextMeshProUGUI TitleText => titleText;
         public TextMeshProUGUI DescriptionText => descriptionText;
         public Image PreviewImage => previewImage;
+        public RawImage AnimatedPreviewImage => animatedPreviewImage;
+        public AspectRatioFitter AnimatedPreviewFitter => animatedPreviewFitter;
         public ComponentInfoCardGridGraphic GridGraphic => gridGraphic;
 
         public bool IsValid => rootGroup != null
@@ -38,6 +42,8 @@ namespace ElectroOptics.UI.ComponentInfoCard
                                && titleText != null
                                && descriptionText != null
                                && previewImage != null
+                               && animatedPreviewImage != null
+                               && animatedPreviewFitter != null
                                && gridGraphic != null;
 
         /// <summary>
@@ -55,7 +61,42 @@ namespace ElectroOptics.UI.ComponentInfoCard
                 return;
 
             previewImage.sprite = previewSprite;
-            previewImage.enabled = previewSprite != null;
+            ClearAnimatedPreview();
+        }
+
+        /// <summary>Displays a runtime-decoded frame while preserving its source aspect ratio.</summary>
+        public void SetAnimatedPreview(Texture texture)
+        {
+            if (texture == null)
+            {
+                ClearAnimatedPreview();
+                return;
+            }
+
+            if (animatedPreviewImage != null)
+            {
+                animatedPreviewImage.texture = texture;
+                animatedPreviewImage.enabled = true;
+            }
+
+            if (animatedPreviewFitter != null && texture.height > 0)
+                animatedPreviewFitter.aspectRatio = (float)texture.width / texture.height;
+
+            if (previewImage != null)
+                previewImage.enabled = false;
+        }
+
+        /// <summary>Clears the animated frame and restores the configured static fallback.</summary>
+        public void ClearAnimatedPreview()
+        {
+            if (animatedPreviewImage != null)
+            {
+                animatedPreviewImage.texture = null;
+                animatedPreviewImage.enabled = false;
+            }
+
+            if (previewImage != null)
+                previewImage.enabled = previewImage.sprite != null;
         }
     }
 }

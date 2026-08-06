@@ -1,6 +1,6 @@
 # 开发文档索引
 
-> 最后更新：2026-05-13
+> 最后更新：2026-08-06
 
 ---
 
@@ -45,6 +45,8 @@
 |------|------|
 | [Guide_Conoscopic_KnobAdjust_Setup](Guide/Guide_Conoscopic_KnobAdjust_Setup.md) | 锥光干涉旋钮调节配置指南 |
 | [UnifiedScreenPanel_EditorSetup](Guide/UnifiedScreenPanel_EditorSetup.md) | 统一显示面板编辑器配置指南 |
+| [Scene2_ComponentInfoCard_Photoshop_Slicing_Guide](Guide/Scene2_ComponentInfoCard_Photoshop_Slicing_Guide.md) | Scene2 元件介绍卡 Photoshop 切图与 Unity 资产制作指南 |
+| [Scene2_ComponentInfoCard_Rotating_GIF_Art_Spec](Guide/Scene2_ComponentInfoCard_Rotating_GIF_Art_Spec.md) | Scene2 元件旋转 GIF 美术制作、导出与交付规范 |
 
 ## Plan（实施计划）
 

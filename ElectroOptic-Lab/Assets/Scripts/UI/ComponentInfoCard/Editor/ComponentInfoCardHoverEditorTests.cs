@@ -65,6 +65,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             Assert(prefab != null, "缺少 ComponentInfoCard.prefab");
             GameObject cardObject = UnityEngine.Object.Instantiate(prefab, canvasObject.transform, false);
             ComponentInfoCardView view = cardObject.GetComponent<ComponentInfoCardView>();
+            ComponentInfoCardGifPlayer gifPlayer = cardObject.GetComponent<ComponentInfoCardGifPlayer>();
 
             GameObject cameraObject = new GameObject("HoverTestCamera", typeof(Camera));
             Camera camera = cameraObject.GetComponent<Camera>();
@@ -78,6 +79,7 @@ namespace ElectroOptics.UI.ComponentInfoCard.Editor
             SetPrivateField(controller, "hoverCamera", camera);
             SetPrivateField(controller, "targetCanvas", canvas);
             SetPrivateField(controller, "cardView", view);
+            SetPrivateField(controller, "gifPlayer", gifPlayer);
             SetPrivateField(controller, "hoverDelay", 0.6f);
             SetPrivateField(controller, "fadeDuration", 0.18f);
             Invoke(controller, "PrepareHiddenState");

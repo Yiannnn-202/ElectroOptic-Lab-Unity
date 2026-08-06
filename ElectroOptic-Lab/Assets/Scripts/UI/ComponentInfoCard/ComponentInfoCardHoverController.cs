@@ -15,6 +15,7 @@ namespace ElectroOptics.UI.ComponentInfoCard
         [SerializeField] private Camera hoverCamera;
         [SerializeField] private Canvas targetCanvas;
         [SerializeField] private ComponentInfoCardView cardView;
+        [SerializeField] private ComponentInfoCardGifPlayer gifPlayer;
 
         [Header("Hover Detection")]
         [SerializeField] private LayerMask hoverLayerMask = 1 << 7;
@@ -39,6 +40,7 @@ namespace ElectroOptics.UI.ComponentInfoCard
         public ComponentInfoCardTarget VisibleTarget => visibleTarget;
         public float HoverDelay => hoverDelay;
         public float FadeDuration => fadeDuration;
+        public ComponentInfoCardGifPlayer GifPlayer => gifPlayer;
         public bool IsCardVisible => cardView != null
                                      && cardView.RootGroup != null
                                      && cardView.RootGroup.alpha > 0f;
@@ -90,6 +92,9 @@ namespace ElectroOptics.UI.ComponentInfoCard
 
             if (cardView != null && targetCanvas == null)
                 targetCanvas = cardView.GetComponentInParent<Canvas>();
+
+            if (gifPlayer == null && cardView != null)
+                gifPlayer = cardView.GetComponent<ComponentInfoCardGifPlayer>();
         }
 
         private void PrepareHiddenState()
@@ -101,6 +106,7 @@ namespace ElectroOptics.UI.ComponentInfoCard
             if (cardView == null || cardView.RootGroup == null)
                 return;
 
+            gifPlayer?.Stop();
             cardView.RootGroup.alpha = 0f;
             cardView.RootGroup.interactable = false;
             cardView.RootGroup.blocksRaycasts = false;
@@ -195,6 +201,7 @@ namespace ElectroOptics.UI.ComponentInfoCard
                 target.Content.PreviewSprite);
             cardView.transform.SetAsLastSibling();
             cardView.gameObject.SetActive(true);
+            gifPlayer?.Play(target.Content.PreviewGifFileName);
             visibleTarget = target;
             desiredAlpha = 1f;
         }
@@ -284,7 +291,10 @@ namespace ElectroOptics.UI.ComponentInfoCard
             }
 
             if (desiredAlpha <= 0f && group.alpha <= 0f && cardView.gameObject.activeSelf)
+            {
+                gifPlayer?.Stop();
                 cardView.gameObject.SetActive(false);
+            }
         }
 
         private void ResetHoverState(bool immediate)
@@ -297,6 +307,7 @@ namespace ElectroOptics.UI.ComponentInfoCard
             if (!immediate || cardView == null || cardView.RootGroup == null)
                 return;
 
+            gifPlayer?.Stop();
             cardView.RootGroup.alpha = 0f;
             cardView.gameObject.SetActive(false);
         }
