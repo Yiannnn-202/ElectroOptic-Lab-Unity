@@ -8,6 +8,8 @@ namespace ElectroOptics.UI.ExperimentGuide
     [DisallowMultipleComponent]
     public sealed class Scene2GuideGifPopup : MonoBehaviour
     {
+        private const float DefaultMediaAspectRatio = 16f / 9f;
+        private const float MediaViewportHeight = 482f;
         private static readonly Color AccentColor = new Color(0.25f, 0.86f, 1f, 0.98f);
         private static readonly Color PanelColor = new Color(0.025f, 0.10f, 0.16f, 0.98f);
 
@@ -117,7 +119,7 @@ namespace ElectroOptics.UI.ExperimentGuide
             mediaImage.texture = texture;
             mediaFitter.aspectRatio = texture.height > 0
                 ? (float)texture.width / texture.height
-                : 16f / 9f;
+                : DefaultMediaAspectRatio;
             mediaImage.gameObject.SetActive(true);
             messageText.gameObject.SetActive(false);
         }
@@ -184,9 +186,12 @@ namespace ElectroOptics.UI.ExperimentGuide
 
             GameObject viewport = CreateRectObject("MediaViewport", panel.transform);
             RectTransform viewportRect = viewport.GetComponent<RectTransform>();
-            SetRect(viewportRect, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(34f, 82f), new Vector2(-34f, -76f));
+            viewportRect.anchorMin = viewportRect.anchorMax = new Vector2(0.5f, 0.5f);
+            viewportRect.pivot = new Vector2(0.5f, 0.5f);
+            viewportRect.sizeDelta = new Vector2(MediaViewportHeight * DefaultMediaAspectRatio, MediaViewportHeight);
+            viewportRect.anchoredPosition = new Vector2(0f, 3f);
             Image viewportImage = viewport.AddComponent<Image>();
-            viewportImage.color = new Color(0.005f, 0.018f, 0.025f, 1f);
+            viewportImage.color = PanelColor;
             viewportImage.raycastTarget = false;
 
             GameObject media = CreateRectObject("GifImage", viewport.transform);
@@ -195,7 +200,7 @@ namespace ElectroOptics.UI.ExperimentGuide
             mediaImage.raycastTarget = false;
             mediaFitter = media.AddComponent<AspectRatioFitter>();
             mediaFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            mediaFitter.aspectRatio = 16f / 9f;
+            mediaFitter.aspectRatio = DefaultMediaAspectRatio;
 
             messageText = CreateText(
                 "MessageText",
