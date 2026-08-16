@@ -7,7 +7,8 @@ namespace ElectroOptics.UI.ExperimentGuide
     /// </summary>
     public static class Scene2GuideStageEvaluator
     {
-        public const string MissingBrightBaselineMessage = "请先将检偏器调至亮态以建立基准";
+        public const string MissingOpticalSignalMessage = "请确认光线正通过检偏器投射到光屏";
+        public const string AdjustAnalyzerMessage = "请继续调节检偏器，直至光点消失";
         public const string OpenPowerMeterDataProcessingMessage = "请双击名称为“功率计”的元件进入数据处理";
         public const string OpenOscilloscopeDataProcessingMessage = "请双击名称为“示波器”的元件进入数据处理";
 
@@ -89,17 +90,6 @@ namespace ElectroOptics.UI.ExperimentGuide
                    && Mathf.Abs(offset.y) <= halfSize;
         }
 
-        public static bool CanSampleBrightBaseline(
-            Scene2GuideStateSnapshot snapshot,
-            Scene2GuideSettings settings)
-        {
-            return settings != null
-                   && HasExtinctionOpticalPath(snapshot, settings)
-                   && snapshot.screenTelemetryValid
-                   && snapshot.screenIntensity > 0f
-                   && snapshot.polarizerDelta <= settings.parallelToleranceDegrees;
-        }
-
         public static bool HasExtinctionOpticalPath(
             Scene2GuideStateSnapshot snapshot,
             Scene2GuideSettings settings)
@@ -150,15 +140,16 @@ namespace ElectroOptics.UI.ExperimentGuide
             if (!HasExtinctionOpticalPath(snapshot, settings) || !snapshot.screenTelemetryValid)
                 return Scene2GuideStageEvaluation.Waiting();
 
-            if (!session.brightBaselineReady || session.brightBaseline <= 0f)
-                return Scene2GuideStageEvaluation.Waiting(MissingBrightBaselineMessage);
+            // 收到强度为 0 的光学链信号才代表真正消光；不能把光路中断误认为黑点。
+            if (!snapshot.screenReceivesOpticalSignal)
+                return Scene2GuideStageEvaluation.Waiting(MissingOpticalSignalMessage);
 
-            bool orthogonal = Mathf.Abs(snapshot.polarizerDelta - 90f)
-                              <= settings.orthogonalToleranceDegrees;
             bool darkEnough = snapshot.screenIntensity
-                              <= session.brightBaseline * settings.extinctionRatio;
+                              <= settings.extinctionIntensityThreshold;
 
-            return Scene2GuideStageEvaluation.FromCondition(orthogonal && darkEnough);
+            return Scene2GuideStageEvaluation.FromCondition(
+                darkEnough,
+                darkEnough ? null : AdjustAnalyzerMessage);
         }
     }
 }

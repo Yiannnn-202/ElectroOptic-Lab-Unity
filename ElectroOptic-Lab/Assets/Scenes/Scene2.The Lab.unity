@@ -24080,7 +24080,7 @@ MonoBehaviour:
     gifFileName: CalibrateLaser.gif
   - id: 2
     title: "\u9A8C\u8BC1\u6D88\u5149"
-    body: "\u4F9D\u6B21\u653E\u7F6E\u8D77\u504F\u5668\u548C\u68C0\u504F\u5668\u3002\u5148\u5C06\u4E24\u8005\u8C03\u81F3\u8FD1\u4F3C\u5E73\u884C\u5EFA\u7ACB\u4EAE\u6001\u57FA\u51C6\uFF0C\u518D\u628A\u68C0\u504F\u5668\u8C03\u81F3\u6B63\u4EA4\uFF0C\u4F7F\u5149\u5C4F\u63A5\u8FD1\u6D88\u5149\u3002"
+    body: "\u4F9D\u6B21\u653E\u7F6E\u8D77\u504F\u5668\u548C\u68C0\u504F\u5668\u3002\u8C03\u8282\u68C0\u504F\u5668\uFF0C\u76F4\u81F3\u5149\u5C4F\u4E0A\u7684\u5149\u70B9\u6D88\u5931\uFF0C\u5B8C\u6210\u6D88\u5149\u9A8C\u8BC1\u3002"
     gifFileName: VerifyExtinction.gif
   - id: 3
     title: "\u89C2\u5BDF\u9525\u5149\u5E72\u6D89"
@@ -24100,9 +24100,7 @@ MonoBehaviour:
     foldAnimationSeconds: 0.2
     calibrationAreaSizePixels: 64
     screenCenterPixels: {x: 256, y: 256}
-    parallelToleranceDegrees: 8
-    orthogonalToleranceDegrees: 8
-    extinctionRatio: 0.05
+    extinctionIntensityThreshold: 0.001
     railOrderEpsilonMeters: 0.01
     defaultPosePositionTolerance: 0.02
     defaultPoseAngleTolerance: 0.5

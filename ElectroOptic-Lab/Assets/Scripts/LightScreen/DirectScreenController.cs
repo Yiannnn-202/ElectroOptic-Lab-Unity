@@ -41,6 +41,7 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
 
     private float currentIntensity = 0f;
     private bool receivedLightThisFrame = false;
+    private float lastOpticalSignalTime = float.NegativeInfinity;
 
     private float lastDrawnIntensity = -1f;
 
@@ -54,6 +55,9 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
     /// 公开纹理供 UnifiedScreenPanel 读取
     /// </summary>
     public Texture SharedTexture => _renderTexture;
+    public float CurrentIntensity => currentIntensity;
+    public Vector2 CurrentSpotPosition => new Vector2(targetCenterX, targetCenterY);
+    public bool HasRecentOpticalSignal => Time.unscaledTime - lastOpticalSignalTime <= 0.15f;
 
     void Start()
     {
@@ -111,6 +115,7 @@ public class DirectScreenController : MonoBehaviour, IOpticalReceiver
     {
         currentIntensity = lightIn.intensity;
         receivedLightThisFrame = true;
+        lastOpticalSignalTime = Time.unscaledTime;
         Debug.Log($"[DirectScreen] ReceiveLight I={lightIn.intensity:F6} S1={lightIn.stokesQ:F6} S2={lightIn.stokesU:F6} S3={lightIn.stokesV:F6}");
 
         // 获取激光打在光屏上的局部坐标

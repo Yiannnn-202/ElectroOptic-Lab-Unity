@@ -42,7 +42,6 @@ namespace ElectroOptics.UI.ExperimentGuide
         private float conditionTimer;
         private float feedbackTimer;
         private float calibrationCenteredTimer;
-        private float brightBaselineTimer;
         private Scene2GuideSessionState sessionState;
         private bool initialized;
         private bool sessionActive;
@@ -140,9 +139,6 @@ namespace ElectroOptics.UI.ExperimentGuide
                 return;
             }
 
-            if (stageId == Scene2GuideStageId.VerifyExtinction)
-                UpdateBrightBaseline(snapshot);
-
             Scene2GuideStageEvaluation evaluation = Scene2GuideStageEvaluator.Evaluate(
                 stageId,
                 snapshot,
@@ -172,7 +168,6 @@ namespace ElectroOptics.UI.ExperimentGuide
             conditionTimer = 0f;
             feedbackTimer = 0f;
             calibrationCenteredTimer = 0f;
-            brightBaselineTimer = 0f;
             sessionState = default(Scene2GuideSessionState);
             inFeedback = false;
             finished = false;
@@ -225,28 +220,6 @@ namespace ElectroOptics.UI.ExperimentGuide
                 : string.Empty;
         }
 
-        private void UpdateBrightBaseline(Scene2GuideStateSnapshot snapshot)
-        {
-            bool sampleReady = Scene2GuideStageEvaluator.CanSampleBrightBaseline(snapshot, settings);
-            if (!sessionState.brightBaselineReady)
-            {
-                brightBaselineTimer = sampleReady
-                    ? brightBaselineTimer + Time.unscaledDeltaTime
-                    : 0f;
-                if (brightBaselineTimer >= settings.conditionStableSeconds)
-                {
-                    sessionState.brightBaselineReady = true;
-                    sessionState.brightBaseline = snapshot.screenIntensity;
-                    Debug.Log(
-                        $"[Scene2RealtimeGuide] 已建立消光亮态基准：{sessionState.brightBaseline:F6}",
-                        this);
-                }
-            }
-
-            if (sessionState.brightBaselineReady && sampleReady)
-                sessionState.brightBaseline = Mathf.Max(sessionState.brightBaseline, snapshot.screenIntensity);
-        }
-
         private void OnCalibrationCommitted()
         {
             if (!initialized || finished || inFeedback || IsModalOpen)
@@ -290,12 +263,6 @@ namespace ElectroOptics.UI.ExperimentGuide
 
             stageIndex++;
             calibrationCenteredTimer = 0f;
-            if (stages[stageIndex].id == Scene2GuideStageId.VerifyExtinction)
-            {
-                brightBaselineTimer = 0f;
-                sessionState.brightBaselineReady = false;
-                sessionState.brightBaseline = 0f;
-            }
             RenderCurrentStage();
         }
 

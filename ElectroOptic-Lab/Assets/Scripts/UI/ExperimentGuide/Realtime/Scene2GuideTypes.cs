@@ -52,7 +52,7 @@ namespace ElectroOptics.UI.ExperimentGuide
                 new Scene2GuideStageDefinition(
                     Scene2GuideStageId.VerifyExtinction,
                     "验证消光",
-                    "依次放置起偏器和检偏器。先将两者调至近似平行建立亮态基准，再把检偏器调至正交，使光屏接近消光。",
+                    "依次放置起偏器和检偏器。调节检偏器，直至光屏上的光点消失，完成消光验证。",
                     "VerifyExtinction.gif"),
                 new Scene2GuideStageDefinition(
                     Scene2GuideStageId.ObserveConoscopic,
@@ -81,9 +81,7 @@ namespace ElectroOptics.UI.ExperimentGuide
         [Min(0.01f)] public float foldAnimationSeconds = 0.2f;
         [Min(0f)] public float calibrationAreaSizePixels = 64f;
         public Vector2 screenCenterPixels = new Vector2(256f, 256f);
-        [Range(0f, 45f)] public float parallelToleranceDegrees = 8f;
-        [Range(0f, 45f)] public float orthogonalToleranceDegrees = 8f;
-        [Range(0f, 1f)] public float extinctionRatio = 0.05f;
+        [Min(0f)] public float extinctionIntensityThreshold = 0.001f;
         [Min(0f)] public float railOrderEpsilonMeters = 0.01f;
         [Min(0f)] public float defaultPosePositionTolerance = 0.02f;
         [Min(0f)] public float defaultPoseAngleTolerance = 0.5f;
@@ -97,6 +95,7 @@ namespace ElectroOptics.UI.ExperimentGuide
         public bool referencesValid;
         public bool screenTelemetryValid;
         public bool screenReceivesEffectiveLaser;
+        public bool screenReceivesOpticalSignal;
 
         public bool screenOnRail;
         public bool polarizerOnRail;
@@ -125,8 +124,6 @@ namespace ElectroOptics.UI.ExperimentGuide
 
     public struct Scene2GuideSessionState
     {
-        public bool brightBaselineReady;
-        public float brightBaseline;
         public bool calibrationCenteredReady;
     }
 

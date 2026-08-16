@@ -210,10 +210,12 @@ namespace ElectroOptics.UI.ExperimentGuide
 
             float intensity = 0f;
             Vector2 spot = Vector2.zero;
+            bool receivesOpticalSignal = false;
             snapshot.screenTelemetryValid = telemetryReader != null
-                                            && telemetryReader.TryRead(out intensity, out spot);
+                                            && telemetryReader.TryRead(out intensity, out spot, out receivesOpticalSignal);
             snapshot.screenIntensity = snapshot.screenTelemetryValid ? Mathf.Max(0f, intensity) : 0f;
             snapshot.screenSpotPosition = snapshot.screenTelemetryValid ? spot : Vector2.zero;
+            snapshot.screenReceivesOpticalSignal = snapshot.screenTelemetryValid && receivesOpticalSignal;
             snapshot.screenReceivesEffectiveLaser = snapshot.screenTelemetryValid
                                                      && snapshot.screenIntensity > 0f
                                                      && DoesDirectBeamHitScreen();
@@ -238,6 +240,38 @@ namespace ElectroOptics.UI.ExperimentGuide
 
         private void ResolvePolarizers(OpticalComponent[] components, bool logFallback)
         {
+            // Scene 2 uses the same prefab for both optical elements.  The scene's
+            // serialized references can therefore be swapped without Unity reporting
+            // a missing reference.  Prefer the explicit teaching labels whenever they
+            // are available, so the guide always treats the named 起偏器 as the
+            // polarizer and the named 检偏器 as the analyzer.
+            OpticalComponent namedPolarizer = FindUniqueByName(components, "polarizer", "起偏器");
+            OpticalComponent namedAnalyzer = FindUniqueByName(components, "analyzer", "检偏器");
+            if (namedPolarizer != null && namedAnalyzer != null && namedPolarizer != namedAnalyzer)
+            {
+                RotateStandController namedPolarizerStand = FindRotateStand(namedPolarizer);
+                RotateStandController namedAnalyzerStand = FindRotateStand(namedAnalyzer);
+                bool corrected = polarizer != namedPolarizer
+                                 || analyzer != namedAnalyzer
+                                 || (namedPolarizerStand != null && polarizerStand != namedPolarizerStand)
+                                 || (namedAnalyzerStand != null && analyzerStand != namedAnalyzerStand);
+
+                polarizer = namedPolarizer;
+                analyzer = namedAnalyzer;
+                if (namedPolarizerStand != null)
+                    polarizerStand = namedPolarizerStand;
+                if (namedAnalyzerStand != null)
+                    analyzerStand = namedAnalyzerStand;
+
+                if (corrected && logFallback && fallbackWarnings.Add("polarizerRoleCorrection"))
+                {
+                    Debug.LogWarning(
+                        $"{LogPrefix} 已按场景名称修正起偏器/检偏器引用：起偏器为 `{GetHierarchyPath(polarizer.transform)}`，检偏器为 `{GetHierarchyPath(analyzer.transform)}`。",
+                        this);
+                }
+                return;
+            }
+
             if (polarizer != null && analyzer != null && polarizerStand != null && analyzerStand != null)
                 return;
 
@@ -352,6 +386,16 @@ namespace ElectroOptics.UI.ExperimentGuide
                    ?? owner.GetComponentInChildren<OpticalComponent>(true);
         }
 
+        private static RotateStandController FindRotateStand(OpticalComponent component)
+        {
+            if (component == null)
+                return null;
+
+            return component.GetComponent<RotateStandController>()
+                   ?? component.GetComponentInParent<RotateStandController>()
+                   ?? component.GetComponentInChildren<RotateStandController>(true);
+        }
+
         private OpticalComponent FindUniqueByName(
             OpticalComponent[] components,
             string fieldName,
@@ -429,37 +473,31 @@ namespace ElectroOptics.UI.ExperimentGuide
     {
         private const string LogPrefix = "[Scene2RealtimeGuide]";
         private readonly DirectScreenController controller;
-        private readonly FieldInfo intensityField;
-        private readonly FieldInfo centerXField;
-        private readonly FieldInfo centerYField;
         private bool errorLogged;
 
         public Scene2GuideScreenTelemetryReader(DirectScreenController target)
         {
             controller = target;
-            Type type = typeof(DirectScreenController);
-            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
-            intensityField = type.GetField("currentIntensity", flags);
-            centerXField = type.GetField("targetCenterX", flags);
-            centerYField = type.GetField("targetCenterY", flags);
         }
 
-        public bool TryRead(out float intensity, out Vector2 spotPosition)
+        public bool TryRead(out float intensity, out Vector2 spotPosition, out bool receivesOpticalSignal)
         {
             intensity = 0f;
             spotPosition = Vector2.zero;
-            if (controller == null || intensityField == null || centerXField == null || centerYField == null)
+            receivesOpticalSignal = false;
+            if (controller == null)
             {
-                LogErrorOnce("DirectScreenController 遥测字段缺失，无法读取屏幕强度或红点位置。");
+                LogErrorOnce("DirectScreenController 缺失，无法读取屏幕强度或红点位置。");
                 return false;
             }
 
             try
             {
-                intensity = (float)intensityField.GetValue(controller);
-                float x = (float)centerXField.GetValue(controller);
-                float y = (float)centerYField.GetValue(controller);
-                spotPosition = new Vector2(x, y);
+                intensity = controller.CurrentIntensity;
+                spotPosition = controller.CurrentSpotPosition;
+                receivesOpticalSignal = controller.HasRecentOpticalSignal;
+                float x = spotPosition.x;
+                float y = spotPosition.y;
                 bool valid = !float.IsNaN(intensity)
                              && !float.IsInfinity(intensity)
                              && !float.IsNaN(x)

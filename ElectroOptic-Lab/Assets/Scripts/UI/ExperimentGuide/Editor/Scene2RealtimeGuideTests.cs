@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using ElectroOptics.UI.ScreenDisplay;
 using UnityEditor;
 using UnityEngine;
@@ -25,8 +26,9 @@ namespace ElectroOptics.UI.ExperimentGuide.Editor
             Run("Calibration 64 x 64 area", TestCalibrationArea);
             Run("Calibration commit", TestCalibrationCommit);
             Run("Calibration uses mover-owned laser references", TestCalibrationReferenceAffinity);
-            Run("Extinction requires baseline", TestExtinctionRequiresBaseline);
-            Run("Extinction threshold", TestExtinctionThreshold);
+            Run("Named polarizer roles correct swapped references", TestNamedPolarizerRoles);
+            Run("Extinction requires optical signal", TestExtinctionRequiresOpticalSignal);
+            Run("Extinction absolute threshold", TestExtinctionThreshold);
             Run("Conoscopic path and mode", TestConoscopic);
             Run("Power meter Scene3 entry", TestPowerMeterScene3Entry);
             Run("Oscilloscope Scene4 entry", TestOscilloscopeScene4Entry);
@@ -53,6 +55,8 @@ namespace ElectroOptics.UI.ExperimentGuide.Editor
             AssertEqual(Scene2GuideStageId.InstallPowerMeterProbe, definitions[4].id, "stage 5");
             AssertEqual(Scene2GuideStageId.InstallPhotodiodeProbe, definitions[5].id, "stage 6");
             AssertEqual("InstallPhotodiodeProbe.gif", definitions[5].gifFileName, "gif mapping");
+            AssertTrue(definitions[2].body.Contains("光点消失"), "extinction guide emphasizes a dark spot");
+            AssertFalse(definitions[2].body.Contains("基准"), "extinction guide no longer requires a baseline");
         }
 
         private static void TestPolarizerAngleNormalization()
@@ -147,34 +151,72 @@ namespace ElectroOptics.UI.ExperimentGuide.Editor
             }
         }
 
-        private static void TestExtinctionRequiresBaseline()
+        private static void TestExtinctionRequiresOpticalSignal()
         {
             Scene2GuideStateSnapshot snapshot = ExtinctionSnapshot();
-            Scene2GuideSessionState session = default(Scene2GuideSessionState);
+            snapshot.screenReceivesOpticalSignal = false;
             Scene2GuideStageEvaluation result = Scene2GuideStageEvaluator.Evaluate(
                 Scene2GuideStageId.VerifyExtinction,
                 snapshot,
-                session,
+                default(Scene2GuideSessionState),
                 Settings());
-            AssertFalse(result.completionConditionMet, "no baseline");
-            AssertEqual(Scene2GuideStageEvaluator.MissingBrightBaselineMessage, result.statusMessage, "baseline message");
+            AssertFalse(result.completionConditionMet, "no optical signal");
+            AssertEqual(Scene2GuideStageEvaluator.MissingOpticalSignalMessage, result.statusMessage, "optical signal message");
+        }
+
+        private static void TestNamedPolarizerRoles()
+        {
+            GameObject polarizerObject = new GameObject("起偏器");
+            GameObject analyzerObject = new GameObject("检偏器");
+            GameObject providerObject = new GameObject("GuideTest_PolarizerProvider");
+            try
+            {
+                OpticalComponent namedPolarizer = polarizerObject.AddComponent<OpticalComponent>();
+                RotateStandController namedPolarizerStand = polarizerObject.AddComponent<RotateStandController>();
+                OpticalComponent namedAnalyzer = analyzerObject.AddComponent<OpticalComponent>();
+                RotateStandController namedAnalyzerStand = analyzerObject.AddComponent<RotateStandController>();
+                Scene2GuideStateProvider provider = providerObject.AddComponent<Scene2GuideStateProvider>();
+
+                SerializedObject serialized = new SerializedObject(provider);
+                serialized.FindProperty("polarizer").objectReferenceValue = namedAnalyzer;
+                serialized.FindProperty("polarizerStand").objectReferenceValue = namedAnalyzerStand;
+                serialized.FindProperty("analyzer").objectReferenceValue = namedPolarizer;
+                serialized.FindProperty("analyzerStand").objectReferenceValue = namedPolarizerStand;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+
+                MethodInfo resolver = typeof(Scene2GuideStateProvider).GetMethod(
+                    "ResolvePolarizers",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                AssertTrue(resolver != null, "polarizer resolver exists");
+                resolver.Invoke(provider, new object[] { new[] { namedPolarizer, namedAnalyzer }, false });
+
+                serialized.Update();
+                AssertEqual(namedPolarizer, serialized.FindProperty("polarizer").objectReferenceValue, "named polarizer");
+                AssertEqual(namedPolarizerStand, serialized.FindProperty("polarizerStand").objectReferenceValue, "named polarizer stand");
+                AssertEqual(namedAnalyzer, serialized.FindProperty("analyzer").objectReferenceValue, "named analyzer");
+                AssertEqual(namedAnalyzerStand, serialized.FindProperty("analyzerStand").objectReferenceValue, "named analyzer stand");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(providerObject);
+                UnityEngine.Object.DestroyImmediate(analyzerObject);
+                UnityEngine.Object.DestroyImmediate(polarizerObject);
+            }
         }
 
         private static void TestExtinctionThreshold()
         {
             Scene2GuideStateSnapshot snapshot = ExtinctionSnapshot();
-            Scene2GuideSessionState session = new Scene2GuideSessionState
-            {
-                brightBaselineReady = true,
-                brightBaseline = 1f
-            };
 
-            snapshot.screenIntensity = 0.05f;
-            AssertComplete(Scene2GuideStageId.VerifyExtinction, snapshot, session);
-            snapshot.screenIntensity = 0.0501f;
-            AssertIncomplete(Scene2GuideStageId.VerifyExtinction, snapshot, session);
-            snapshot.polarizerDelta = 81.9f;
-            AssertIncomplete(Scene2GuideStageId.VerifyExtinction, snapshot, session);
+            snapshot.screenIntensity = 0.001f;
+            AssertComplete(Scene2GuideStageId.VerifyExtinction, snapshot, default(Scene2GuideSessionState));
+            snapshot.screenIntensity = 0.0011f;
+            AssertIncomplete(Scene2GuideStageId.VerifyExtinction, snapshot, default(Scene2GuideSessionState));
+
+            // 完成只由真正的黑点决定，不再要求预先建立亮态基准或特定夹角。
+            snapshot.screenIntensity = 0f;
+            snapshot.polarizerDelta = 0f;
+            AssertComplete(Scene2GuideStageId.VerifyExtinction, snapshot, default(Scene2GuideSessionState));
         }
 
         private static void TestConoscopic()
@@ -277,6 +319,7 @@ namespace ElectroOptics.UI.ExperimentGuide.Editor
             snapshot.screenProjection = 3f;
             snapshot.polarizerDelta = 90f;
             snapshot.screenIntensity = 0.04f;
+            snapshot.screenReceivesOpticalSignal = true;
             return snapshot;
         }
 

@@ -39485,6 +39485,7 @@ GameObject:
   - component: {fileID: 1475552759}
   - component: {fileID: 1475552758}
   - component: {fileID: 1475552760}
+  - component: {fileID: 1475552761}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -39563,6 +39564,21 @@ MonoBehaviour:
   fieldAxis: 2
   worldLightDirection: {x: 0, y: 1, z: 0}
   modulationMode: 0
+--- !u!114 &1475552761
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1475552757}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e14ffd68ab94e838d6c775a6425e7dc, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  recordManager: {fileID: 1475552758}
+  shortcutKey: 100
+  voltageJitterVolts: 2
 --- !u!1 &1483061141
 GameObject:
   m_ObjectHideFlags: 1
