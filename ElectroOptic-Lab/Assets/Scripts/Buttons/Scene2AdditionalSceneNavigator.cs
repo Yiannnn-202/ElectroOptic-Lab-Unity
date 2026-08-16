@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using ElectroOptics.DataTransfer;
+using ElectroOptics.Experiment.Controller;
+using ElectroOptics.UI.ExperimentGuide;
 using ElectroOptics.UI.ScreenDisplay;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -38,6 +40,33 @@ public static class Scene2AdditionalSceneNavigator
 
         Scene active = SceneManager.GetActiveScene();
         return active.IsValid() && active.name != LabSceneName;
+    }
+
+    /// <summary>
+    /// Temporarily pauses Scene2 interaction for a modal that is displayed above the lab.
+    /// The caller must only restore a suspension it acquired successfully.
+    /// </summary>
+    public static bool TrySuspendScene2InteractionForModal()
+    {
+        if (_isTransitioning || _isScene2Suspended)
+            return false;
+
+        Scene labScene = SceneManager.GetSceneByName(LabSceneName);
+        if (!labScene.isLoaded || SceneManager.GetActiveScene().name != LabSceneName)
+            return false;
+
+        // A settings modal remains above Scene2, so keep its camera and canvas
+        // rendering active. The modal's own dimmer supplies the visual pause state.
+        SuspendScene2Interaction(disableVisualOutput: false);
+        return _isScene2Suspended;
+    }
+
+    /// <summary>
+    /// Restores Scene2 after <see cref="TrySuspendScene2InteractionForModal"/> succeeds.
+    /// </summary>
+    public static void RestoreScene2InteractionForModal()
+    {
+        RestoreScene2Interaction();
     }
 
     public static void OpenAdditionalExperiment(string sceneName)
@@ -239,6 +268,11 @@ public static class Scene2AdditionalSceneNavigator
 
     private static void SuspendScene2Interaction()
     {
+        SuspendScene2Interaction(disableVisualOutput: true);
+    }
+
+    private static void SuspendScene2Interaction(bool disableVisualOutput)
+    {
         if (_isScene2Suspended)
         {
             return;
@@ -260,6 +294,23 @@ public static class Scene2AdditionalSceneNavigator
         // would produce "Multiple EventSystems" warnings on restore.
         foreach (GameObject rootObject in labScene.GetRootGameObjects())
         {
+            // Scene2 guide input must also stop while a higher-priority modal is open.
+            SuspendEnabledComponents<Scene2CardGuide>(rootObject);
+            SuspendEnabledComponents<ExperimentGuidePopup>(rootObject);
+            SuspendEnabledComponents<Scene2GuideGifPopup>(rootObject);
+
+            // Direct input and click handlers not covered by the canvas raycast layer.
+            SuspendEnabledComponents<ClickAreaFocus>(rootObject);
+            SuspendEnabledComponents<ReceiverStateController>(rootObject);
+            SuspendEnabledComponents<LaserStateController>(rootObject);
+            SuspendEnabledComponents<LaserEmitterMover>(rootObject);
+            SuspendEnabledComponents<LaserKnobBridge>(rootObject);
+            SuspendEnabledComponents<RotateStandController>(rootObject);
+            SuspendEnabledComponents<RailObjectMover>(rootObject);
+            SuspendEnabledComponents<CrystalStateController>(rootObject);
+            SuspendEnabledComponents<KnobAdjuster>(rootObject);
+            SuspendEnabledComponents<CrystalKnobBridge>(rootObject);
+
             // UI interaction leaf components
             SuspendEnabledComponents<ScreenPanelInteraction>(rootObject);
 
@@ -286,10 +337,14 @@ public static class Scene2AdditionalSceneNavigator
             // Display panel (disable before its parent Canvas)
             SuspendEnabledComponents<UnifiedScreenPanel>(rootObject);
 
-            // Visual / audio output last
-            SuspendEnabledComponents<AudioListener>(rootObject);
-            SuspendEnabledComponents<Camera>(rootObject);
-            SuspendEnabledComponents<Canvas>(rootObject);
+            // Additive scene transitions hide Scene2 completely. Settings modals keep
+            // the scene rendered beneath their dimmer, so only their interaction is paused.
+            if (disableVisualOutput)
+            {
+                SuspendEnabledComponents<AudioListener>(rootObject);
+                SuspendEnabledComponents<Camera>(rootObject);
+                SuspendEnabledComponents<Canvas>(rootObject);
+            }
         }
 
         _isScene2Suspended = true;
